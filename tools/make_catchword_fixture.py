@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""
+make_catchword_fixture.py — generate a synthetic early modern page-imaged text.
+
+    python tools/make_catchword_fixture.py
+
+Writes `tests/fixtures/early_modern.txt` and its answer keys.
+
+**Synthetic, with the same limits recorded for the running-head fixture.** No
+Gutenberg text retains catchwords; transcribers remove them. This supplies
+something to develop against with exact ground truth, and cannot validate the
+rule. Real EEBO or ECCO transcription is still required.
+
+The generator works to make the task harder, not easier. Three traps are built
+in, each aimed at a way the rule could destroy prose:
+
+  1. A page ending in a **full line of prose** whose first word opens the next
+     page. This is the false positive the length guard exists to prevent, and
+     without that guard a line of real text is deleted.
+  2. A **two-word catchword**, since compositors set whatever fitted.
+  3. **Two pages with no catchword at all**, because a rule that silently
+     requires every page to match would reject the whole book over an omission.
+
+Deterministic: a fixed seed, so the fixture and its keys never drift.
+"""
+
+from __future__ import annotations
+
+import random
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "tests" / "fixtures" / "early_modern.txt"
+KEY = ROOT / "tests" / "keys" / "early_modern.key"
+FURN = ROOT / "tests" / "keys" / "early_modern.catchwords"
+
+SEED = 1603
+PAGES = 22
+HEAD = "THE VOYAGE"
+
+# Deliberately archaic, so nothing here is mistaken for the modern fixture.
+OPENERS = [
+    "And in the morning there came a messenger from the north.",
+    "Then did the master call all hands upon the deck.",
+    "Whereupon the company fell to prayer, as was their custom.",
+    "But the wind rose against them, and they made no way.",
+    "Now it happened that the pilot had gone before them.",
+    "So they departed thence, and came unto a fair harbour.",
+    "Yet none among them would speak of what had passed.",
+    "For the season was far spent, and the nights grew cold.",
+]
+MIDDLE = [
+    "and so he departed from that place, saying nothing at all",
+    "of what he had seen upon the water in the night season.",
+    "The men were weary, and the victual was near spent.",
+    "He wrote in his book the reckoning of that day.",
+    "There was no land in sight, nor any bird of the shore.",
+    "The master held his course by the star, as he had learned.",
+    "Many were sick, and two among them were like to die.",
+    "They cast the lead, and found no bottom at forty fathom.",
+]
+# The trap: a full line of prose beginning with the word that opens the page
+# after it. Long, so the length guard must be what saves it.
+TRAP_LINE = "And so the whole company gave thanks, being come to safety."
+TRAP_NEXT = "And so they set forth again upon the fourth day."
+
+
+def main() -> int:
+    rng = random.Random(SEED)
+    lines: list[str] = []
+    catchwords: list[int] = []   # 1-based line numbers of genuine catchwords
+
+    lines += ["THE VOYAGE", "", "OF THE SHIP ADVENTURE", "",
+              "Printed at London", "1603", ""]
+    front_end = len(lines)
+    lines += ["CHAPTER I", ""]
+    body_start = len(lines) - 1
+
+    no_catchword = {5, 13}          # pages where the compositor omitted it
+    two_word = {3, 9, 16}           # compositor set two words
+    trap_page = 7                   # ends with a full line, not a catchword
+
+    # Every page's opening line is fixed BEFORE anything is written, so each
+    # catchword can be read off the page it anticipates. An earlier version
+    # patched the openers afterwards and silently broke that relationship,
+    # which is the one thing this fixture exists to represent.
+    openers = [rng.choice(OPENERS) for _ in range(PAGES)]
+    if trap_page + 1 < PAGES:
+        openers[trap_page + 1] = TRAP_NEXT
+
+    for page in range(PAGES):
+        lines.append(HEAD)
+        lines.append("")
+
+        lines.append(openers[page])
+        for _ in range(rng.randint(18, 24)):
+            lines.append(rng.choice(MIDDLE))
+
+        # The catchword anticipates the NEXT page's opening line.
+        if page + 1 < PAGES:
+            words = openers[page + 1].split()
+            if page == trap_page:
+                # A long final line whose opening word genuinely begins the
+                # following page. Matches the content test perfectly and is
+                # ordinary prose; only the length guard saves it.
+                lines.append(TRAP_LINE)
+            elif page not in no_catchword:
+                n = 2 if page in two_word else 1
+                lines.append(" ".join(words[:n]))
+                catchwords.append(len(lines))
+
+        lines.append("")
+        lines.append(str(page + 1))
+        lines.append("")
+
+    text = "\n".join(lines).rstrip("\n") + "\n"
+    OUT.write_text(text, encoding="utf-8")
+    total = len(text.rstrip("\n").split("\n"))
+
+    KEY.write_text(f"""# Answer key: early_modern.txt
+#
+# SYNTHETIC. Generated by tools/make_catchword_fixture.py with seed {SEED}.
+# Regenerate with: python tools/make_catchword_fixture.py
+#
+# Region labels only. Catchwords are line-level, like all page furniture, so
+# they live in early_modern.catchwords instead. See design/DECISIONS.md.
+
+1-{front_end}\tfront_matter\tTitle page and imprint
+{body_start}-{total}\tbody\tCHAPTER I onward, page apparatus included
+""", encoding="utf-8")
+
+    FURN.write_text(f"""# Catchword key: early_modern.txt
+#
+# SYNTHETIC. Line numbers of genuine catchwords, exact by construction.
+#
+# {len(catchwords)} catchwords across {PAGES} pages.
+#
+# What must NOT appear here, and is the real test:
+#   - The full line "{TRAP_LINE}"
+#     ends page {trap_page + 1} and its first word opens the page after it. It
+#     matches the content test perfectly and is ordinary prose. Only the
+#     length guard prevents its deletion.
+#   - Pages {sorted(n + 1 for n in no_catchword)} carry no catchword. The rule must
+#     tolerate omissions rather than demanding every page match.
+
+""" + "".join(f"{n}\n" for n in catchwords), encoding="utf-8")
+
+    print(f"wrote {OUT.relative_to(ROOT)}  ({total:,} lines, {PAGES} pages)")
+    print(f"wrote {KEY.relative_to(ROOT)}")
+    print(f"wrote {FURN.relative_to(ROOT)}  ({len(catchwords)} catchwords)")
+    print(f"\ntrap line present: {TRAP_LINE in text} (must survive)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

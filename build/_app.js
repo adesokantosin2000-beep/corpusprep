@@ -162,7 +162,9 @@ async function loadText(name,buf){
   // only if the reader ticks the box below the section list.
   const fu=findFurnitureIn(d.lines,seg.regions);
   DOC={name,...d,regions:seg.regions,notes:[...extraNotes,...seg.notes],
-       furniture:fu.furniture,furnSeries:fu.candidates.filter(c=>c.accepted),
+       furniture:fu.furniture,
+       furnSeries:fu.candidates.filter(c=>c.accepted),
+       catchwords:fu.catchwords,catchwordMatches:fu.catchwordMatches,
        pageLength:fu.pageLength,
        stats:{chars:d.lines.join("\n").length,lines:d.lines.length,
               tokens:tt.tokens,types:tt.types},
@@ -242,7 +244,12 @@ function furnitureNotice(){
   const rows=DOC.furnSeries.map(c=>
     `<tr><td class="mono">${esc(c.text.slice(0,40))}</td>
          <td class="num">${c.lines.length}</td>
-         <td class="why">${esc(c.reason)}</td></tr>`).join("");
+         <td class="why">${esc(c.reason)}</td></tr>`).join("")
+    +(DOC.catchwords.size?`<tr>
+        <td class="mono">(catchwords)</td>
+        <td class="num">${DOC.catchwords.size}</td>
+        <td class="why">each repeats the first word of the following page, on
+          ${DOC.catchwords.size} of ${DOC.catchwordMatches.length} pages</td></tr>`:"");
   const on=!!CFG.dropFurniture;
   return `<div class="furn-notice ${on?"on":""}">
     <div class="furn-head">
@@ -252,7 +259,10 @@ function furnitureNotice(){
     </div>
     <p class="furn-lead">These lines recur at the page interval, which is the
       pattern a running head or page number makes. Ordinary repeated text, such
-      as a refrain, recurs irregularly and is not listed here.</p>
+      as a refrain, recurs irregularly and is not listed here.${
+      DOC.catchwords.size?` This text also appears to use <b>catchwords</b>, the
+      early modern practice of printing the next page's first word at the foot
+      of the page.`:""}</p>
     <table class="furn-table">
       <thead><tr><th>Recurring line</th><th>Times</th><th>Grounds</th></tr></thead>
       <tbody>${rows}</tbody></table>

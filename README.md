@@ -67,6 +67,7 @@ can leave the corpus only because you chose to remove it.
 - TXT, DOCX, EPUB and HTML import with encoding detection
 - Five cleaning presets, or per-section selection
 - Running head, running foot and page number detection, off by default
+- Catchword detection for early modern printing
 - Preprocessing log in Markdown and JSON
 
 Page furniture is detected but never removed unless asked. The detector has so
@@ -133,7 +134,7 @@ which was quietly splitting words such as *æsthetic* and *naïve*.
 ## Tests
 
 ```bash
-python tests/test_corpusprep.py     # 160 checks, no pytest required
+python tests/test_corpusprep.py     # 183 checks, no pytest required
 python tools/check_parity.py        # Python and JavaScript must agree
 python tools/measure.py             # accuracy against hand-marked keys
 python tools/stress_test.py corpora # traffic-light report over a folder
@@ -164,10 +165,17 @@ prototype script, kept so the rewrite cannot reintroduce them:
 | B3 | Chapter handling was unreachable dead code | `test_b3_chapter_headings_labelled` |
 | B4 | Standalone years such as `1847` removed as page numbers | `test_b4_standalone_number_survives` |
 
-Page furniture has its own regression set, since the rule that finds it is the
-one most able to destroy prose. The synthetic fixture repeats a refrain 64
-times, more often than its 60 furniture lines, so a rule counting repetitions
-alone fails it outright.
+Page furniture has its own regression set, since the rules that find it are the
+ones most able to destroy prose. Each fixture is built to trap its rule rather
+than flatter it: the scanned novel repeats a refrain 64 times, more often than
+its 60 furniture lines, and the early modern text ends one page with a full line
+of prose whose first word genuinely opens the next page.
+
+That second fixture immediately found a fault in the first rule. The OCR
+digit-lookalike table read the word `So` as the page number 50, which would have
+deleted it wherever it recurred near a page break. **A fixture only tests the
+failure modes its author thought of**, which is why real EEBO and OCR text is
+still needed rather than a third generator.
 
 ---
 

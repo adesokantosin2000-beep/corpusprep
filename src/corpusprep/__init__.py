@@ -53,16 +53,22 @@ def analyse(path: str | Path) -> Document:
     from .furniture import find_in_document
 
     doc = segment(load(path))
-    marked, candidates, page_length = find_in_document(doc)
+    marked, candidates, page_length, catchwords = find_in_document(doc)
     doc = doc.with_furniture(marked)
     if marked:
+        hits = [m for m in catchwords if m.accepted]
         doc.meta["furniture"] = {
             "lines": len(marked),
             "page_length": round(page_length, 1),
             "series": [
                 {"text": c.text, "occurrences": len(c.lines), "reason": c.reason}
                 for c in candidates if c.accepted
-            ],
+            ] + ([{
+                "text": "(catchwords)",
+                "occurrences": len(hits),
+                "reason": f"each repeats the first word of the following page, "
+                          f"on {len(hits)} of {len(catchwords)} pages",
+            }] if hits else []),
         }
         doc.notes.append(
             f"{len(marked)} lines look like page furniture "

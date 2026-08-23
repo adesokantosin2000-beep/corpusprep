@@ -212,3 +212,139 @@ The parameters remain guesses that survived one artificial test. They are
 recorded in `furniture.py` so they can be argued with, and they must be
 re-measured against real OCR or PDF-derived text before any of this is trusted.
 That remains the outstanding blocker from earlier today.
+
+---
+
+## 2026-08-23 — Catchwords: design
+
+Week 4, Monday. On paper, before any code.
+
+### What a catchword is
+
+In books printed between roughly 1500 and 1800, the last line of each page
+carries, set to the right, the first word of the following page. The compositor
+put it there so the binder could confirm the sheets were gathered in order.
+
+```
+    ... and so he departed from that place, saying
+    nothing of what he had seen. The night was
+                                              And
+    ----------------------------------------- page break
+    And in the morning there came a messenger ...
+```
+
+Anyone working with EEBO or ECCO transcriptions meets one on every page. Left
+in, a 300-page book gains 300 spurious tokens, every one of them a real word
+duplicated at a sentence boundary, which is worse than a page number because it
+looks like ordinary text to every downstream tool.
+
+### Why this rule is unlike the running-head rule
+
+The running-head detector had to infer furniture from **position**, because a
+running head is otherwise indistinguishable from a chapter title. Regularity was
+the only signal available, which is why it needed thresholds, and why those
+thresholds are still guesses.
+
+A catchword carries its own proof. It is **the first word of the next page**,
+and that relationship can be checked directly rather than estimated. The
+evidence is a content match, not a statistical tendency.
+
+This matters for how much the rule can be trusted: it has one real parameter
+rather than four, and its central test cannot be satisfied by coincidence in the
+way an evenly spaced refrain can satisfy a regularity test.
+
+### Algorithm
+
+The page-number series found by the running-head detector already marks where
+pages end, so the page boundaries come free.
+
+For each detected page-number line:
+
+1. Walk **backwards**, skipping blanks and other furniture, to the last line of
+   the page. Call it `C`.
+2. Walk **forwards**, skipping blanks, running heads and page numbers, to the
+   first real line of the next page. Call it `N`.
+3. Accept `C` as a catchword when **`N` begins with exactly the words of `C`**.
+
+Then corroborate across the document, because one match is coincidence and
+thirty is a printing convention.
+
+### The one guard that matters
+
+`C` must be **short**: at most `CATCHWORD_MAX_WORDS` words and
+`CATCHWORD_MAX_LEN` characters.
+
+Without it the rule deletes prose. A page can legitimately end with a full line
+whose last word opens the next page, and in verse with a refrain this happens
+often. A catchword is a fragment set alone on its own line; a line of prose that
+happens to repeat is not one, however well it matches. **The length guard is
+what separates the printing convention from the coincidence**, and it is the
+only place this rule can destroy text.
+
+### Parameters
+
+| Name | Starting value | Meaning |
+|---|---|---|
+| `CATCHWORD_MAX_WORDS` | 3 | Longest catchword accepted |
+| `CATCHWORD_MAX_LEN` | 30 | Longest catchword in characters |
+| `CATCHWORD_MIN_PAGES` | 4 | Fewest matching pages before the rule fires |
+| `CATCHWORD_MIN_RATIO` | 0.35 | Share of pages that must match |
+
+Four again, but three of them exist only to decide whether the book uses
+catchwords at all. Once that is established, the per-line decision rests on the
+content match alone.
+
+### What it must not do
+
+Fire on a modern book. A text with no catchwords must produce an empty set, and
+the ratio test is what guarantees that: isolated coincidental matches never
+reach the threshold. **A rule that finds nothing on a text that contains nothing
+is the result to check first**, and it is easier to get wrong than it looks,
+because a rule that fires on 2 pages in 300 still reads as "working" in a
+summary count.
+
+---
+
+## 2026-08-23 — Catchwords: measurement, and a bug in the shipped detector
+
+18 of 18 catchwords, no false positives, and zero found on all three modern
+fixtures. The trap survived, as did the two pages with no catchword.
+
+But the number worth recording is not that one.
+
+### The new fixture found a bug in the rule committed this morning
+
+The first run examined **zero page boundaries**, because the page-number series
+was rejected as irregular. Its gaps read `[25, 23, 2, 27, ...]`, and a gap of 2
+is impossible between consecutive page numbers.
+
+The cause was the OCR digit-lookalike table added this morning. It maps `S` to
+5 and `o` to 0, so **the word `So` translates to `50` and passes as a page
+number.** `Bo` becomes 80, `lo` becomes 10. The early modern fixture has `So`
+as a catchword, which is how it surfaced.
+
+This is a live fault in code already committed, not an artefact of the new
+fixture. Any text where a short word such as `So` recurs near the page interval
+would have had that word deleted as a page number, silently.
+
+The guard: **at least half the characters must already be real digits.**
+Substitution models OCR corrupting a digit or two inside a number. It must not
+be allowed to manufacture a number out of a word. `l3` keeps one real digit of
+two and passes; `So` has none and does not.
+
+### Why the running-head fixture did not catch this
+
+It contains no short capitalised words that translate to digits. Its refrain,
+dialogue and emphatic capitals were chosen to attack the *length* and
+*repetition* rules, which were the failure modes I had in mind at the time.
+
+**A fixture only tests the failure modes its author thought of.** The second
+fixture found the first fixture's blind spot, and there is no reason to think
+a third would not find another. This is the concrete argument for why real EEBO
+and OCR text is still required, rather than a caveat repeated out of caution.
+
+### The parity harness had the same shape of flaw, again
+
+It was comparing the merged furniture set. Two rules disagreeing in opposite
+directions would cancel out in a union and read as agreement. Catchwords are
+now compared as their own field.

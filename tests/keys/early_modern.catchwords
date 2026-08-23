@@ -1,0 +1,32 @@
+# Catchword key: early_modern.txt
+#
+# SYNTHETIC. Line numbers of genuine catchwords, exact by construction.
+#
+# 18 catchwords across 22 pages.
+#
+# What must NOT appear here, and is the real test:
+#   - The full line "And so the whole company gave thanks, being come to safety."
+#     ends page 8 and its first word opens the page after it. It
+#     matches the content test perfectly and is ordinary prose. Only the
+#     length guard prevents its deletion.
+#   - Pages [6, 14] carry no catchword. The rule must
+#     tolerate omissions rather than demanding every page match.
+
+36
+61
+86
+113
+139
+191
+249
+275
+306
+335
+365
+420
+447
+472
+497
+525
+554
+585

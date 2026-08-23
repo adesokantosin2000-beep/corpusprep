@@ -523,7 +523,7 @@ def test_furniture_detection():
         truth.update(range(a, b + 1))
 
     doc = segment(load(fx))
-    pred, _, page = find_in_document(doc)
+    pred, _, page, _catch = find_in_document(doc)
 
     check("page length estimated", 25 <= page <= 40, f"got {page}")
     check("no furniture missed", not (truth - pred),
@@ -550,7 +550,7 @@ def test_furniture_ignores_front_matter():
         print("  SKIP  scanned fixture not present")
         return
     doc = segment(load(fx))
-    pred, _, _ = find_in_document(doc)
+    pred, _, _, _ = find_in_document(doc)
     check("title page line 1 not treated as a running head", 1 not in pred)
     check("imprint date not treated as a page number", 9 not in pred)
 
@@ -627,6 +627,77 @@ def test_furniture_reported_with_reasons():
     js = build_json(doc, render_all(doc, ["verbatim"]))
     check("json lists furniture line numbers",
           len(js["furniture"]["detected_lines"]) == 60)
+
+
+def test_catchword_detection():
+    """Early modern catchwords, on a fixture built to trap the rule."""
+    from corpusprep.furniture import find_in_document
+
+    fx = FIXTURES / "early_modern.txt"
+    fk = Path(__file__).parent / "keys" / "early_modern.catchwords"
+    if not fx.exists() or not fk.exists():
+        print("  SKIP  early modern fixture not present")
+        return
+
+    truth = {int(l.split("#")[0]) for l in fk.read_text(encoding="utf-8").splitlines()
+             if l.split("#")[0].strip()}
+    doc = segment(load(fx))
+    _marked, _c, _p, catch = find_in_document(doc)
+    found = {m.line for m in catch if m.accepted}
+
+    check("every catchword found", not (truth - found),
+          f"missed {sorted(truth - found)[:5]}")
+    check("no prose marked as a catchword", not (found - truth),
+          f"wrongly marked {sorted(found - truth)[:5]}")
+
+    # The trap: a full line of prose whose first word genuinely opens the next
+    # page. It satisfies the content test completely. Only the length guard
+    # stands between it and deletion.
+    trap = next(i for i, l in enumerate(doc.lines, 1)
+                if l.startswith("And so the whole company"))
+    check("full line of prose spared despite matching", trap not in found)
+    m = next((x for x in catch if x.line == trap), None)
+    check("and the reason given is its length",
+          m is not None and "too long" in m.reason,
+          m.reason if m else "boundary never examined")
+
+    # Two pages carry no catchword. A rule demanding every page match would
+    # reject the whole book over an omission.
+    check("omitted catchwords do not defeat the rule", len(found) == 18,
+          f"found {len(found)}")
+
+
+def test_catchwords_absent_from_modern_text():
+    """The result easiest to get wrong: finding nothing when there is nothing.
+
+    A rule firing on two pages in three hundred still reads as working in a
+    summary count, so the negative case is tested explicitly.
+    """
+    from corpusprep.furniture import find_in_document
+
+    for name in ("scanned_novel.txt", "CBronte_Jane.txt", "pg_marked.txt"):
+        fx = FIXTURES / name
+        if not fx.exists():
+            continue
+        _m, _c, _p, catch = find_in_document(segment(load(fx)))
+        hits = [x for x in catch if x.accepted]
+        check(f"no catchwords in {name}", not hits,
+              f"{len(hits)} found: {[x.text for x in hits[:3]]}")
+
+
+def test_page_number_guard_against_word_lookalikes():
+    """Digit substitution must not manufacture a number out of a word.
+
+    `So` maps to 50 and `Bo` to 80 under the OCR lookalike table. Before this
+    guard, any short word recurring at the page interval was deleted as a page
+    number. Found by the early modern fixture, where `So` is a catchword.
+    """
+    from corpusprep.furniture import looks_like_page_number as f
+
+    for s in ["13", "l3", "l8", "1847", "(7)", "42."]:
+        check(f"still a page number: {s!r}", f(s))
+    for s in ["So", "Bo", "lo", "Is", "SO", "OO", "II", "I", "and"]:
+        check(f"word not read as a page number: {s!r}", not f(s))
 
 
 def test_chapter_heading_precision():

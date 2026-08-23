@@ -52,7 +52,7 @@ if(eng<0||engEnd<0||fmt<0||fmtEnd<0){
   console.error('could not locate engine/format blocks in index.html');process.exit(2);}
 const M=new Function(html.slice(eng,engEnd)+html.slice(fmt,fmtEnd)+
   '; return {segment,render,PRESETS,coverageGaps,countTT,extractFile,'+
-  'findFurnitureIn,looksLikePageNumber};')();
+  'findFurnitureIn,looksLikePageNumber,findCatchwords};')();
 
 const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
 
@@ -83,6 +83,7 @@ const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
     const fu=M.findFurnitureIn(lines,seg.regions);
     out[path.basename(f)]={
       furniture:[...fu.furniture].sort((a,b)=>a-b).join(","),
+      catchwords:[...fu.catchwords].sort((a,b)=>a-b).join(","),
       furniture_page:Math.round(fu.pageLength*10)/10,
       regions:seg.regions.length,
       chapters:seg.regions.filter(r=>r.kind==='chapter').length,
@@ -105,7 +106,8 @@ def run_python(files: list[Path]) -> dict:
     out = {}
     for f in files:
         doc = segment(load(f))
-        marked, _cands, page = find_in_document(doc)
+        marked, _cands, page, _catch = find_in_document(doc)
+        cw = sorted(m.line for m in _catch if m.accepted)
         res = {}
         for v in VARIANTS:
             r = render(doc, BUILTIN[v])
@@ -113,6 +115,7 @@ def run_python(files: list[Path]) -> dict:
         t, _ = count_tokens_types(doc.text)
         out[f.name] = {
             "furniture": ",".join(str(i) for i in sorted(marked)),
+            "catchwords": ",".join(str(i) for i in cw),
             "furniture_page": round(page, 1),
             "regions": len(doc.regions),
             "chapters": len([r for r in doc.regions if r.kind == "chapter"]),
@@ -162,6 +165,9 @@ def main(argv: list[str]) -> int:
                  # furniture comparison below would pass on empty sets, which
                  # proves nothing.
                  fx / "scanned_novel.txt",
+                 # Catchwords. Also the negative case for the other fixtures,
+                 # which must yield none.
+                 fx / "early_modern.txt",
                  fx / "sample.docx", fx / "sample.epub", fx / "sample.html"]
 
     files = [f for f in files if f.exists()]
@@ -198,12 +204,15 @@ def main(argv: list[str]) -> int:
 
         # Compared as exact line-number sets. A count would hide the case where
         # both sides find the same number of lines but disagree about which.
-        a = set(filter(None, py[name]["furniture"].split(",")))
-        b = set(filter(None, js[name]["furniture"].split(",")))
-        ok &= a == b
-        detail = f"{len(a)} lines" if a == b else \
-            f"python-only={sorted(a - b)[:6]} js-only={sorted(b - a)[:6]}"
-        print(f"  {'OK  ' if a == b else 'DIFF'}  {'furniture lines':<16} {detail}")
+        # Compared separately, not merged. Two rules disagreeing in opposite
+        # directions would cancel out in a union and read as agreement.
+        for field in ("furniture", "catchwords"):
+            a = set(filter(None, py[name][field].split(",")))
+            b = set(filter(None, js[name][field].split(",")))
+            ok &= a == b
+            detail = f"{len(a)} lines" if a == b else \
+                f"python-only={sorted(a - b)[:6]} js-only={sorted(b - a)[:6]}"
+            print(f"  {'OK  ' if a == b else 'DIFF'}  {field + ' lines':<16} {detail}")
 
         for v in VARIANTS:
             a, b = py[name]["variants"][v], js[name]["variants"][v]

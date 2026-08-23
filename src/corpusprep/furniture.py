@@ -87,6 +87,16 @@ def looks_like_page_number(line: str) -> bool:
     # pronoun, or a roman numeral marking a chapter, than a page number.
     if len(s) == 1:
         return s.isdigit()
+    # At least half the characters must ALREADY be digits.
+    #
+    # Substitution models OCR corrupting a digit or two inside a number. It
+    # must not be allowed to manufacture a number out of a word: without this
+    # test `So` maps to 50 and `Bo` to 80, and any common short word that
+    # happens to recur at the page interval is deleted as a page number. This
+    # was found by the early modern fixture, where `So` is a catchword.
+    real = sum(ch.isdigit() for ch in s)
+    if real * 2 < len(s):
+        return False
     return s.translate(_DIGIT_LOOKALIKE).isdigit()
 
 
@@ -245,6 +255,122 @@ def judge(candidates: list[Candidate], page_length: float) -> list[Candidate]:
     return candidates
 
 
+# ---------------------------------------------------------------------------
+# Catchwords
+# ---------------------------------------------------------------------------
+#
+# In books printed between roughly 1500 and 1800 the last line of each page
+# carries, set to the right, the first word of the following page. It let the
+# binder confirm the sheets were gathered in order. Anyone working with EEBO or
+# ECCO transcriptions meets one on every page.
+#
+# This rule is unlike the running-head rule above. A running head has to be
+# inferred from position, which is why that detector needs thresholds and why
+# they are still guesses. A catchword carries its own proof: it IS the first
+# word of the next page, and that can be checked rather than estimated.
+
+#: Longest catchword accepted, in words.
+CATCHWORD_MAX_WORDS = 3
+#: Longest catchword accepted, in characters.
+CATCHWORD_MAX_LEN = 30
+#: Fewest matching pages before the rule fires at all.
+CATCHWORD_MIN_PAGES = 4
+#: Share of pages that must match before the book is judged to use catchwords.
+CATCHWORD_MIN_RATIO = 0.35
+
+#: The long s is standard in this period and survives in many transcriptions.
+#: Without folding it, `ſaying` and `saying` are different words and every
+#: catchword containing one fails to match.
+_LONG_S = str.maketrans({"ſ": "s", "\u017f": "s"})
+
+
+def _words(line: str) -> list[str]:
+    """Comparable words: long s folded, punctuation dropped, lowercased."""
+    s = line.translate(_LONG_S)
+    s = _PUNCT.sub(" ", s)
+    return _WS.sub(" ", s).strip().lower().split()
+
+
+@dataclass
+class CatchwordMatch:
+    """One page boundary examined, whether or not it yielded a catchword."""
+
+    line: int                       # 1-based line of the candidate
+    text: str
+    opens: str                      # first line of the following page
+    accepted: bool = False
+    reason: str = ""
+
+
+def find_catchwords(lines: list[str], page_breaks: list[int],
+                    furniture: set[int], skip: set[int] | None = None
+                    ) -> tuple[set[int], list[CatchwordMatch]]:
+    """Find catchwords, given where the pages break.
+
+    ``page_breaks`` is the page-number line numbers already found above, so the
+    page boundaries come free rather than being estimated a second time.
+
+    Returns an empty set for any book that does not use catchwords. That is the
+    result to check first and the one easiest to get wrong: a rule firing on two
+    pages in three hundred still reads as "working" in a summary count.
+    """
+    skip = set(skip or ())
+    ignore = furniture | skip
+    n_lines = len(lines)
+
+    def step(i: int, delta: int) -> int | None:
+        """Nearest real line from ``i``, passing over blanks and furniture."""
+        while 1 <= i <= n_lines:
+            if i not in ignore and lines[i - 1].strip():
+                return i
+            i += delta
+        return None
+
+    matches: list[CatchwordMatch] = []
+    for p in sorted(page_breaks):
+        c = step(p - 1, -1)
+        nxt = step(p + 1, +1)
+        if c is None or nxt is None:
+            continue
+
+        text = lines[c - 1].strip()
+        opens = lines[nxt - 1].strip()
+        m = CatchwordMatch(line=c, text=text, opens=opens)
+        matches.append(m)
+
+        cw = _words(text)
+        # The length guard, and the only place this rule can destroy text.
+        # A page may legitimately end with a full line whose last word opens
+        # the next page, and in verse with a refrain that happens often. A
+        # catchword is a fragment set alone on its own line; a line of prose
+        # that happens to repeat is not one, however well it matches.
+        if not cw or len(cw) > CATCHWORD_MAX_WORDS or len(text) > CATCHWORD_MAX_LEN:
+            m.reason = (f"too long to be a catchword: {len(cw)} words, "
+                        f"{len(text)} characters")
+            continue
+
+        if _words(opens)[:len(cw)] == cw:
+            m.accepted = True
+            m.reason = f"opens the next page: {opens[:40]!r}"
+        else:
+            m.reason = "does not open the next page"
+
+    hits = [m for m in matches if m.accepted]
+    ratio = len(hits) / len(matches) if matches else 0.0
+
+    # One match is coincidence; thirty is a printing convention. Without this
+    # test a modern book yields a handful of accidental matches and loses real
+    # lines to a rule that should never have fired on it.
+    if len(hits) < CATCHWORD_MIN_PAGES or ratio < CATCHWORD_MIN_RATIO:
+        for m in hits:
+            m.accepted = False
+            m.reason = (f"matched, but only {len(hits)} of {len(matches)} pages "
+                        f"do ({ratio:.0%}); this book does not use catchwords")
+        return set(), matches
+
+    return {m.line for m in hits}, matches
+
+
 def find_in_document(doc) -> tuple[set[int], list[Candidate], float]:
     """Find furniture in a segmented Document, searching the body only.
 
@@ -266,8 +392,8 @@ def find_in_document(doc) -> tuple[set[int], list[Candidate], float]:
 
 
 def find(lines: list[str], skip: set[int] | None = None
-         ) -> tuple[set[int], list[Candidate], float]:
-    """Return (furniture line numbers, all candidates, page length estimate).
+         ) -> tuple[set[int], list[Candidate], float, list[CatchwordMatch]]:
+    """Return (furniture lines, candidates, page length, catchword matches).
 
     Every candidate is returned, accepted or not, with the reason recorded.
     A rule the user cannot interrogate is a rule the user cannot trust.
@@ -276,4 +402,12 @@ def find(lines: list[str], skip: set[int] | None = None
     page_length = estimate_page_length(candidates)
     judge(candidates, page_length)
     marked = {i for c in candidates if c.accepted for i in c.lines}
-    return marked, candidates, page_length
+
+    # Catchwords run second because they need the page breaks the first pass
+    # found. Page numbers are where a page ends, so no second estimate of the
+    # page boundary is needed and none is made.
+    breaks = [i for c in candidates if c.accepted and c.is_numeric
+              for i in c.lines]
+    catch, catch_matches = find_catchwords(lines, breaks, marked, skip)
+    marked |= catch
+    return marked, candidates, page_length, catch_matches

@@ -544,6 +544,15 @@ function looksLikePageNumber(line){
   // a lone `I` as 1, and a lone `I` is far more often the pronoun, or a roman
   // numeral marking a chapter, than a page number.
   if(s.length===1) return /^\d$/.test(s);
+  // At least half the characters must ALREADY be digits.
+  //
+  // Substitution models OCR corrupting a digit or two inside a number. It must
+  // not be allowed to manufacture a number out of a word: without this test
+  // `So` maps to 50 and `Bo` to 80, and any common short word that happens to
+  // recur at the page interval is deleted as a page number.
+  let real=0;
+  for(const ch of s) if(ch>="0"&&ch<="9") real++;
+  if(real*2<s.length) return false;
   let out="";
   for(const ch of s) out+=(DIGIT_LOOKALIKE[ch]!==undefined?DIGIT_LOOKALIKE[ch]:ch);
   return /^\d+$/.test(out);
@@ -699,6 +708,85 @@ function furnJudge(cands,pageLength){
   return cands;
 }
 
+/* ---- catchwords --------------------------------------------------------
+   In books printed between roughly 1500 and 1800 the last line of each page
+   carries the first word of the following page, so the binder could confirm
+   the sheets were gathered in order.
+
+   Unlike a running head, a catchword carries its own proof: it IS the first
+   word of the next page, and that can be checked rather than estimated.
+   Mirrors the Python in src/corpusprep/furniture.py.                       */
+
+const CATCHWORD_MAX_WORDS=3;
+const CATCHWORD_MAX_LEN=30;
+const CATCHWORD_MIN_PAGES=4;
+const CATCHWORD_MIN_RATIO=0.35;
+
+// The long s is standard in this period and survives in many transcriptions.
+// Unfolded, `saying` and the long-s form are different words and every
+// catchword containing one fails to match.
+function catchWords(line){
+  return line.replace(/ſ/g,"s").replace(FURN_PUNCT," ")
+             .replace(/\s+/g," ").trim().toLowerCase().split(" ").filter(Boolean);
+}
+
+function findCatchwords(lines,pageBreaks,furniture,skip){
+  const ignore=new Set(furniture);
+  if(skip) for(const i of skip) ignore.add(i);
+  const n=lines.length;
+
+  // Nearest real line, passing over blanks and furniture.
+  const step=(i,d)=>{
+    while(i>=1&&i<=n){
+      if(!ignore.has(i)&&lines[i-1].trim()) return i;
+      i+=d;
+    }
+    return null;
+  };
+
+  const matches=[];
+  for(const p of [...pageBreaks].sort((a,b)=>a-b)){
+    const c=step(p-1,-1), nx=step(p+1,1);
+    if(c===null||nx===null) continue;
+    const text=lines[c-1].trim(), opens=lines[nx-1].trim();
+    const m={line:c,text,opens,accepted:false,reason:""};
+    matches.push(m);
+
+    const cw=catchWords(text);
+    // The length guard, and the only place this rule can destroy text. A page
+    // may legitimately end with a full line whose last word opens the next
+    // page. A catchword is a fragment set alone on its own line.
+    if(!cw.length||cw.length>CATCHWORD_MAX_WORDS||text.length>CATCHWORD_MAX_LEN){
+      m.reason="too long to be a catchword: "+cw.length+" words, "
+              +text.length+" characters";
+      continue;
+    }
+    const head=catchWords(opens).slice(0,cw.length);
+    if(head.length===cw.length&&head.every((w,i)=>w===cw[i])){
+      m.accepted=true;
+      m.reason='opens the next page: "'+opens.slice(0,40)+'"';
+    } else {
+      m.reason="does not open the next page";
+    }
+  }
+
+  const hits=matches.filter(m=>m.accepted);
+  const ratio=matches.length?hits.length/matches.length:0;
+  // One match is coincidence; thirty is a printing convention. Without this
+  // test a modern book yields a handful of accidental matches and loses real
+  // lines to a rule that should never have fired on it.
+  if(hits.length<CATCHWORD_MIN_PAGES||ratio<CATCHWORD_MIN_RATIO){
+    for(const m of hits){
+      m.accepted=false;
+      m.reason="matched, but only "+hits.length+" of "+matches.length
+              +" pages do ("+Math.round(ratio*100)+"%); this book does not "
+              +"use catchwords";
+    }
+    return {catchwords:new Set(),matches};
+  }
+  return {catchwords:new Set(hits.map(m=>m.line)),matches};
+}
+
 function findFurniture(lines,skip){
   // Every candidate is returned, accepted or not, with its reason recorded.
   // A rule the user cannot interrogate is a rule the user cannot trust.
@@ -707,7 +795,16 @@ function findFurniture(lines,skip){
   furnJudge(cands,pageLength);
   const marked=new Set();
   for(const c of cands) if(c.accepted) for(const i of c.lines) marked.add(i);
-  return {furniture:marked,candidates:cands,pageLength};
+
+  // Catchwords run second because they need the page breaks the first pass
+  // found. Page numbers are where a page ends, so no second estimate of the
+  // page boundary is needed and none is made.
+  const breaks=[];
+  for(const c of cands) if(c.accepted&&c.isNumeric) breaks.push(...c.lines);
+  const cw=findCatchwords(lines,breaks,marked,skip);
+  for(const i of cw.catchwords) marked.add(i);
+  return {furniture:marked,candidates:cands,pageLength,
+          catchwords:cw.catchwords,catchwordMatches:cw.matches};
 }
 
 function findFurnitureIn(lines,regions){
