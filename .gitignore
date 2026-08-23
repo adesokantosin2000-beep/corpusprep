@@ -21,9 +21,9 @@ cleaned_*/
 corpora/
 corpora_wild/
 
-# Web application build sources. docs/index.html is the deliverable.
-_shell.html
-_app.js
+# docs/index.html is generated from build/. Edit the sources, not the page.
+# The sources are tracked; the built page is tracked too, because GitHub Pages
+# serves it directly and there is no build step on deploy.
 
 # Editors and operating systems
 .DS_Store
