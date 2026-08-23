@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+title: "CorpusPrep: corpus preparation for linguists"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Adesokan
+    given-names: Tosin
+version: 0.2.0
+date-released: "2026-08-23"
+license: MIT
+repository-code: "https://github.com/YOUR-USERNAME/corpusprep"
+abstract: >-
+  CorpusPrep prepares source texts for corpus analysis. Every line of a
+  document is labelled before anything is removed, so the researcher decides
+  what constitutes the corpus, and an accompanying log records how that
+  decision was made. Handles Project Gutenberg apparatus, front and back
+  matter, chapter and act segmentation, and TXT, DOCX, EPUB and HTML import.
+keywords:
+  - corpus linguistics
+  - text preprocessing
+  - digital humanities
+  - reproducibility

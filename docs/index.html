@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CorpusPrep: corpus preparation for linguists</title>
+<style>
+:root{
+  --paper:#faf8f4; --card:#fffefb; --ink:#1c1a17; --muted:#6e6960;
+  --faint:#a09a8e; --rule:#e5dfd3; --hair:#f0ece3;
+  --accent:#37564a; --accent-dk:#2a4438; --accent-soft:#eaf0ed;
+  --gold:#8a6d2f; --gold-soft:#f8f2e3;
+  --c-body:#37564a;  --c-body-bg:#eaf0ed;
+  --c-front:#8a6d2f; --c-front-bg:#f8f2e3;
+  --c-back:#5a4a72;  --c-back-bg:#f0ebf7;
+  --c-lic:#8c3b34;   --c-lic-bg:#f9edeb;
+  --c-head:#63605a;  --c-head-bg:#f0ede8;
+  --c-unk:#847e73;   --c-unk-bg:#f3f1ec;
+  --serif:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+
+/* ════════════════════ landing ════════════════════ */
+#gate{min-height:100vh;display:grid;place-items:center;padding:40px 24px}
+.gate-card{width:100%;max-width:452px;text-align:center}
+.monogram{width:52px;height:52px;margin:0 auto 18px;border:1px solid var(--rule);
+  border-radius:50%;display:grid;place-items:center;background:var(--card);
+  font-family:var(--serif);font-size:21px;color:var(--accent);letter-spacing:-.02em}
+.mark{font-family:var(--serif);font-size:52px;letter-spacing:-.025em;margin:0 0 10px;
+  font-weight:500;line-height:1}
+.mark em{font-style:italic;color:var(--accent)}
+.tagline{color:var(--muted);font-size:15px;margin:0;line-height:1.55}
+.tagline b{color:var(--ink);font-weight:500}
+.rule-orn{display:flex;align-items:center;gap:14px;color:var(--faint);margin:32px 0 26px}
+.rule-orn::before,.rule-orn::after{content:"";flex:1;height:1px;background:var(--rule)}
+.rule-orn span{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;font-weight:600}
+.field{text-align:left;margin-bottom:15px}
+.field label{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:6px;font-weight:600}
+.field .opt{text-transform:none;letter-spacing:0;font-weight:400;color:var(--faint)}
+.field input{width:100%;padding:12px 14px;border:1px solid var(--rule);border-radius:3px;
+  background:var(--card);font:15px var(--sans);color:var(--ink)}
+.field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+.btn-primary{display:block;width:100%;padding:15px 20px;margin-top:22px;
+  background:var(--accent);color:#fff;border:0;border-radius:4px;
+  font:15.5px var(--sans);font-weight:650;letter-spacing:.03em;cursor:pointer;
+  box-shadow:0 1px 2px rgba(28,26,23,.10),0 4px 14px -4px rgba(55,86,74,.34);
+  transition:background .15s,box-shadow .15s,transform .08s}
+.btn-primary:hover{background:var(--accent-dk);
+  box-shadow:0 1px 2px rgba(28,26,23,.12),0 7px 20px -5px rgba(55,86,74,.42)}
+.btn-primary:active{transform:translateY(1px)}
+.linkish{background:none;border:0;color:var(--muted);font:inherit;font-size:12.5px;
+  cursor:pointer;padding:0;margin-top:15px;text-decoration:underline;
+  text-underline-offset:3px;text-decoration-color:var(--rule)}
+.linkish:hover{color:var(--accent);text-decoration-color:var(--accent)}
+
+.privacy{display:flex;gap:13px;text-align:left;margin-top:30px;padding:16px 18px;
+  background:var(--accent-soft);border:1px solid #d6e2dd;border-radius:4px}
+.privacy svg{flex-shrink:0;margin-top:2px}
+.privacy .h{font-family:var(--serif);font-size:15.5px;margin:0 0 4px;color:var(--accent-dk)}
+.privacy p{margin:0;font-size:12.5px;line-height:1.7;color:#4b5f57}
+
+/* ════════════════════ chrome ════════════════════ */
+#app{display:none;min-height:100vh;flex-direction:column}
+header{background:var(--card);border-bottom:1px solid var(--rule);padding:0 32px;
+  display:flex;align-items:center;gap:16px;height:64px;flex-shrink:0}
+.wordmark{font-family:var(--serif);font-size:23px;font-weight:500;letter-spacing:-.015em}
+.wordmark em{font-style:italic;color:var(--accent)}
+header .sep{width:1px;height:24px;background:var(--rule)}
+header .doc{font-family:var(--serif);font-size:16px;color:var(--muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;max-width:38vw}
+header .doc b{color:var(--ink);font-weight:500;font-style:italic}
+header .spacer{flex:1}
+.shield{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--accent);
+  background:var(--accent-soft);border:1px solid #dbe5e0;padding:5px 10px;border-radius:20px;
+  font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;
+  display:grid;place-items:center;font-size:11.5px;font-weight:700}
+.wrap{display:grid;grid-template-columns:312px 1fr;flex:1;min-height:0}
+aside{background:var(--card);border-right:1px solid var(--rule);overflow-y:auto;padding:26px 24px}
+main{display:flex;flex-direction:column;min-width:0;min-height:0}
+
+h2{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);
+  margin:30px 0 12px;font-weight:700}
+h2:first-child{margin-top:0}
+
+/* ════════════════════ drop zone ════════════════════ */
+#drop{border:1px dashed var(--rule);border-radius:5px;padding:26px 16px;text-align:center;
+  cursor:pointer;transition:.16s;background:var(--paper)}
+#drop:hover,#drop.over{border-color:var(--accent);background:var(--accent-soft)}
+#drop .ico{color:var(--faint);transition:color .16s;margin-bottom:10px}
+#drop:hover .ico,#drop.over .ico{color:var(--accent)}
+#drop strong{display:block;font-family:var(--serif);font-size:16.5px;margin-bottom:5px;
+  font-weight:500}
+#drop .fmts{font-size:10.5px;color:var(--muted);letter-spacing:.11em;text-transform:uppercase;
+  font-weight:600;margin-bottom:7px}
+#drop .after{font-size:12px;color:var(--faint);line-height:1.6;margin:0}
+#file{display:none}
+
+.btn{display:block;width:100%;padding:11px 14px;margin-top:10px;background:var(--accent);
+  color:#fff;border:0;border-radius:3px;font:14px var(--sans);font-weight:600;cursor:pointer}
+.btn:hover{background:var(--accent-dk)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--rule)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.btn.sm{width:auto;display:inline-block;padding:8px 16px;font-size:13px;margin:0}
+.err{background:var(--c-lic-bg);border-left:2px solid var(--c-lic);padding:11px 13px;
+  font-size:12.5px;margin-top:12px;color:#71302a;line-height:1.65}
+.warn{background:var(--gold-soft);border-left:2px solid var(--gold);padding:10px 12px;
+  font-size:12px;margin-top:10px;color:#6a521f;line-height:1.65}
+
+/* ════════════════════ sidebar ════════════════════ */
+.steps{counter-reset:s;margin:0;padding:0;list-style:none}
+.steps li{counter-increment:s;position:relative;padding:0 0 15px 30px;font-size:13px;
+  line-height:1.6;color:var(--muted)}
+.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:20px;height:20px;
+  border-radius:50%;border:1px solid var(--rule);display:grid;place-items:center;
+  font-size:10.5px;font-weight:700;color:var(--accent);background:var(--paper)}
+.steps li b{color:var(--ink);font-weight:600;display:block;margin-bottom:1px;font-size:13.5px}
+.steps li:last-child{padding-bottom:0}
+
+.meta .fn{font-family:var(--serif);font-size:17px;line-height:1.3;display:block;
+  margin-bottom:9px}
+.meta dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px}
+.meta dt{color:var(--faint)}
+.meta dd{margin:0;text-align:right;color:var(--ink)}
+
+select{width:100%;padding:10px 12px;border:1px solid var(--rule);border-radius:3px;
+  background:var(--card);font:14px var(--sans);color:var(--ink);cursor:pointer}
+select:focus{outline:none;border-color:var(--accent)}
+.preset-desc{font-size:12.5px;color:var(--muted);line-height:1.65;margin-top:10px;
+  padding-left:12px;border-left:2px solid var(--hair);font-style:italic}
+
+.toggle{display:flex;align-items:center;gap:11px;padding:8px 9px;border-radius:3px;
+  cursor:pointer;font-size:13.5px}
+.toggle:hover{background:var(--paper)}
+.toggle input{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;margin:0}
+.swatch{width:3px;height:15px;border-radius:1px;flex-shrink:0}
+.toggle .n{margin-left:auto;font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.toggle.off{color:var(--faint)}
+.toggle.off .swatch{opacity:.3}
+
+.figures{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hair);
+  border:1px solid var(--hair);border-radius:3px;overflow:hidden}
+.fig{background:var(--card);padding:13px 14px}
+.fig .v{font-family:var(--serif);font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
+.fig .k{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);
+  margin-top:5px;font-weight:600}
+.fig .d{font-size:11.5px;font-weight:600;margin-left:6px}
+.d.ok{color:var(--c-body)} .d.warn{color:var(--gold)} .d.bad{color:var(--c-lic)}
+
+.recent button{display:flex;width:100%;align-items:baseline;gap:9px;background:none;
+  border:0;padding:8px 9px;text-align:left;border-radius:3px;font:13px var(--sans);
+  color:var(--muted);cursor:default;border-bottom:1px solid var(--hair)}
+.recent button:last-child{border-bottom:0}
+.recent .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.recent .d{margin-left:auto;font-size:11px;color:var(--faint);flex-shrink:0;
+  font-variant-numeric:tabular-nums}
+
+#run-wrap{margin-top:14px}
+.btn-run{display:block;width:100%;padding:13px 16px;background:var(--accent);
+  color:#fff;border:0;border-radius:4px;font:14.5px var(--sans);font-weight:650;
+  letter-spacing:.02em;cursor:pointer;
+  box-shadow:0 1px 2px rgba(28,26,23,.10),0 3px 12px -4px rgba(55,86,74,.32);
+  transition:background .15s,box-shadow .15s,transform .08s}
+.btn-run:hover{background:var(--accent-dk)}
+.btn-run:active{transform:translateY(1px)}
+.btn-run.done{background:var(--card);color:var(--muted);border:1px solid var(--rule);
+  box-shadow:none;font-weight:600;cursor:default}
+.btn-run.stale{background:var(--gold);box-shadow:0 1px 2px rgba(28,26,23,.10),
+  0 3px 12px -4px rgba(138,109,47,.34)}
+.btn-run.stale:hover{background:#755c27}
+.run-note{font-size:12px;color:var(--muted);line-height:1.6;margin:9px 0 0}
+
+.gated{text-align:center;padding:80px 24px;max-width:460px;margin:0 auto}
+.gated h4{font-family:var(--serif);font-size:21px;font-weight:500;margin:0 0 10px}
+.gated p{color:var(--muted);font-size:14px;line-height:1.7;margin:0 0 20px}
+
+/* ════════════════════ tabs & canvas ════════════════════ */
+nav{background:var(--card);border-bottom:1px solid var(--rule);padding:0 40px;
+  display:flex;gap:26px;flex-shrink:0}
+nav button{background:0;border:0;border-bottom:2px solid transparent;padding:15px 0 13px;
+  font:13px var(--sans);color:var(--muted);cursor:pointer;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase}
+nav button:hover{color:var(--ink)}
+nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.panelwrap{flex:1;overflow:auto;min-height:0}
+.canvas{padding:38px 40px 64px;max-width:1120px}
+.tabpane{display:none}
+.tabpane.on{display:block}
+
+.canvas-head{margin-bottom:26px;padding-bottom:18px;border-bottom:1px solid var(--rule)}
+.canvas-head h3{font-family:var(--serif);font-size:23px;font-weight:500;margin:0 0 6px}
+.canvas-head p{margin:0;color:var(--muted);font-size:13.5px}
+
+/* ════════════════════ onboarding ════════════════════ */
+.onboard{max-width:820px}
+.onboard-hero{margin-bottom:34px}
+.onboard-hero h3{font-family:var(--serif);font-size:30px;font-weight:500;margin:0 0 10px;
+  letter-spacing:-.015em;line-height:1.25}
+.onboard-hero p{margin:0;color:var(--muted);font-size:15.5px;line-height:1.7;max-width:60ch}
+
+.flow{display:flex;align-items:stretch;gap:0;margin:0 0 38px;border:1px solid var(--rule);
+  border-radius:5px;background:var(--card);overflow:hidden}
+.flow-step{flex:1;padding:20px 18px;position:relative}
+.flow-step + .flow-step{border-left:1px solid var(--hair)}
+.flow-step .n{font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint);font-weight:700;margin-bottom:9px}
+.flow-step .t{font-family:var(--serif);font-size:16.5px;margin-bottom:5px;line-height:1.3}
+.flow-step .d{font-size:12.5px;color:var(--muted);line-height:1.6}
+.flow-step svg{margin-bottom:11px;color:var(--accent)}
+
+.cap-head{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+.cap-head h4{font-family:var(--serif);font-size:19px;font-weight:500;margin:0}
+.cap-head .c{font-size:12px;color:var(--faint);margin-left:auto}
+.cap-sub{font-size:13px;color:var(--muted);margin:0 0 18px}
+.caps{display:grid;grid-template-columns:1fr 1fr;gap:0 34px;
+  border-top:1px solid var(--hair)}
+.cap{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--hair);
+  align-items:flex-start}
+.cap .tick{flex-shrink:0;margin-top:2px}
+.cap .body .t{font-size:13.5px;font-weight:600;line-height:1.45}
+.cap .body .d{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:2px}
+.cap.soon .body .t{color:var(--muted);font-weight:500}
+.tag{display:inline-block;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+  font-weight:700;padding:2px 6px;border-radius:2px;margin-left:7px;vertical-align:1.5px;
+  background:var(--gold-soft);color:var(--gold)}
+
+.onboard-foot{display:flex;gap:14px;align-items:center;margin-top:34px;padding-top:22px;
+  border-top:1px solid var(--rule);font-size:13px;color:var(--muted)}
+
+/* ════════════════════ upload summary ════════════════════ */
+.summary{border:1px solid var(--rule);border-radius:5px;background:var(--card);
+  margin-bottom:28px;overflow:hidden}
+.summary-top{display:flex;align-items:baseline;gap:12px;padding:15px 20px;
+  border-bottom:1px solid var(--hair);background:var(--paper)}
+.summary-top .t{font-family:var(--serif);font-size:17px}
+.summary-top .s{font-size:12.5px;color:var(--muted);margin-left:auto}
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));
+  gap:1px;background:var(--hair)}
+.sum{background:var(--card);padding:15px 18px}
+.sum .v{font-family:var(--serif);font-size:25px;line-height:1;font-variant-numeric:tabular-nums}
+.sum .v.zero{color:var(--faint)}
+.sum .k{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);
+  margin-top:7px;font-weight:600;line-height:1.4}
+.bar-track{height:5px;background:var(--hair);display:flex}
+.bar-seg{height:100%}
+
+/* ════════════════════ segmentation ════════════════════ */
+.legend{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px;font-size:11.5px;
+  color:var(--muted);align-items:center}
+.legend span{display:flex;align-items:center;gap:7px}
+.legend .swatch{height:11px}
+.regions{border-top:1px solid var(--hair)}
+.region{border-bottom:1px solid var(--hair)}
+.region-head{display:flex;align-items:baseline;gap:14px;padding:13px 4px 13px 0;
+  cursor:pointer;user-select:none}
+.region-head:hover{background:var(--card)}
+.bar{width:3px;align-self:stretch;border-radius:1px;flex-shrink:0}
+.region-head .t{font-family:var(--serif);font-size:16px;line-height:1.35;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.region-head .k{font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--faint);font-weight:600;flex-shrink:0}
+.region-head .i{color:var(--muted);font-size:12px;flex-shrink:0;
+  font-variant-numeric:tabular-nums;min-width:158px;text-align:right}
+.region-body{padding:4px 0 18px 17px;font-size:12.5px;line-height:1.8;
+  white-space:pre-wrap;word-break:break-word;max-height:270px;overflow:auto;
+  display:none;color:var(--muted);font-family:var(--mono)}
+.region.open .region-body{display:block}
+.region.dropped .t{color:var(--faint);text-decoration:line-through}
+.region.dropped .bar{opacity:.3}
+.region .removed{color:var(--c-lic);font-weight:600}
+.evid{font-size:11.5px;color:var(--faint);font-style:italic;margin-top:12px;
+  padding-top:10px;border-top:1px dashed var(--rule);font-family:var(--sans)}
+
+/* ════════════════════ compare ════════════════════ */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:20px;height:calc(100vh - 232px);
+  min-height:420px}
+.cmp section{display:flex;flex-direction:column;border:1px solid var(--rule);
+  border-radius:3px;overflow:hidden;background:var(--card)}
+.cmp h4{margin:0;padding:12px 16px;font-size:10.5px;letter-spacing:.15em;
+  text-transform:uppercase;background:var(--paper);border-bottom:1px solid var(--rule);
+  font-weight:700;color:var(--faint);display:flex;justify-content:space-between;
+  align-items:baseline}
+.cmp h4 em{font-style:normal;font-weight:600;color:var(--ink);letter-spacing:0;
+  text-transform:none;font-size:12px;font-variant-numeric:tabular-nums}
+.cmp pre{margin:0;flex:1;overflow:auto;padding:18px;font-size:12px;line-height:1.75;
+  white-space:pre-wrap;word-break:break-word;font-family:var(--mono)}
+.cmp pre mark{background:var(--c-lic-bg);color:var(--c-lic);border-radius:1px}
+
+/* ════════════════════ log ════════════════════ */
+.log{max-width:760px}
+.log h4{font-family:var(--serif);font-size:19px;font-weight:500;margin:34px 0 4px}
+.log h4:first-child{margin-top:0}
+.log .sub{font-size:12.5px;color:var(--faint);margin:0 0 14px}
+.log table{border-collapse:collapse;width:100%;font-size:13.5px;margin:0 0 8px}
+.log th{text-align:left;font-weight:700;font-size:10px;text-transform:uppercase;
+  letter-spacing:.13em;color:var(--faint);padding:0 14px 9px 0;
+  border-bottom:1px solid var(--rule)}
+.log td{padding:10px 14px 10px 0;border-bottom:1px solid var(--hair);
+  font-variant-numeric:tabular-nums;vertical-align:top}
+.log td.lbl{color:var(--muted);width:30%}
+.log .note{background:var(--accent-soft);border-left:2px solid var(--accent);
+  padding:15px 17px;font-size:13.5px;margin:22px 0;line-height:1.7}
+.dl{display:flex;gap:11px;margin-top:30px;flex-wrap:wrap;padding-top:22px;
+  border-top:1px solid var(--rule)}
+@media(max-width:1080px){.caps{grid-template-columns:1fr}.flow{flex-wrap:wrap}
+  .flow-step{min-width:46%}}
+@media(max-width:1000px){.wrap{grid-template-columns:1fr}
+  .cmp{grid-template-columns:1fr;height:auto}.canvas{padding:26px 22px 50px}}
+</style>
+</head>
+<body>
+
+<!-- ════════ landing ════════ -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="monogram">CP</div>
+    <h1 class="mark">Corpus<em>Prep</em></h1>
+    <p class="tagline">Prepare a text for analysis, and retain a record of<br>
+      every editorial decision taken.</p>
+
+    <div class="rule-orn"><span>Sign in</span></div>
+
+    <div class="field">
+      <label for="g-name">Name</label>
+      <input id="g-name" type="text" placeholder="Tosin Adesokan" autocomplete="name">
+    </div>
+    <div class="field">
+      <label for="g-inst">Institution <span class="opt">(optional)</span></label>
+      <input id="g-inst" type="text" placeholder="Department, University" autocomplete="organization">
+    </div>
+    <button class="btn-primary" id="g-go">Enter workspace</button>
+    <button class="linkish" id="g-skip">Continue without signing in</button>
+
+    <div class="privacy">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#37564a"
+           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <path d="M9 12l2 2 4-4"/>
+      </svg>
+      <div>
+        <p class="h">Your texts never leave this computer</p>
+        <p>All processing is performed in your browser. No text is transmitted to or
+        stored on any server, so material under copyright, licence, or ethical
+        restriction remains under your sole control. Your name and preferences are
+        held on this device only.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ workspace ════════ -->
+<div id="app">
+<header>
+  <span class="wordmark">Corpus<em>Prep</em></span>
+  <span class="sep"></span>
+  <span class="doc" id="hdr-doc">No text loaded</span>
+  <span class="spacer"></span>
+  <span class="shield">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Processed locally
+  </span>
+  <div class="who" id="who"></div>
+</header>
+
+<div class="wrap">
+<aside>
+  <h2>Source text</h2>
+  <div id="drop">
+    <svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <path d="M7 9l5-5 5 5"/><path d="M12 4v12"/>
+    </svg>
+    <strong>Select or drop a file</strong>
+    <div class="fmts">TXT · DOCX · EPUB · HTML</div>
+    <p class="after">The text is read in place, segmented, and presented for review.
+      Nothing is uploaded, and the source file is not modified.</p>
+  </div>
+  <input type="file" id="file" accept=".txt,.md,.docx,.epub,.html,.htm,.xhtml">
+  <div id="err" class="err" style="display:none"></div>
+
+  <div id="run-wrap" style="display:none">
+    <button class="btn-run" id="run-clean">Clean text</button>
+    <p class="run-note" id="run-note"></p>
+  </div>
+
+  <div id="guide">
+    <h2>Getting started</h2>
+    <ol class="steps">
+      <li><b>Load a text</b>Select a file above. It is read in place and segmented for review.</li>
+      <li><b>Review the segmentation</b>Every line is labelled. Nothing has been removed.</li>
+      <li><b>Select what to retain</b>Apply a preset, or choose sections individually.</li>
+      <li><b>Clean, then export</b>Cleaning runs only when you request it.</li>
+    </ol>
+  </div>
+
+  <div id="recent-wrap" style="display:none">
+    <h2>Recent files</h2>
+    <div class="recent" id="recent"></div>
+  </div>
+
+  <div id="side" style="display:none">
+    <h2>File</h2>
+    <div class="meta" id="meta"></div>
+
+    <h2>Cleaning preset</h2>
+    <select id="preset">
+      <option value="verbatim">Verbatim: retain everything</option>
+      <option value="full">Full: remove publisher apparatus</option>
+      <option value="body-and-front">Body with front matter</option>
+      <option value="body-only" selected>Body only</option>
+      <option value="body-no-headings">Body without headings</option>
+      <option value="custom">Custom…</option>
+    </select>
+    <div class="preset-desc" id="preset-desc"></div>
+
+    <h2>Sections to retain</h2>
+    <div id="toggles"></div>
+
+    <h2>Result</h2>
+    <div class="figures" id="stats"></div>
+  </div>
+</aside>
+
+<main>
+  <nav>
+    <button class="on" data-tab="seg">Segmentation</button>
+    <button data-tab="cmp">Before &amp; after</button>
+    <button data-tab="log">Log</button>
+  </nav>
+  <div class="panelwrap"><div class="canvas">
+
+    <div class="tabpane on" id="tab-seg">
+
+      <!-- onboarding -->
+      <div class="onboard" id="welcome">
+        <div class="onboard-hero">
+          <h3>Prepare a source text for analysis<br>without losing track of what was removed.</h3>
+          <p>CorpusPrep labels every line of a document before anything is removed.
+          You determine what constitutes your corpus, and the accompanying log
+          documents precisely how that determination was made. Intended for corpus
+          linguists, translation scholars, literary researchers and digital
+          humanists.</p>
+        </div>
+
+        <div class="flow">
+          <div class="flow-step">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <path d="M14 2v6h6"/></svg>
+            <div class="n">Step one</div>
+            <div class="t">Import</div>
+            <div class="d">Encoding, byte-order marks and line endings are resolved on import.</div>
+          </div>
+          <div class="flow-step">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18M3 12h18M3 18h18"/><circle cx="7" cy="6" r="1.6" fill="currentColor" stroke="none"/>
+              <circle cx="13" cy="12" r="1.6" fill="currentColor" stroke="none"/>
+              <circle cx="9" cy="18" r="1.6" fill="currentColor" stroke="none"/></svg>
+            <div class="n">Step two</div>
+            <div class="t">Segment</div>
+            <div class="d">Every line is labelled: apparatus, front matter, body, back matter.</div>
+          </div>
+          <div class="flow-step">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="7" height="16" rx="1.5"/>
+              <rect x="14" y="4" width="7" height="16" rx="1.5" stroke-dasharray="2.5 2.5"/></svg>
+            <div class="n">Step three</div>
+            <div class="t">Choose</div>
+            <div class="d">Retain or remove each section. Review the difference before exporting.</div>
+          </div>
+          <div class="flow-step">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <path d="M7 11l5 5 5-5"/><path d="M12 16V4"/></svg>
+            <div class="n">Step four</div>
+            <div class="t">Export</div>
+            <div class="d">Cleaned text accompanied by a citable log of every decision taken.</div>
+          </div>
+        </div>
+
+        <div class="cap-head">
+          <h4>Capabilities</h4>
+          <span class="c" id="cap-count"></span>
+        </div>
+        <p class="cap-sub">Capabilities marked <span class="tag">planned</span> are
+          specified but not yet implemented. They are listed so that the present
+          limitations of this version are clear.</p>
+        <div class="caps" id="caps"></div>
+
+        <div class="onboard-foot">
+          <span>To begin, select or drop a source file in the panel on the left.
+          Supported formats are TXT, DOCX, EPUB and HTML.</span>
+        </div>
+      </div>
+
+      <!-- loaded -->
+      <div id="segview" style="display:none">
+        <div id="summary"></div>
+        <div class="canvas-head">
+          <h3>Segmentation</h3>
+          <p id="seg-sub"></p>
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="regions" id="regions"></div>
+      </div>
+    </div>
+
+    <div class="tabpane" id="tab-cmp">
+      <div class="gated" id="gate-cmp">
+        <h4>Nothing has been cleaned yet</h4>
+        <p>Review the segmentation, choose which sections to retain, then select
+        <b>Clean text</b> in the panel on the left. No output is produced until
+        you request it.</p>
+      </div>
+      <div id="cmp-body" style="display:none">
+      <div class="canvas-head">
+        <h3>Before &amp; after</h3>
+        <p>Removed passages are marked within the source. The two panes scroll together.</p>
+      </div>
+      <div class="cmp">
+        <section>
+          <h4>Source <em id="src-i"></em></h4>
+          <pre id="src-t"></pre>
+        </section>
+        <section>
+          <h4>Cleaned <em id="out-i"></em></h4>
+          <pre id="out-t"></pre>
+        </section>
+      </div>
+      </div>
+    </div>
+
+    <div class="tabpane" id="tab-log">
+      <div class="gated" id="gate-log">
+        <h4>No log yet</h4>
+        <p>The preprocessing log records what was removed and why. It is written
+        when cleaning is run.</p>
+      </div>
+      <div class="log" id="logview"></div>
+    </div>
+
+  </div></div>
+</main>
+</div>
+</div>
+
+<script>
+"use strict";
+
+const PG_HEADER="pg_header", PG_LICENCE="pg_licence", FRONT_MATTER="front_matter",
+      BODY="body", BACK_MATTER="back_matter", UNKNOWN="unknown";
+
+const LABELS=[
+  {id:PG_HEADER,   name:"Gutenberg header", fg:"var(--c-head)",  bg:"var(--c-head-bg)"},
+  {id:FRONT_MATTER,name:"Front matter",     fg:"var(--c-front)", bg:"var(--c-front-bg)"},
+  {id:BODY,        name:"Body",             fg:"var(--c-body)",  bg:"var(--c-body-bg)"},
+  {id:BACK_MATTER, name:"Back matter",      fg:"var(--c-back)",  bg:"var(--c-back-bg)"},
+  {id:PG_LICENCE,  name:"Licence text",     fg:"var(--c-lic)",   bg:"var(--c-lic-bg)"},
+  {id:UNKNOWN,     name:"Unclassified",     fg:"var(--c-unk)",   bg:"var(--c-unk-bg)"},
+];
+const LMAP=Object.fromEntries(LABELS.map(l=>[l.id,l]));
+
+/* Gutenberg apparatus outranks body: a licence block inside a chapter's line
+   range is still licence text. Mirrors PRECEDENCE in segment.py. */
+const PRECEDENCE={[UNKNOWN]:0,[FRONT_MATTER]:1,[BACK_MATTER]:1,[BODY]:2,
+                  [PG_HEADER]:3,[PG_LICENCE]:3};
+
+const PG_START=/\*{3}\s*START OF (?:THE|THIS) PROJECT GUTENBERG EBOOK.*?\*{3}/i;
+const PG_END  =/\*{3}\s*END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK.*?\*{3}/i;
+const PG_START_OLD=/\*{3}\s*START OF THE PROJECT GUTENBERG/i;
+const PG_END_OLD  =/\*{3}\s*END OF THE PROJECT GUTENBERG/i;
+
+/* Producer/transcriber credit. The prototype had a rule like this and it was
+   bug B1 — it ran to the end of any paragraph starting with these words,
+   anywhere. This one is bounded twice: to a single blank-line block, and to a
+   window at the head or tail where such apparatus actually lives. */
+const TRANSCRIBER_OPENING=new RegExp("^\\s*(?:"+
+  "Transcribed\\s+from|Transcribed\\s+by|Produced\\s+by|Prepared\\s+by|"+
+  "Scanned\\s+(?:and|by)|Digitized\\s+by|Digitised\\s+by|"+
+  "E-?text\\s+prepared\\s+by|Proofread(?:ing|ers?)?\\s+by|"+
+  "Credits\\s*:|Updated\\s+editions\\s+will"+
+  ")\\b","i");
+/* A line that is *only* "Transcriber's Note(s)". Unambiguous, so it needs no
+   positional guard. The apostrophe class matters: Gutenberg uses the
+   typographic form almost universally, and matching only the straight form
+   meant this rule silently failed on the files it was written for. */
+const TRANSCRIBER_HEADING=/^\s*Transcriber['’ʼ]?s?\s+Notes?\s*[.:]?\s*$/i;
+const TRANSCRIBER_WINDOW=40;
+
+const LICENCE_PHRASES=["project gutenberg","literary archive foundation","public domain",
+  "no restrictions whatsoever","gutenberg.org","gutenberg-tm","redistribution is subject",
+  "terms of the project gutenberg license","this ebook is for the use of anyone",
+  "you may copy it, give it away","trademark","donations to the project gutenberg"];
+
+/* Body headings — three tiers, most reliable first. Only the first tier that
+   yields results is used, so a book with real chapter headings is never
+   confused by stray numerals elsewhere. Mirrors segment.py. */
+const DIVISION_WORDS="CHAPTER|BOOK|PART|VOLUME|CANTO|SECTION|LETTER|ACT|SCENE|STAVE|"+
+  "EPISODE|FYTTE|MOVEMENT|INTERLUDE|LECTURE|SERMON|TALE|NIGHT";
+const _CARDINAL="ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE|"+
+  "THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY|"+
+  "THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY|HUNDRED";
+const _ORDINAL="FIRST|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH|NINTH|TENTH|"+
+  "ELEVENTH|TWELFTH|THIRTEENTH|FOURTEENTH|FIFTEENTH|SIXTEENTH|"+
+  "SEVENTEENTH|EIGHTEENTH|NINETEENTH|TWENTIETH|THIRTIETH|LAST";
+/* Not "any word" — that is what would let "Part of the reason…" match. */
+const _ENUM=`(?:[IVXLCDM]+|\\d{1,4}|(?:THE\\s+)?(?:${_CARDINAL}|${_ORDINAL})`+
+  `(?:[-\\s](?:${_CARDINAL}|${_ORDINAL}))?)`;
+
+const CHAPTER_HEADING=new RegExp(
+  `^\\s*(${DIVISION_WORDS})\\s*[:.—\\-]?\\s*(${_ENUM})\\b\\s*[.:;—–\\-]?\\s*(.{0,70})?$`,"i");
+const NUMBERED_SECTION=/^\s*(\d{1,2}(?:\.\d{1,2}){0,3})\.?\s+([A-ZÀ-Þ][^\n]{1,60})$/;
+const BARE_NUMERAL=/^\s*([IVXLCDM]{1,7}|\d{1,3})\s*\.?\s*$/;
+const METADATA_LINE=/^\s*([A-Z][A-Za-z /&'-]{1,28})\s*:\s*\S.*$/;
+const _ROMAN={I:1,V:5,X:10,L:50,C:100,D:500,M:1000};
+const FRONT_HEADING=/^\s*(PREFACE|INTRODUCTION|INTRODUCTORY NOTE|CONTENTS|TABLE OF CONTENTS|DEDICATION|FOREWORD|ADVERTISEMENT|PROLOGUE|TO THE READER|AUTHOR'?S NOTE|EDITOR'?S NOTE|PUBLISHER'?S NOTE|ILLUSTRATIONS|LIST OF [A-Z ]+|NOTE TO THE [A-Z ]+|NOTE\b[A-Z ]*|PREFATORY [A-Z ]+)\s*\.?\s*$/;
+/* Named front matter conventionally set in title case, not caps. Matched
+   case-insensitively, but the line must be the name and nothing else (note the
+   anchored $), so a sentence merely starting with the word is never caught. */
+const NAMED_FRONT_HEADING=/^\s*(?:THE\s+)?(PROLOGUE|CONTENTS|TABLE\s+OF\s+CONTENTS|DRAMATIS\s+PERSON(?:AE|Æ|E)|PERSONS\s+REPRESENTED|CHARACTERS(?:\s+IN\s+THE\s+PLAY)?|ARGUMENT|DEDICATION|PREFACE|FOREWORD|INTRODUCTION)\s*[.:]?\s*$/i;
+const CONTENTS_HEADING=/^\s*(?:TABLE\s+OF\s+)?CONTENTS\s*[.:]?\s*$/i;
+const BACK_HEADING=/^\s*(APPENDIX|GLOSSARY|INDEX|BIBLIOGRAPHY|NOTES|ENDNOTES|POSTSCRIPT|AFTERWORD|COLOPHON|TRANSCRIBER'?S NOTES?|FOOTNOTES)\b.*$/;
+const MAX_HEADING_LEN=80;
+
+/* Must match Python's [^\W\d_]+ under re.UNICODE, i.e. letters and combining
+   marks but not digits or underscore.
+   NOT [^\W\d_] here: JavaScript's \w is ASCII-only even with the /u flag, so
+   that form splits "\u00e6sthetic" and "na\u00efve" into pieces while Python keeps them
+   whole. The parity check caught this as a 9-token drift on a real text. */
+const WORD_RE=/[\p{L}\p{M}]+(?:['\u2019][\p{L}\p{M}]+)*/gu;
+function tokens(t){return t.match(WORD_RE)||[]}
+function countTT(t){const w=tokens(t);return{tokens:w.length,types:new Set(w.map(x=>x.toLowerCase())).size}}
+
+function isUpper(s){const L=[...s].filter(c=>/\p{L}/u.test(c));return L.length>0&&L.every(c=>c===c.toUpperCase())}
+
+/* The guard that matters: text after the enumerator must begin with a capital.
+   That separates "Chapter 1. The Beginning" from "Section 3 of the act…". */
+function isChapterHeading(l){
+  const s=l.trim();
+  if(!s||s.length>MAX_HEADING_LEN) return false;
+  const m=CHAPTER_HEADING.exec(s);
+  if(!m) return false;
+  const trailing=(m[3]||"").trim();
+  if(trailing&&!/^[A-ZÀ-Þ"'‘’“”(\[—–-]/.test(trailing)) return false;
+  return true;
+}
+
+function romanToInt(s){
+  let total=0,prev=0;
+  for(const ch of [...s.toUpperCase()].reverse()){
+    const v=_ROMAN[ch];
+    if(v===undefined) return null;
+    total+= v<prev ? -v : v;
+    prev=Math.max(prev,v);
+  }
+  return total||null;
+}
+function numeralValue(s){
+  s=s.trim().replace(/\.$/,"");
+  if(/^\d+$/.test(s)) return parseInt(s,10);
+  return romanToInt(s);
+}
+
+function findNumberedSections(lines,start,end,skip){
+  const hits=[];
+  for(let i=start;i<end;i++){
+    if(skip(i)) continue;
+    const s=lines[i].trim();
+    if(!s||s.length>MAX_HEADING_LEN) continue;
+    const m=NUMBERED_SECTION.exec(s);
+    if(m&&(!/[.,;]$/.test(s)||(s.split(" ").length-1)<=6)) hits.push([i,m[1]]);
+  }
+  if(hits.length<2) return [];
+  if(hits[0][1].split(".")[0]!=="1") return [];
+  return hits.map(h=>h[0]);
+}
+
+/* Requires an ascending run beginning at 1, at least three long — which is
+   exactly what stops an isolated year like 1847 being read as a chapter. */
+function findNumeralSequence(lines,start,end,skip){
+  const cands=[];
+  for(let i=start;i<end;i++){
+    if(skip(i)) continue;
+    const s=lines[i].trim();
+    if(!s||!BARE_NUMERAL.test(s)) continue;
+    const v=numeralValue(s);
+    if(v!==null&&v>=1&&v<=200) cands.push([i,v]);
+  }
+  let best=[],run=[],expect=1;
+  for(const [i,v] of cands){
+    if(v===expect){run.push(i);expect++}
+    else if(v===1){ if(run.length>best.length) best=run; run=[i]; expect=2 }
+  }
+  if(run.length>best.length) best=run;
+  return best.length>=3?best:[];
+}
+
+/* "Participant: P04", "DOI: …" — the header block on transcripts, article
+   extracts and scraped pages. Needs 2+ consecutive lines near the top, so a
+   line of dialogue mid-text is not caught. */
+function findMetadataBlock(lines,start,end){
+  const limit=Math.min(end,start+30);
+  let runStart=null;
+  for(let i=start;i<limit;i++){
+    const s=lines[i].trim();
+    if(s&&METADATA_LINE.test(s)&&s.length<=120){ if(runStart===null) runStart=i }
+    else if(s){
+      if(runStart!==null&&i-runStart>=2) return [runStart,i];
+      runStart=null;
+    }
+  }
+  if(runStart!==null&&limit-runStart>=2) return [runStart,limit];
+  return null;
+}
+
+/* A table of contents repeats the headings it lists — that duplication is the
+   signal, far more robust than looking for the word "Contents", which many
+   editions omit. Without this, body begins inside the contents list. */
+const MAX_CONTENTS_GAP=4;        // lines between consecutive entries
+const MIN_CONTENTS_ENTRIES=3;
+const CONTENTS_MATCH_RATIO=0.6;  // share that must reappear later
+
+function splitContentsList(lines,idx){
+  if(idx.length<MIN_CONTENTS_ENTRIES+1) return [[],idx];
+  const titles=idx.map(i=>lines[i].trim().toLowerCase());
+
+  // 1. Opening run of headings packed close together. Contents entries sit a
+  //    line or two apart; real headings are separated by whole chapters.
+  let run=1;
+  while(run<idx.length&&(idx[run]-idx[run-1])<=MAX_CONTENTS_GAP) run++;
+  if(run<MIN_CONTENTS_ENTRIES||run>=idx.length) return [[],idx];
+
+  // 2. Confirm by duplication — a *majority*, not all. Requiring every entry
+  //    to reappear means one undetected body heading disables the rule.
+  const rest=new Set(titles.slice(run));
+  let hits=0;
+  for(const t of titles.slice(0,run)) if(rest.has(t)) hits++;
+  if(hits/run<CONTENTS_MATCH_RATIO) return [[],idx];
+
+  return [idx.slice(0,run),idx.slice(run)];
+}
+
+/* Structural depth per division word. Only ranks actually present are used,
+   renumbered from 1 — so ACT/SCENE and BOOK/CHAPTER both give levels 1 and 2,
+   while a novel using only CHAPTER stays flat. */
+const DIVISION_RANK={VOLUME:1,BOOK:2,PART:2,ACT:2,
+  CHAPTER:3,SCENE:3,CANTO:3,STAVE:3,LETTER:3,SECTION:3,EPISODE:3,
+  FYTTE:3,MOVEMENT:3,INTERLUDE:3,LECTURE:3,SERMON:3,TALE:3,NIGHT:3};
+const _DIVISION_FIRST_WORD=new RegExp(`^\\s*(${DIVISION_WORDS})\\b`,"i");
+
+function rankOf(r){
+  if(r.label!==BODY) return null;
+  if(r.kind==="section"){
+    const m=/^\s*(\d+(?:\.\d+)*)/.exec(r.title);
+    return m ? (m[1].split(".").length-1)+1 : 1;
+  }
+  const m=_DIVISION_FIRST_WORD.exec(r.title);
+  if(m) return DIVISION_RANK[m[1].toUpperCase()] ?? 3;
+  return null;
+}
+
+/* Regions stay flat and non-overlapping — that invariant is what guarantees no
+   line is counted twice or lost. Nesting is metadata only. */
+function assignHierarchy(regions){
+  const ranks=regions.map(rankOf);
+  const present=[...new Set(ranks.filter(r=>r!==null))].sort((a,b)=>a-b);
+  if(present.length<=1) return regions;
+  const levelOf={}; present.forEach((r,i)=>levelOf[r]=i+1);
+
+  const stack=[];
+  return regions.map((r,i)=>{
+    const rank=ranks[i];
+    if(rank===null){ stack.length=0; return {...r,level:1,parent:null} }
+    const lvl=levelOf[rank];
+    while(stack.length&&stack[stack.length-1][0]>=lvl) stack.pop();
+    const parent=stack.length?stack[stack.length-1][1]:null;
+    stack.push([lvl,i]);
+    return {...r,level:lvl,parent};
+  });
+}
+
+function childrenOf(regions,i){
+  const out=[];
+  regions.forEach((r,j)=>{ if(r.parent===i) out.push(j) });
+  return out;
+}
+function subtreeWords(lines,regions,i){
+  let total=0; const stack=[i];
+  while(stack.length){
+    const cur=stack.pop();
+    total+=countTT(lines.slice(regions[cur].start,regions[cur].end).join("\n")).tokens;
+    for(const c of childrenOf(regions,cur)) stack.push(c);
+  }
+  return total;
+}
+
+function findBodyHeadings(lines,start,end,skip){
+  const kw=[];
+  for(let i=start;i<end;i++) if(!skip(i)&&isChapterHeading(lines[i])) kw.push(i);
+  if(kw.length) return [kw,"chapter","division heading"];
+  const ns=findNumberedSections(lines,start,end,skip);
+  if(ns.length) return [ns,"section","numbered section heading"];
+  const seq=findNumeralSequence(lines,start,end,skip);
+  if(seq.length) return [seq,"chapter","bare numeral in ascending sequence"];
+  return [[],null,null];
+}
+/* Two routes: the generic list needs ALL CAPS (its patterns end in wildcards,
+   so case-insensitivity would over-match); the named list allows title case
+   because those patterns match the whole line exactly. */
+function isFrontHeading(l){
+  const s=l.trim();
+  if(!s||s.length>MAX_HEADING_LEN) return false;
+  if(NAMED_FRONT_HEADING.test(s)) return true;
+  return isUpper(s)&&FRONT_HEADING.test(s);
+}
+function isBackHeading(l){const s=l.trim();return !!s&&s.length<=MAX_HEADING_LEN&&isUpper(s)&&BACK_HEADING.test(s)}
+
+function licenceScore(t){const lo=t.toLowerCase();return LICENCE_PHRASES.filter(p=>lo.includes(p)).length}
+
+/* Requires >=2 distinct legal phrases AND the word "gutenberg", so a novel
+   discussing copyright or a trademark dispute is never flagged. */
+function findLicenceBlocks(lines,min=2){
+  const out=[]; let start=null;
+  for(let i=0;i<=lines.length;i++){
+    const line=i<lines.length?lines[i]:"";
+    if(line.trim()){ if(start===null) start=i; }
+    else if(start!==null){
+      const t=lines.slice(start,i).join("\n"), s=licenceScore(t), lo=t.toLowerCase();
+      if(s>=min && (lo.includes("gutenberg")||lo.includes("pglaf"))) out.push([start,i,s]);
+      start=null;
+    }
+  }
+  return out;
+}
+
+function* blocks(lines,start,end){
+  let a=null;
+  for(let i=start;i<=end;i++){
+    const blank=i>=end||!lines[i].trim();
+    if(!blank&&a===null) a=i;
+    else if(blank&&a!==null){ yield [a,i]; a=null }
+  }
+}
+
+function findTranscriberNotes(lines,start,end,window=TRANSCRIBER_WINDOW){
+  const found=[];
+  const bl=[...blocks(lines,start,end)];
+
+  // Unambiguous heading: recognised anywhere. Where it stands alone, the
+  // following block is taken with it, since that is where the note lives.
+  bl.forEach(([a,b],i)=>{
+    if(!TRANSCRIBER_HEADING.test(lines[a])) return;
+    const end2=(b-a===1&&i+1<bl.length)?bl[i+1][1]:b;
+    found.push([a,end2]);
+  });
+
+  // Prefix match: could begin real prose, so bounded to one block and to a
+  // window at the head or tail of the content.
+  const zones=[[start,Math.min(end,start+window)],[Math.max(start,end-window),end]];
+  for(const [zs,ze] of zones){
+    if(ze<=zs) continue;
+    for(const [a,b] of blocks(lines,zs,ze)){
+      if(TRANSCRIBER_OPENING.test(lines[a])&&!found.some(f=>f[0]<=a&&a<f[1]))
+        found.push([a,b]);
+    }
+  }
+  return found.sort((x,y)=>x[0]-y[0]);
+}
+
+function trimBlank(lines,a,b){
+  while(a<b && !lines[a].trim()) a++;
+  while(b>a && !lines[b-1].trim()) b--;
+  return b>a?[a,b]:null;
+}
+function findMarker(lines,pats){for(let i=0;i<lines.length;i++)for(const p of pats)if(p.test(lines[i]))return i;return null}
+function findMarkerLast(lines,pats){for(let i=lines.length-1;i>=0;i--)for(const p of pats)if(p.test(lines[i]))return i;return null}
+
+function R(label,kind,title,start,end,confidence,evidence){
+  return {label,kind,title,start,end,confidence,evidence,level:1,parent:null};
+}
+
+function segment(lines){
+  const n=lines.length, regions=[], notes=[];
+  const pgStart=findMarker(lines,[PG_START,PG_START_OLD]);
+  const pgEnd=findMarkerLast(lines,[PG_END,PG_END_OLD]);
+  let cStart=0,cEnd=n;
+
+  if(pgStart!==null){
+    regions.push(R(PG_HEADER,"pg_header","Project Gutenberg header",0,pgStart+1,1,"explicit START marker"));
+    cStart=pgStart+1;
+  }
+  if(pgEnd!==null && pgEnd>=cStart){
+    regions.push(R(PG_LICENCE,"pg_footer","Project Gutenberg licence",pgEnd,n,1,"explicit END marker"));
+    cEnd=pgEnd;
+  }
+
+  const licSpans=[];
+  if(pgStart===null||pgEnd===null){
+    for(const [s,e,sc] of findLicenceBlocks(lines.slice(cStart,cEnd))){
+      const a=s+cStart,b=e+cStart;
+      licSpans.push([a,b]);
+      regions.push(R(PG_LICENCE,"licence_block","Licence text (unmarked)",a,b,
+        Math.min(1,.5+.15*sc),sc+" licence phrases, no sentinel marker"));
+    }
+  }
+  /* Transcriber credits sit *after* the START marker, so they escape the
+     header region, and often name pglaf.org without saying "gutenberg". */
+  for(const [a,b] of findTranscriberNotes(lines,cStart,cEnd)){
+    licSpans.push([a,b]);
+    regions.push(R(PG_HEADER,"transcriber_note",lines[a].trim().slice(0,60),
+      a,b,.9,"producer/transcriber credit block near start or end"));
+  }
+
+  const inLic=i=>licSpans.some(([s,e])=>s<=i&&i<e);
+
+  /* Metadata header is detected before body headings, so it is found even in
+     texts with no chapter structure — transcripts and article extracts. */
+  const metaSpan=findMetadataBlock(lines,cStart,cEnd);
+  if(metaSpan) regions.push(R(FRONT_MATTER,"metadata","Metadata header",
+    metaSpan[0],metaSpan[1],.85,"consecutive 'Key: value' lines at head of document"));
+
+  let [headingIdx,headingKind,headingEvidence]=findBodyHeadings(lines,cStart,cEnd,inLic);
+
+  const [contentsIdx,realIdx]=splitContentsList(lines,headingIdx);
+  headingIdx=realIdx;
+  let contentsSpan=null;
+  if(contentsIdx.length){
+    // Absorb a "Contents" heading above the list, and anything between it and
+    // the first entry — those will be further entries, not real sections.
+    let cStartC=contentsIdx[0], probe=cStartC-1, seen=0;
+    while(probe>=cStart&&seen<8){
+      const s=lines[probe].trim();
+      if(s){ seen++; if(CONTENTS_HEADING.test(s)){cStartC=probe;break} }
+      probe--;
+    }
+    contentsSpan=[cStartC,contentsIdx[contentsIdx.length-1]+1];
+    regions.push(R(FRONT_MATTER,"contents","Contents",contentsSpan[0],contentsSpan[1],.8,
+      `${contentsIdx.length} headings repeated later in the text`));
+  }
+
+  let bodyStart=headingIdx.length?headingIdx[0]:null;
+
+  if(bodyStart===null){
+    const restStart=metaSpan?metaSpan[1]:cStart;
+    if(cEnd>restStart) regions.push(R(BODY,"body","(whole text)",restStart,cEnd,.4,
+      "no structural headings found; whole text kept as body"));
+    let note="No structural headings found. Tried: division headings "+
+      "(Chapter/Book/Part/Act/Scene…), numbered sections (1. Introduction) and "+
+      "bare numeral sequences. The whole text was kept as body and nothing was removed.";
+    if(metaSpan) note+=" A metadata header was found and can be removed separately.";
+    notes.push(note);
+    return finalise(lines,regions,notes);
+  }
+
+  if(bodyStart>cStart){
+    // Headings *inside* the contents list are entries, not sections.
+    const inContents=i=>!!contentsSpan&&contentsSpan[0]<=i&&i<contentsSpan[1];
+    const heads=[];
+    for(let i=cStart;i<bodyStart;i++)
+      if(isFrontHeading(lines[i])&&!inLic(i)&&!inContents(i)) heads.push(i);
+    const first=heads.length?heads[0]:bodyStart;
+
+    // Split the title page around the metadata block rather than straddling
+    // it, so each piece gets its own accurate title.
+    let spans=[[cStart,first]];
+    if(metaSpan&&cStart<=metaSpan[0]&&metaSpan[0]<first)
+      spans=[[cStart,metaSpan[0]],[metaSpan[1],first]];
+
+    for(const [a,b] of spans){
+      const sp=trimBlank(lines,a,Math.min(b,first));
+      if(sp){
+        let t="Title page";
+        for(let i=sp[0];i<sp[1];i++) if(lines[i].trim()){t=lines[i].trim();break}
+        regions.push(R(FRONT_MATTER,"titlepage",t,sp[0],sp[1],.8,"text before first front-matter heading"));
+      }
+    }
+    heads.forEach((h,ix)=>{
+      const end=ix+1<heads.length?heads[ix+1]:bodyStart;
+      regions.push(R(FRONT_MATTER,lines[h].trim().toLowerCase().replace(/ /g,"_"),
+        lines[h].trim(),h,end,.9,"uppercase front-matter heading"));
+    });
+  }
+
+  const chapters=headingIdx.filter(i=>i>=bodyStart);
+
+  let backStart=null;
+  for(let i=bodyStart;i<cEnd;i++) if(isBackHeading(lines[i])&&!inLic(i)){backStart=i;break}
+  const bodyEnd=backStart!==null?backStart:cEnd;
+
+  chapters.forEach((cs,ix)=>{
+    if(cs>=bodyEnd) return;
+    let ce=ix+1<chapters.length?chapters[ix+1]:bodyEnd;
+    ce=Math.min(ce,bodyEnd);
+    regions.push(R(BODY,headingKind||"chapter",lines[cs].trim(),cs,ce,
+      headingKind==="chapter"?1:.85,headingEvidence||"chapter heading"));
+  });
+
+  if(backStart!==null&&backStart<cEnd)
+    regions.push(R(BACK_MATTER,"back_matter",lines[backStart].trim(),backStart,cEnd,.7,"back-matter heading"));
+
+  return finalise(lines,regions,notes);
+}
+
+/* Resolve overlaps by precedence, then claim any orphan content line as
+   UNKNOWN (which defaults to keep). Mirrors _finalise in segment.py. */
+function finalise(lines,regions,notes){
+  const n=lines.length, owner=new Array(n).fill(null);
+  const sorted=[...regions].sort((a,b)=>(PRECEDENCE[a.label]-PRECEDENCE[b.label])||(a.start-b.start));
+  for(const r of sorted)
+    for(let i=Math.max(0,r.start);i<Math.min(r.end,n);i++){
+      const cur=owner[i];
+      if(cur===null||PRECEDENCE[r.label]>=PRECEDENCE[cur.label]) owner[i]=r;
+    }
+
+  const unk=R(UNKNOWN,"unclassified","",0,0,0,"no rule matched; retained by default");
+  for(let i=0;i<n;i++) if(owner[i]===null&&lines[i].trim()) owner[i]=unk;
+
+  const out=[]; let i=0;
+  while(i<n){
+    const r=owner[i];
+    if(r===null){i++;continue}
+    let j=i; while(j<n&&owner[j]===r) j++;
+    const sp=trimBlank(lines,i,j);
+    if(sp){
+      // A split piece takes its title from its own text, not the original's.
+      let title=r.title;
+      if(sp[0]!==r.start){
+        // The tail of a split region must not inherit the original's title.
+        if(r.kind==="titlepage"||r.kind==="unclassified"){
+          for(let k=sp[0];k<sp[1];k++) if(lines[k].trim()){title=lines[k].trim();break}
+        } else if((r.kind==="chapter"||r.kind==="section")&&r.title){
+          title=r.title+" (continued)";
+        }
+      }
+      out.push(R(r.label,r.kind,title,sp[0],sp[1],r.confidence,r.evidence));
+    }
+    i=j;
+  }
+  return {regions:assignHierarchy(out),notes};
+}
+
+function coverageGaps(lines,regions){
+  const n=lines.length, cov=new Array(n).fill(false);
+  for(const r of regions) for(let i=r.start;i<Math.min(r.end,n);i++) cov[i]=true;
+  const gaps=[]; let s=null;
+  for(let i=0;i<n;i++){
+    const bad=!cov[i]&&!!lines[i].trim();
+    if(bad&&s===null) s=i; else if(!bad&&s!==null){gaps.push([s,i]);s=null}
+  }
+  if(s!==null) gaps.push([s,n]);
+  return gaps;
+}
+
+/* ---- variants ---- */
+const PRESETS={
+  "verbatim":       {keep:{pg_header:1,pg_licence:1,front_matter:1,body:1,back_matter:1,unknown:1},dropHeadings:0,collapse:0,
+                     desc:"Control version. Encoding and line endings normalised; nothing removed."},
+  "full":           {keep:{pg_header:0,pg_licence:0,front_matter:1,body:1,back_matter:1,unknown:1},dropHeadings:0,collapse:1,
+                     desc:"Everything except Project Gutenberg apparatus."},
+  "body-and-front": {keep:{pg_header:0,pg_licence:0,front_matter:1,body:1,back_matter:0,unknown:1},dropHeadings:0,collapse:1,
+                     desc:"Front matter plus body, for studies in which the author's preface counts as authorial text."},
+  "body-only":      {keep:{pg_header:0,pg_licence:0,front_matter:0,body:1,back_matter:0,unknown:1},dropHeadings:0,collapse:1,
+                     desc:"The work itself. Usual choice for stylistic analysis."},
+  "body-no-headings":{keep:{pg_header:0,pg_licence:0,front_matter:0,body:1,back_matter:0,unknown:1},dropHeadings:1,collapse:1,
+                     desc:"Body with CHAPTER heading lines stripped too. For word lists and frequency counts."},
+};
+
+function render(lines,regions,cfg){
+  const kept=[],dropped=[],out=[];
+  for(const r of regions){
+    if(!cfg.keep[r.label]){dropped.push(r);continue}
+    kept.push(r);
+    for(let i=r.start;i<r.end;i++){
+      let ln=lines[i];
+      if(cfg.dropHeadings&&isChapterHeading(ln)) continue;
+      out.push(ln.replace(/[ \t]+$/,""));
+    }
+    out.push("");
+  }
+  let text=out.join("\n");
+  if(cfg.collapse) text=text.replace(/\n{3,}/g,"\n\n");
+  text=text.trim()+"\n";
+  const tt=countTT(text);
+  return {text,kept,dropped,stats:{chars:text.length,lines:text.split("\n").length-1,
+    tokens:tt.tokens,types:tt.types,kept:kept.length,dropped:dropped.length}};
+}
+
+/* =========================================================================
+   FORMATS — .docx / .epub / .html extraction, mirroring corpusprep/formats.py
+
+   No libraries. ZIP entries are inflated with the browser's native
+   DecompressionStream, so the page stays a single self-contained file.
+
+   PDF is deliberately absent: extraction yields hyphenated line-breaks,
+   hard-wrapped lines, running headers and stray page numbers — the exact
+   problems this tool cannot repair yet. Importing before repairing would let
+   people build bad corpora while trusting the output.
+   ========================================================================= */
+
+class UnsupportedFormat extends Error{}
+
+/* ---- minimal ZIP reader ---- */
+async function unzip(buf){
+  const dv=new DataView(buf), u8=new Uint8Array(buf);
+  // Locate End Of Central Directory (scan back over the max comment length)
+  let eocd=-1;
+  for(let i=u8.length-22;i>=Math.max(0,u8.length-65557);i--){
+    if(dv.getUint32(i,true)===0x06054b50){eocd=i;break}
+  }
+  if(eocd<0) throw new UnsupportedFormat("Not a valid zip-based file (docx/epub).");
+
+  const count=dv.getUint16(eocd+10,true);
+  let off=dv.getUint32(eocd+16,true);
+  const files={};
+
+  for(let n=0;n<count;n++){
+    if(dv.getUint32(off,true)!==0x02014b50) break;
+    const method=dv.getUint16(off+10,true);
+    const compSize=dv.getUint32(off+20,true);
+    const nameLen=dv.getUint16(off+28,true);
+    const extraLen=dv.getUint16(off+30,true);
+    const commentLen=dv.getUint16(off+32,true);
+    const localOff=dv.getUint32(off+42,true);
+    const name=new TextDecoder("utf-8").decode(u8.subarray(off+46,off+46+nameLen));
+
+    // Local header: recompute the data offset (its extra field may differ)
+    const lNameLen=dv.getUint16(localOff+26,true);
+    const lExtraLen=dv.getUint16(localOff+28,true);
+    const dataStart=localOff+30+lNameLen+lExtraLen;
+    const raw=u8.subarray(dataStart,dataStart+compSize);
+
+    files[name]= method===0 ? raw : await inflateRaw(raw);
+    off+=46+nameLen+extraLen+commentLen;
+  }
+  return files;
+}
+
+async function inflateRaw(bytes){
+  if(typeof DecompressionStream==="undefined")
+    throw new UnsupportedFormat(
+      "This browser cannot decompress .docx/.epub files. Use a recent "+
+      "Chrome, Edge, Firefox or Safari, or convert the file to .txt.");
+  const ds=new DecompressionStream("deflate-raw");
+  const stream=new Blob([bytes]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+const dec=b=>new TextDecoder("utf-8").decode(b);
+
+/* ---- HTML → text (mirrors _HTMLText in formats.py) ---- */
+const BLOCK_TAGS=new Set(["p","div","br","li","tr","section","article","blockquote",
+  "h1","h2","h3","h4","h5","h6","pre","figcaption","td","th"]);
+const DROP_TAGS=new Set(["script","style","noscript","head","svg","template"]);
+
+function htmlToText(source){
+  const doc=new DOMParser().parseFromString(source,"text/html");
+  const out=[]; let buf=[], skip=0, headings=0;
+
+  const flush=()=>{
+    const t=buf.join("").trim(); buf=[];
+    if(t) out.push(t.replace(/[ \t]{2,}/g," "));
+  };
+  const isH=t=>t.length===2&&t[0]==="h"&&/\d/.test(t[1]);
+
+  (function walk(node){
+    for(const child of node.childNodes){
+      if(child.nodeType===3){ if(!skip) buf.push(child.data); continue }
+      if(child.nodeType!==1) continue;
+      const tag=child.tagName.toLowerCase();
+      if(DROP_TAGS.has(tag)){ skip++; walk(child); skip=Math.max(0,skip-1); continue }
+      if(BLOCK_TAGS.has(tag)){ flush(); if(isH(tag)){headings++; out.push("")} }
+      walk(child);
+      if(BLOCK_TAGS.has(tag)){ flush(); if(isH(tag)) out.push("") }
+    }
+  })(doc);
+  flush();
+
+  let text=out.join("\n").replace(/\n{3,}/g,"\n\n");
+  return {text,meta:{container:"html",headings}};
+}
+
+/* ---- DOCX ---- */
+async function docxToText(buf){
+  const files=await unzip(buf);
+  if(!files["word/document.xml"])
+    throw new UnsupportedFormat(
+      "Not a Word document (word/document.xml missing). Legacy .doc files "+
+      "from Word 97-2003 are a different format. Re-save the file as .docx.");
+
+  const xml=new DOMParser().parseFromString(dec(files["word/document.xml"]),"application/xml");
+  const W="http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+  const lines=[]; let nHead=0;
+
+  for(const p of xml.getElementsByTagNameNS(W,"p")){
+    let style="";
+    const pr=p.getElementsByTagNameNS(W,"pStyle")[0];
+    if(pr) style=pr.getAttributeNS(W,"val")||pr.getAttribute("w:val")||"";
+
+    const parts=[];
+    (function walk(n){
+      for(const c of n.childNodes){
+        if(c.nodeType!==1) continue;
+        const ln=c.localName;
+        if(ln==="t") parts.push(c.textContent||"");
+        else if(ln==="tab"||ln==="br") parts.push(" ");
+        else walk(c);
+      }
+    })(p);
+    const text=parts.join("").trim();
+
+    if(/^(Heading|Title|Subtitle)/i.test(style)&&text){
+      nHead++;
+      if(lines.length&&lines[lines.length-1]!=="") lines.push("");
+      lines.push(text); lines.push("");
+    } else lines.push(text);
+  }
+  return {text:lines.join("\n"),meta:{container:"docx",styled_headings:nHead}};
+}
+
+/* ---- EPUB ---- */
+async function epubToText(buf){
+  const files=await unzip(buf);
+  const names=Object.keys(files);
+
+  let opfPath=null;
+  if(files["META-INF/container.xml"]){
+    const c=new DOMParser().parseFromString(dec(files["META-INF/container.xml"]),"application/xml");
+    const rf=c.getElementsByTagName("rootfile")[0];
+    if(rf) opfPath=rf.getAttribute("full-path");
+  }
+  if(!opfPath) opfPath=names.find(n=>n.endsWith(".opf"));
+  if(!opfPath) throw new UnsupportedFormat("Not a readable EPUB (no OPF package file).");
+
+  const opf=new DOMParser().parseFromString(dec(files[opfPath]),"application/xml");
+  const base=opfPath.includes("/")?opfPath.slice(0,opfPath.lastIndexOf("/")+1):"";
+
+  const manifest={};
+  for(const it of opf.getElementsByTagName("item"))
+    manifest[it.getAttribute("id")]=it.getAttribute("href");
+
+  let order=[];
+  for(const ir of opf.getElementsByTagName("itemref")){
+    const href=manifest[ir.getAttribute("idref")];
+    if(href) order.push(base+href);
+  }
+  if(!order.length) order=names.filter(n=>/\.(xhtml|html|htm)$/i.test(n));
+
+  const chunks=[]; let n=0;
+  for(const name of order){
+    if(!files[name]) continue;
+    const {text}=htmlToText(dec(files[name]));
+    if(text.trim()){chunks.push(text.trim()); n++}
+  }
+  return {text:chunks.join("\n\n"),meta:{container:"epub",documents:n}};
+}
+
+/* ---- dispatch ---- */
+async function extractFile(name,buf){
+  const ext=(name.match(/\.[^.]+$/)||[""])[0].toLowerCase();
+  if(ext===".pdf") throw new UnsupportedFormat(
+    "PDF is not supported yet. PDF text extraction produces hyphenated "+
+    "line-breaks, hard-wrapped lines, running headers and stray page numbers "+
+    "which are the exact problems CorpusPrep cannot yet repair. Export to .docx or "+
+    ".txt first.");
+  if(ext===".doc") throw new UnsupportedFormat(
+    "Legacy .doc (Word 97-2003) is a binary format and is not supported. "+
+    "Open it in Word and re-save as .docx.");
+  if(ext===".docx") return docxToText(buf);
+  if(ext===".epub") return epubToText(buf);
+  if([".html",".htm",".xhtml"].includes(ext)){
+    let src; try{src=new TextDecoder("utf-8",{fatal:true}).decode(buf)}
+    catch(e){src=new TextDecoder("windows-1252").decode(buf)}
+    return htmlToText(src);
+  }
+  return null; // plain text — handled by decode()
+}
+
+/* =========================================================================
+   APP
+   ========================================================================= */
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let DOC=null, CFG=null, RESULT=null, USER=null;
+
+/* Cleaning is never automatic. Loading a file segments and displays it; no
+   output exists until the user requests it. CLEANED tracks whether RESULT
+   reflects the current selection, so changing a preset marks it stale rather
+   than silently regenerating. */
+let CLEANED=false;
+
+/* Compact label for the margin of the segmentation view. Defined here rather
+   than on LABELS so the engine block stays untouched by presentation. */
+const SHORT={pg_header:"Apparatus", pg_licence:"Licence", front_matter:"Front matter",
+             body:"Body", back_matter:"Back matter", unknown:"Unclassified"};
+
+/* ---- capabilities -------------------------------------------------------
+   `ready:false` entries are specified in the design but not implemented. They
+   are shown, and marked, deliberately: a researcher who discovers a missing
+   capability mid-project trusts the tool less than one who was told up front.
+   Update these flags as the stages land. */
+const CAPABILITIES=[
+  {ready:1, t:"Detects front matter and back matter",
+   d:"Title pages, prefaces, dramatis personae, contents, appendices and indexes."},
+  {ready:1, t:"Segments chapters and sections",
+   d:"Chapter, Book, Part, Act and Scene divisions, numbered sections and bare numeral runs."},
+  {ready:1, t:"Identifies publisher and licence apparatus",
+   d:"Gutenberg headers, licence text and transcriber credits, whether or not sentinel markers are present."},
+  {ready:1, t:"Preserves or removes structural elements on request",
+   d:"Retain or remove any section. Five presets are provided, or sections may be selected individually."},
+  {ready:1, t:"Reads TXT, DOCX, EPUB and HTML",
+   d:"Encoding, byte-order marks and line endings resolved on import."},
+  {ready:1, t:"Records every decision in a log",
+   d:"Markdown and JSON, including token and type counts, suitable for citation."},
+  {ready:0, t:"Identifies page numbers, headers and footers",
+   d:"Statistical detection of repeating page furniture. Specified, not yet implemented."},
+  {ready:0, t:"Cleans OCR artefacts",
+   d:"Broken ligatures, stray marks and mis-scanned characters, flagged for review."},
+  {ready:0, t:"Rejoins hyphenated line breaks",
+   d:"Wordlist-validated de-hyphenation, with ambiguous cases queued for review."},
+  {ready:0, t:"Reflows hard-wrapped paragraphs",
+   d:"Paragraph reconstruction that leaves verse and drama line breaks intact."},
+];
+
+const TICK_ON=`<svg class="tick" width="14" height="14" viewBox="0 0 24 24" fill="none"
+  stroke="#37564a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20 6L9 17l-5-5"/></svg>`;
+const TICK_OFF=`<svg class="tick" width="14" height="14" viewBox="0 0 24 24" fill="none"
+  stroke="#a09a8e" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"
+  stroke-dasharray="3 3"/></svg>`;
+
+function drawCapabilities(){
+  const ready=CAPABILITIES.filter(c=>c.ready).length;
+  $("#cap-count").textContent=`${ready} available, ${CAPABILITIES.length-ready} planned`;
+  $("#caps").innerHTML=CAPABILITIES.map(c=>`
+    <div class="cap ${c.ready?"":"soon"}">
+      ${c.ready?TICK_ON:TICK_OFF}
+      <div class="body">
+        <div class="t">${c.t}${c.ready?"":'<span class="tag">planned</span>'}</div>
+        <div class="d">${c.d}</div>
+      </div></div>`).join("");
+}
+
+/* ---- local persistence -------------------------------------------------
+   Held on this machine only. No server exists, so nothing is transmitted;
+   this is what provides continuity between sessions without uploading a
+   single line of anyone's corpus. */
+const STORE="corpusprep.v1";
+function load_(){ try{return JSON.parse(localStorage.getItem(STORE))||{}}catch(e){return {}} }
+function save_(o){ try{localStorage.setItem(STORE,JSON.stringify(o))}catch(e){} }
+function remember(patch){ save_({...load_(),...patch}); }
+
+function pushRecent(name,tokens){
+  const s=load_(), list=(s.recent||[]).filter(r=>r.name!==name);
+  list.unshift({name,tokens,at:Date.now()});
+  save_({...s,recent:list.slice(0,6)});
+  drawRecent();
+}
+function drawRecent(){
+  const list=load_().recent||[];
+  const guide=$("#guide");
+  if(!list.length){
+    $("#recent-wrap").style.display="none";
+    if(guide&&!DOC) guide.style.display="";   // first run: guidance fills the space
+    return;
+  }
+  if(guide&&!DOC) guide.style.display="none"; // returning user: recents replace it
+  $("#recent-wrap").style.display="";
+  $("#recent").innerHTML=list.map(r=>`
+    <button title="Reopen this file from disk to load it again">
+      <span class="t">${esc(r.name)}</span>
+      <span class="d">${r.tokens.toLocaleString()}</span>
+    </button>`).join("");
+}
+
+/* ---- sign in ---- */
+function initials(n){
+  const p=n.trim().split(/\s+/).filter(Boolean);
+  return ((p[0]&&p[0][0]||"?")+(p.length>1?p[p.length-1][0]:"")).toUpperCase();
+}
+function enter(user){
+  USER=user;
+  remember({user});
+  $("#gate").style.display="none";
+  $("#app").style.display="flex";
+  $("#who").innerHTML = user
+    ? `<span class="avatar">${esc(initials(user.name))}</span>
+       <span>${esc(user.name)}${user.inst?" · "+esc(user.inst):""}</span>`
+    : `<span>Not signed in</span>`;
+  drawRecent();
+  if(CFG) refreshPreview();
+}
+$("#g-go").onclick=()=>{
+  const name=$("#g-name").value.trim();
+  if(!name){ $("#g-name").focus(); return }
+  enter({name,inst:$("#g-inst").value.trim()});
+};
+["#g-name","#g-inst"].forEach(s=>$(s).addEventListener("keydown",
+  e=>{if(e.key==="Enter")$("#g-go").click()}));
+$("#g-skip").onclick=()=>enter(null);
+
+/* ---- import ---- */
+function decode(buf){
+  const b=new Uint8Array(buf);
+  let hadBom=false, enc="utf-8", conf=.9;
+  if(b[0]===0xEF&&b[1]===0xBB&&b[2]===0xBF){hadBom=true;enc="utf-8-sig";conf=1}
+  let text;
+  try{ text=new TextDecoder("utf-8",{fatal:true}).decode(b); }
+  catch(e){ enc="windows-1252"; conf=.5; text=new TextDecoder("windows-1252").decode(b); }
+  const crlf=(text.match(/\r\n/g)||[]).length;
+  const lf=(text.match(/\n/g)||[]).length-crlf;
+  const cr=(text.match(/\r/g)||[]).length-crlf;
+  const newline=crlf>=lf&&crlf>=cr?"\\r\\n":(cr>lf?"\\r":"\\n");
+  if(text.charCodeAt(0)===0xFEFF){text=text.slice(1);hadBom=true}
+  text=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  const repl=(text.match(/\uFFFD/g)||[]).length;
+  return {lines:text.split("\n"),enc,hadBom,conf,newline,repl};
+}
+
+async function loadText(name,buf){
+  let d, extraNotes=[];
+  try{
+    const ex=await extractFile(name,buf);
+    if(ex){
+      const text=ex.text.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+      d={lines:text.split("\n"),enc:`utf-8 (from ${ex.meta.container})`,
+         hadBom:false,conf:1,newline:"\\n",repl:(text.match(/\uFFFD/g)||[]).length};
+      extraNotes.push(`Text extracted from ${ex.meta.container}. Formatting, images `+
+        `and footnotes were discarded. Paragraph structure was preserved.`);
+    } else d=decode(buf);
+  }catch(err){
+    showError(err instanceof UnsupportedFormat?err.message:
+      `Could not read ${name}: ${err.message}`);
+    return;
+  }
+
+  const seg=segment(d.lines);
+  const tt=countTT(d.lines.join("\n"));
+  DOC={name,...d,regions:seg.regions,notes:[...extraNotes,...seg.notes],
+       stats:{chars:d.lines.join("\n").length,lines:d.lines.length,
+              tokens:tt.tokens,types:tt.types},
+       gaps:coverageGaps(d.lines,seg.regions)};
+
+  const pref=load_().preset;
+  const start=(pref&&PRESETS[pref])?pref:"body-only";
+  CFG=JSON.parse(JSON.stringify(PRESETS[start])); CFG.name=start;
+  $("#preset").value=start;
+
+  $("#err").style.display="none";
+  $("#run-wrap").style.display="";
+  $("#side").style.display="";
+  $("#guide").style.display="none";
+  $("#welcome").style.display="none";
+  $("#segview").style.display="";
+  $("#hdr-doc").innerHTML=`<b>${esc(name)}</b>`;
+  pushRecent(name,DOC.stats.tokens);
+  CLEANED=false; RESULT=null;
+  $("#run-clean").dataset.ran="";
+  drawMeta(); drawToggles(); refreshPreview();
+}
+
+/* ---- what the segmenter found ---- */
+function drawSummary(){
+  const R=DOC.regions;
+  const n=k=>R.filter(r=>r.kind===k).length;
+  const byLabel=l=>R.filter(r=>r.label===l).length;
+  const chapters=n("chapter"), sections=n("section");
+  const apparatus=byLabel("pg_header")+byLabel("pg_licence");
+  const front=byLabel("front_matter"), back=byLabel("back_matter");
+  const depth=Math.max(...R.map(r=>r.level));
+  const unknown=byLabel("unknown");
+
+  // Proportion bar: how the source divides by label.
+  const words={};
+  R.forEach(r=>{words[r.label]=(words[r.label]||0)
+    +countTT(DOC.lines.slice(r.start,r.end).join("\n")).tokens});
+  const total=Object.values(words).reduce((a,b)=>a+b,0)||1;
+  const bar=LABELS.filter(l=>words[l.id]).map(l=>
+    `<div class="bar-seg" style="width:${100*words[l.id]/total}%;background:${l.fg}"
+      title="${l.name}: ${words[l.id].toLocaleString()} words"></div>`).join("");
+
+  const cell=(v,k)=>`<div class="sum"><div class="v ${v?"":"zero"}">${
+    typeof v==="number"?v.toLocaleString():v}</div><div class="k">${k}</div></div>`;
+
+  $("#summary").innerHTML=`<div class="summary">
+    <div class="summary-top">
+      <span class="t">Segmentation summary</span>
+      <span class="s">${DOC.regions.length} sections · ${
+        depth>1?`${depth} levels of nesting`:"no nesting detected"}${
+        unknown?` · ${unknown} unclassified`:""}</span>
+    </div>
+    <div class="bar-track">${bar}</div>
+    <div class="sum-grid">
+      ${cell(DOC.stats.tokens,"Words")}
+      ${cell(chapters||sections,chapters?"Chapters":"Sections")}
+      ${cell(front,"Front-matter blocks")}
+      ${cell(back,"Back-matter blocks")}
+      ${cell(apparatus,"Apparatus blocks")}
+      ${cell(plannedDrops().length,CLEANED?"Removed":"To be removed")}
+    </div></div>`;
+}
+
+function showError(msg){ const e=$("#err"); e.textContent=msg; e.style.display=""; }
+function handleFile(f){ if(f) f.arrayBuffer().then(b=>loadText(f.name,b)); }
+
+/* ---- sidebar ---- */
+function drawMeta(){
+  const d=DOC,s=d.stats;
+  let h=`<span class="fn">${esc(d.name)}</span>
+   <dl>
+     <dt>Characters</dt><dd class="num">${s.chars.toLocaleString()}</dd>
+     <dt>Lines</dt><dd class="num">${s.lines.toLocaleString()}</dd>
+     <dt>Word tokens</dt><dd class="num">${s.tokens.toLocaleString()}</dd>
+     <dt>Word types</dt><dd class="num">${s.types.toLocaleString()}</dd>
+     <dt>Encoding</dt><dd>${esc(d.enc)}${d.hadBom?" · BOM":""}</dd>
+   </dl>`;
+  const w=[];
+  if(d.conf<.6) w.push(`Encoding identified with low confidence (${d.enc}). Inspect the output for character corruption.`);
+  if(d.repl)    w.push(`${d.repl} undecodable byte(s) replaced. The source file may be damaged.`);
+  d.notes.forEach(n=>w.push(n));
+  if(d.gaps.length) w.push(`${d.gaps.length} uncovered content range(s). This indicates a fault in segmentation.`);
+  $("#meta").innerHTML=h+w.map(x=>`<div class="warn">${esc(x)}</div>`).join("");
+}
+
+function drawToggles(){
+  const counts={},words={};
+  for(const r of DOC.regions){
+    counts[r.label]=(counts[r.label]||0)+1;
+    words[r.label]=(words[r.label]||0)+countTT(DOC.lines.slice(r.start,r.end).join("\n")).tokens;
+  }
+  $("#toggles").innerHTML=LABELS.filter(l=>counts[l.id]).map(l=>`
+    <label class="toggle ${CFG.keep[l.id]?"":"off"}" data-l="${l.id}">
+      <input type="checkbox" ${CFG.keep[l.id]?"checked":""}>
+      <span class="swatch" style="background:${l.fg}"></span>
+      <span>${l.name}</span>
+      <span class="n">${words[l.id].toLocaleString()}</span>
+    </label>`).join("")
+    +`<label class="toggle ${CFG.dropHeadings?"":"off"}" data-l="__h">
+        <input type="checkbox" ${CFG.dropHeadings?"checked":""}>
+        <span class="swatch" style="background:var(--rule)"></span>
+        <span>Drop heading lines</span></label>`;
+
+  $$("#toggles .toggle").forEach(el=>{
+    el.querySelector("input").addEventListener("change",e=>{
+      const k=el.dataset.l;
+      if(k==="__h") CFG.dropHeadings=e.target.checked?1:0;
+      else CFG.keep[k]=e.target.checked?1:0;
+      el.classList.toggle("off",!e.target.checked);
+      CFG.name=matchPreset()||"custom";
+      $("#preset").value=CFG.name;
+      remember({preset:CFG.name});
+      refreshPreview();
+    });
+  });
+}
+
+function matchPreset(){
+  for(const [n,p] of Object.entries(PRESETS)){
+    if(p.dropHeadings!==CFG.dropHeadings) continue;
+    if(LABELS.every(l=>!!p.keep[l.id]===!!CFG.keep[l.id])) return n;
+  }
+  return null;
+}
+
+/* Which sections the current selection would remove. Computed without
+   rendering any text, so reviewing a preset is not the same as cleaning. */
+function plannedDrops(){
+  return DOC.regions.filter(r=>!CFG.keep[r.label]);
+}
+
+/* Called on load and whenever the selection changes. Updates the review
+   surfaces only. Any previously produced output becomes stale. */
+function refreshPreview(){
+  if(CLEANED){ CLEANED=false; RESULT=null; }
+  $("#preset-desc").textContent=PRESETS[CFG.name]?PRESETS[CFG.name].desc
+    :"A custom selection of sections.";
+  drawSummary(); drawStats(); drawRegions(); drawRunState(); drawGates();
+}
+
+/* The explicit action. Nothing above this line produces cleaned text. */
+function runClean(){
+  RESULT=render(DOC.lines,DOC.regions,CFG);
+  RESULT.base=render(DOC.lines,DOC.regions,PRESETS["verbatim"]).stats;
+  CLEANED=true;
+  drawSummary(); drawStats(); drawRegions();
+  drawCompare(); drawLog(); drawRunState(); drawGates();
+}
+
+function drawRunState(){
+  const b=$("#run-clean"), n=$("#run-note");
+  if(!DOC){ return }
+  const drops=plannedDrops().length;
+  if(CLEANED){
+    b.textContent="Cleaned";
+    b.className="btn-run done";
+    n.textContent="The cleaned text and its log are ready. Adjust the selection "
+      +"above to clean again.";
+  } else if(RESULT===null&&b.dataset.ran==="1"){
+    b.textContent="Apply changes";
+    b.className="btn-run stale";
+    n.textContent="The selection has changed since the last run.";
+  } else {
+    b.textContent="Clean text";
+    b.className="btn-run";
+    n.textContent=drops
+      ? `${drops} of ${DOC.regions.length} sections will be removed. Nothing is `
+        +`produced until you run this.`
+      : "No sections are currently marked for removal.";
+  }
+}
+
+/* The comparison and log views describe an output that does not exist until
+   cleaning has been run, so they are held closed until then. */
+function drawGates(){
+  const on=CLEANED;
+  $("#gate-cmp").style.display=on?"none":"";
+  $("#cmp-body").style.display=on?"":"none";
+  $("#gate-log").style.display=on?"none":"";
+  $("#logview").style.display=on?"":"none";
+}
+
+function drawStats(){
+  if(!CLEANED){
+    $("#stats").innerHTML=`<div class="fig" style="grid-column:1/-1">
+      <div class="v zero">Not yet cleaned</div>
+      <div class="k">Run cleaning to see the result</div></div>`;
+    return;
+  }
+  const s=RESULT.stats,b=RESULT.base;
+  const d=b.tokens?100*(s.tokens-b.tokens)/b.tokens:0;
+  const cls=Math.abs(d)<3?"ok":Math.abs(d)<15?"warn":"bad";
+  $("#stats").innerHTML=`
+    <div class="fig"><div class="v">${s.tokens.toLocaleString()}<span class="d ${cls}">${d>=0?"+":""}${d.toFixed(1)}%</span></div>
+      <div class="k">Word tokens</div></div>
+    <div class="fig"><div class="v">${s.types.toLocaleString()}</div><div class="k">Word types</div></div>
+    <div class="fig"><div class="v">${s.chars.toLocaleString()}</div><div class="k">Characters</div></div>
+    <div class="fig"><div class="v">${s.kept}<span style="color:var(--faint)">/${DOC.regions.length}</span></div>
+      <div class="k">Sections kept</div></div>`;
+}
+
+/* ---- segmentation ---- */
+function drawRegions(){
+  const counts={};
+  for(const r of DOC.regions) counts[r.label]=(counts[r.label]||0)+1;
+  const drops=plannedDrops().length;
+  $("#seg-sub").textContent=
+    `${DOC.regions.length} sections identified · ${drops} ${CLEANED?"removed":"marked for removal"} `+
+    `by the current selection · ${DOC.gaps.length?"warning: uncovered lines present":"every line accounted for"}`;
+
+  $("#legend").innerHTML=LABELS.filter(l=>counts[l.id]).map(l=>
+    `<span><span class="swatch" style="background:${l.fg}"></span>${l.name}</span>`).join("");
+
+  $("#regions").innerHTML=DOC.regions.map((r,i)=>{
+    const l=LMAP[r.label], keep=!!CFG.keep[r.label];
+    const txt=DOC.lines.slice(r.start,r.end);
+    const prev=txt.slice(0,40).join("\n");
+    const more=txt.length>40?`\n\n… ${txt.length-40} more lines`:"";
+    const w=countTT(txt.join("\n")).tokens;
+    const kids=childrenOf(DOC.regions,i);
+    const shown=kids.length?subtreeWords(DOC.lines,DOC.regions,i):w;
+    const size=kids.length?`${shown.toLocaleString()} w · ${kids.length} parts`
+                          :`${w.toLocaleString()} w`;
+    return `<div class="region ${keep?"":"dropped"}" data-i="${i}">
+      <div class="region-head" style="padding-left:${(r.level-1)*26}px">
+        <span class="bar" style="background:${l.fg}"></span>
+        <span class="k" style="color:${l.fg}">${SHORT[r.label]||l.name}</span>
+        <span class="t">${esc(r.title||r.kind)}</span>
+        <span class="i">${r.start+1}–${r.end} · ${size}${keep?"":` · <span class="removed">${CLEANED?"removed":"to be removed"}</span>`}</span>
+      </div>
+      <div class="region-body">${esc(prev)}${esc(more)}
+        <div class="evid">${esc(r.evidence)} · confidence ${r.confidence.toFixed(2)}</div>
+      </div></div>`;
+  }).join("");
+
+  $$("#regions .region-head").forEach(h=>
+    h.addEventListener("click",()=>h.parentElement.classList.toggle("open")));
+}
+
+/* ---- compare ---- */
+function drawCompare(){
+  $("#src-i").textContent=`${DOC.stats.tokens.toLocaleString()} tokens`;
+  $("#out-i").textContent=`${RESULT.stats.tokens.toLocaleString()} tokens · ${CFG.name||"custom"}`;
+
+  const dropSet=new Set();
+  RESULT.dropped.forEach(r=>{for(let i=r.start;i<r.end;i++) dropSet.add(i)});
+  $("#src-t").innerHTML=DOC.lines.map((l,i)=>
+    dropSet.has(i)?`<mark>${esc(l)}</mark>`:esc(l)).join("\n");
+  $("#out-t").textContent=RESULT.text;
+
+  const a=$("#src-t"),b=$("#out-t");
+  let lock=false;
+  const sync=(from,to)=>()=>{ if(lock)return; lock=true;
+    const r=from.scrollTop/Math.max(1,from.scrollHeight-from.clientHeight);
+    to.scrollTop=r*(to.scrollHeight-to.clientHeight); lock=false; };
+  a.onscroll=sync(a,b); b.onscroll=sync(b,a);
+}
+
+/* ---- log ---- */
+function logMarkdown(){
+  const d=DOC,s=RESULT.stats,b=RESULT.base;
+  const delta=b.tokens?(100*(s.tokens-b.tokens)/b.tokens).toFixed(1):"0.0";
+  let m=`# CorpusPrep: Preprocessing Log\n\n`;
+  m+=`**Source:** \`${d.name}\`  \n`;
+  m+=`**Generated:** ${new Date().toISOString().slice(0,16).replace("T"," ")}  \n`;
+  if(USER) m+=`**Prepared by:** ${USER.name}${USER.inst?", "+USER.inst:""}  \n`;
+  m+=`**Encoding:** ${d.enc} (confidence ${d.conf.toFixed(1)})${d.hadBom?", BOM removed":""}  \n`;
+  m+=`**Line endings:** ${d.newline} → normalised to \\n  \n**Preset:** ${CFG.name||"custom"}\n\n`;
+  m+=`## 1. Source\n\n- Characters: ${d.stats.chars.toLocaleString()}\n`;
+  m+=`- Lines: ${d.stats.lines.toLocaleString()}\n- Word tokens: ${d.stats.tokens.toLocaleString()}\n`;
+  m+=`- Word types: ${d.stats.types.toLocaleString()}\n\n`;
+  m+=`## 2. Segmentation\n\n| # | Label | Kind | Title | Lines | Words | Conf |\n|---|---|---|---|---|---|---|\n`;
+  d.regions.forEach((r,i)=>{
+    const w=countTT(d.lines.slice(r.start,r.end).join("\n")).tokens;
+    m+=`| ${i+1} | ${r.label} | ${r.kind} | ${"  ".repeat(r.level-1)}${r.title||"(untitled)"} | ${r.start+1}–${r.end} | ${w.toLocaleString()} | ${r.confidence.toFixed(2)} |\n`;
+  });
+  m+=`\n${d.gaps.length?`Warning: ${d.gaps.length} uncovered content range(s). This indicates a fault in segmentation.`
+    :"Every line is covered by exactly one region."}\n\n`;
+  m+=`## 3. Result\n\n| | Source | Cleaned | Change |\n|---|---|---|---|\n`;
+  m+=`| Characters | ${b.chars.toLocaleString()} | ${s.chars.toLocaleString()} | ${(100*(s.chars-b.chars)/b.chars).toFixed(1)}% |\n`;
+  m+=`| Word tokens | ${b.tokens.toLocaleString()} | ${s.tokens.toLocaleString()} | ${delta}% |\n`;
+  m+=`| Word types | ${b.types.toLocaleString()} | ${s.types.toLocaleString()} | n/a |\n\n`;
+  m+=`## 4. Sections removed\n\n`;
+  if(!RESULT.dropped.length) m+=`None.\n\n`;
+  else{
+    m+=`| Section | Lines | Basis for identification |\n|---|---|---|\n`;
+    RESULT.dropped.forEach(r=>m+=`| ${r.label}: ${r.title||r.kind} | ${r.start+1}–${r.end} | ${r.evidence} |\n`);
+    m+=`\n`;
+  }
+  m+=`---\n\n*A substantial reduction in characters accompanied by negligible token `;
+  m+=`loss indicates that apparatus was removed rather than prose. Token loss above `;
+  m+=`a few per cent in body-only warrants investigation before the corpus is used.*\n`;
+  return m;
+}
+
+function drawLog(){
+  const d=DOC,s=RESULT.stats,b=RESULT.base;
+  const dt=b.tokens?100*(s.tokens-b.tokens)/b.tokens:0;
+  const dc=b.chars?100*(s.chars-b.chars)/b.chars:0;
+  let h=`<div class="canvas-head"><h3>Preprocessing log</h3>
+    <p>A record of every decision taken, suitable for citation in a methods section.</p></div>
+
+   <h4>Provenance</h4><table>
+   <tr><td class="lbl">Source</td><td>${esc(d.name)}</td></tr>
+   ${USER?`<tr><td class="lbl">Prepared by</td><td>${esc(USER.name)}${USER.inst?", "+esc(USER.inst):""}</td></tr>`:""}
+   <tr><td class="lbl">Generated</td><td>${new Date().toISOString().slice(0,16).replace("T"," ")}</td></tr>
+   <tr><td class="lbl">Encoding</td><td>${esc(d.enc)}${d.hadBom?" · BOM removed":""} · confidence ${d.conf.toFixed(1)}</td></tr>
+   <tr><td class="lbl">Line endings</td><td class="mono">${d.newline} → \\n</td></tr>
+   <tr><td class="lbl">Preset</td><td>${esc(CFG.name||"custom")}</td></tr>
+   <tr><td class="lbl">Coverage</td><td>${d.gaps.length?"⚠ "+d.gaps.length+" uncovered range(s)":"Every line accounted for"}</td></tr>
+   </table>
+
+   <h4>Result</h4>
+   <table><tr><th></th><th>Source</th><th>Cleaned</th><th>Change</th></tr>
+   <tr><td class="lbl">Characters</td><td>${b.chars.toLocaleString()}</td><td>${s.chars.toLocaleString()}</td><td>${dc.toFixed(1)}%</td></tr>
+   <tr><td class="lbl">Word tokens</td><td>${b.tokens.toLocaleString()}</td><td>${s.tokens.toLocaleString()}</td><td>${dt.toFixed(1)}%</td></tr>
+   <tr><td class="lbl">Word types</td><td>${b.types.toLocaleString()}</td><td>${s.types.toLocaleString()}</td><td>n/a</td></tr></table>
+
+   <div class="note">${Math.abs(dc)>1&&Math.abs(dt)<3
+     ? "A substantial reduction in characters accompanied by negligible token loss indicates that <b>apparatus was removed rather than prose</b>. This is the expected signature of a sound run."
+     : Math.abs(dt)>=8
+     ? "<b>Token loss is high.</b> Examine the sections listed below before this corpus is used."
+     : "Both character and token counts have changed little. Little was removed."}</div>
+
+   <h4>Sections removed</h4>
+   <p class="sub">${RESULT.dropped.length} of ${DOC.regions.length} sections</p>`;
+  if(!RESULT.dropped.length) h+=`<p style="color:var(--muted);font-size:13.5px">None.</p>`;
+  else{
+    h+=`<table><tr><th>Section</th><th>Lines</th><th>Words</th><th>Basis for identification</th></tr>`;
+    RESULT.dropped.forEach(r=>{
+      const w=countTT(DOC.lines.slice(r.start,r.end).join("\n")).tokens;
+      h+=`<tr><td>${esc(r.title||r.kind)}</td><td>${r.start+1}–${r.end}</td>
+          <td>${w.toLocaleString()}</td><td class="lbl" style="width:auto">${esc(r.evidence)}</td></tr>`;
+    });
+    h+=`</table>`;
+  }
+  h+=`<div class="dl">
+    <button class="btn sm" onclick="dl('txt')">Download cleaned text</button>
+    <button class="btn sm ghost" onclick="dl('md')">Log (Markdown)</button>
+    <button class="btn sm ghost" onclick="dl('json')">Log (JSON)</button></div>`;
+  $("#logview").innerHTML=h;
+}
+
+function dl(kind){
+  const stem=DOC.name.replace(/\.(txt|docx|epub|html?|xhtml|md)$/i,"");
+  let data,name,type="text/plain";
+  if(kind==="txt"){data=RESULT.text;name=`${stem}__${CFG.name||"custom"}.txt`}
+  else if(kind==="md"){data=logMarkdown();name=`${stem}_log.md`;type="text/markdown"}
+  else{
+    data=JSON.stringify({tool:"corpusprep-web",version:"0.2.0",
+      generated:new Date().toISOString(), prepared_by:USER||null,
+      source:{name:DOC.name,encoding:DOC.enc,had_bom:DOC.hadBom,stats:DOC.stats,notes:DOC.notes},
+      regions:DOC.regions.map(r=>({label:r.label,kind:r.kind,title:r.title,
+        start_line:r.start+1,end_line:r.end,level:r.level,parent:r.parent,
+        confidence:r.confidence,evidence:r.evidence})),
+      coverage_gaps:DOC.gaps,
+      preset:{name:CFG.name||"custom",keep:CFG.keep,drop_headings:!!CFG.dropHeadings},
+      result:RESULT.stats},null,2);
+    name=`${stem}_log.json`;type="application/json";
+  }
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([data],{type}));
+  a.download=name; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+
+/* ---- wiring ---- */
+$("#run-clean").onclick=()=>{
+  if(!DOC||CLEANED) return;
+  $("#run-clean").dataset.ran="1";
+  runClean();
+};
+
+$("#drop").onclick=()=>$("#file").click();
+$("#file").onchange=e=>handleFile(e.target.files[0]);
+["dragover","dragenter"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.add("over")}));
+["dragleave","drop"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.remove("over")}));
+$("#drop").addEventListener("drop",e=>handleFile(e.dataTransfer.files[0]));
+
+$("#preset").onchange=e=>{
+  const p=PRESETS[e.target.value];
+  if(!p){ $("#preset").value=CFG.name||"custom"; return }
+  CFG=JSON.parse(JSON.stringify(p)); CFG.name=e.target.value;
+  remember({preset:CFG.name});
+  drawToggles(); refreshPreview();
+};
+
+$$("nav button").forEach(b=>b.onclick=()=>{
+  $$("nav button").forEach(x=>x.classList.remove("on")); b.classList.add("on");
+  $$(".tabpane").forEach(p=>p.classList.remove("on"));
+  $("#tab-"+b.dataset.tab).classList.add("on");
+});
+
+/* ---- restore session ---- */
+(function(){
+  const s=load_();
+  if(s.user){ $("#g-name").value=s.user.name||""; $("#g-inst").value=s.user.inst||""; }
+  drawCapabilities();
+  drawRecent();
+})();
+
+</script>
+</body>
+</html>

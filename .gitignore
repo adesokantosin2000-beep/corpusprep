@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Cleaning output. Generated, never committed.
+cleaned/
+cleaned_*/
+*__verbatim.txt
+*__full.txt
+*__body-only.txt
+*__body-and-front.txt
+*__body-no-headings.txt
+*_log.md
+*_log.json
+
+# Working corpora. Keep your own texts out of version control:
+# many are under copyright or ethical restriction.
+corpora/
+corpora_wild/
+
+# Web application build sources. docs/index.html is the deliverable.
+_shell.html
+_app.js
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
