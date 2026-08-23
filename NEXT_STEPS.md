@@ -1,7 +1,29 @@
 # Next steps
 
 Today is Sunday 23 August 2026. Phase 2 begins Tuesday 1 September, nine days
-away. Everything below fits into three sittings.
+away.
+
+## Done, 23 August
+
+- Repository created, pushed, tagged `v0.2.0`
+- GitHub Pages live at https://adesokantosin2000-beep.github.io/corpusprep/
+- Hosted application verified on a real EPUB: 29,187 tokens in, 25,700 out,
+  body beginning correctly at ACT I
+- Web application given a reproducible build in `build/`, replacing the
+  hand-spliced page whose engine block existed nowhere else
+- Duplicate copies removed; `corpusprep-repo` is now the only source
+
+## Remaining, none urgent
+
+- **A domain**, if you want one. See `design/operations.md`.
+- **Zenodo and the DOI.** Belongs at the end of Phase 2, when you tag `v1.0`.
+  Enable it *before* tagging, since it only archives releases made afterwards.
+- **Send the link to one colleague** with a messy corpus. Costs a single
+  message, and what they report may change which stage is worth building first.
+
+---
+
+## The original checklist, kept for reference
 
 ---
 
