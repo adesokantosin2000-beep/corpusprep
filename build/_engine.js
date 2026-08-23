@@ -502,6 +502,229 @@ function coverageGaps(lines,regions){
   return gaps;
 }
 
+/* ---- page furniture ----------------------------------------------------
+   Running heads, running feet and page numbers.
+
+   The signal is REGULARITY, not appearance. A running head recurs at the page
+   interval; a refrain recurs wherever the author chose. Rules based on short
+   lines, capitals or plain repetition all destroy prose instead.
+
+   Mirrors src/corpusprep/furniture.py. Parameter names are kept identical so
+   that any drift between the two shows up as a readable diff.
+   Nothing here deletes: furniture is a set of 1-based line numbers.          */
+
+const FURN_MAX_LEN=60;          // longest line that can be furniture
+const FURN_MIN_OCCURRENCES=5;   // fewest repeats to consider
+const FURN_MAX_CV=0.25;         // highest irregularity accepted
+const FURN_PAGE_TOLERANCE=0.25; // how far a gap may sit from the page estimate
+const FURN_NEAR_DUPLICATE=0.85; // similarity at which an OCR variant is folded in
+const FURN_MAX_PAGENO_LEN=6;
+
+// Characters OCR commonly confuses with digits. A page number read as `l3`
+// still leaves a letter behind after digit-stripping, so it never joins the
+// page-number series and is silently kept.
+const DIGIT_LOOKALIKE={l:"1",I:"1","|":"1",i:"1",O:"0",o:"0",D:"0",
+                       S:"5",s:"5",B:"8",Z:"2"};
+
+// `\p{L}\p{M}` rather than `\w`: JavaScript's `\w` is ASCII-only, which once
+// split words such as aesthetic and naive and cost a nine-token parity drift.
+const FURN_PUNCT=/[^\p{L}\p{M}\p{N}\s]/gu;
+
+function furnNormalise(line){
+  // Digits are removed deliberately: `JANE EYRE 42` and `JANE EYRE 43` are the
+  // same running head on consecutive pages and would not group otherwise.
+  return line.replace(/\d+/g," ").replace(FURN_PUNCT," ")
+             .replace(/\s+/g," ").trim().toLowerCase();
+}
+
+function looksLikePageNumber(line){
+  const s=line.replace(FURN_PUNCT,"").trim();
+  if(!s||s.length>FURN_MAX_PAGENO_LEN) return false;
+  // A single character must be a real digit. Lookalike substitution would read
+  // a lone `I` as 1, and a lone `I` is far more often the pronoun, or a roman
+  // numeral marking a chapter, than a page number.
+  if(s.length===1) return /^\d$/.test(s);
+  let out="";
+  for(const ch of s) out+=(DIGIT_LOOKALIKE[ch]!==undefined?DIGIT_LOOKALIKE[ch]:ch);
+  return /^\d+$/.test(out);
+}
+
+function furnCV(gaps){
+  if(gaps.length<2) return Infinity;
+  const mean=gaps.reduce((a,b)=>a+b,0)/gaps.length;
+  if(mean===0) return Infinity;
+  const v=gaps.reduce((a,b)=>a+(b-mean)*(b-mean),0)/gaps.length;
+  return Math.sqrt(v)/mean;
+}
+
+function furnMedian(xs){
+  if(!xs.length) return 0;
+  const s=[...xs].sort((a,b)=>a-b), m=s.length>>1;
+  return s.length%2?s[m]:(s[m-1]+s[m])/2;
+}
+
+// Equivalent to Python's difflib.SequenceMatcher.ratio(), which is 2*M/T over
+// the matching blocks. Implemented directly rather than approximated, so the
+// merge decision cannot drift from the Python side.
+function seqRatio(a,b){
+  if(!a.length&&!b.length) return 1;
+  const matching=(x,y)=>{
+    if(!x.length||!y.length) return 0;
+    let best=0,bi=0,bj=0;
+    let prev=new Array(y.length+1).fill(0);
+    for(let i=0;i<x.length;i++){
+      const cur=new Array(y.length+1).fill(0);
+      for(let j=0;j<y.length;j++){
+        if(x[i]===y[j]){
+          cur[j+1]=prev[j]+1;
+          if(cur[j+1]>best){best=cur[j+1];bi=i+1-cur[j+1];bj=j+1-cur[j+1]}
+        }
+      }
+      prev=cur;
+    }
+    if(!best) return 0;
+    return best+matching(x.slice(0,bi),y.slice(0,bj))
+               +matching(x.slice(bi+best),y.slice(bj+best));
+  };
+  return 2*matching(a,b)/(a.length+b.length);
+}
+
+function mergeNearDuplicates(groups,originals){
+  /* Fold OCR-corrupted variants back into the series they belong to.
+
+     Scanning misreads characters, so `JANE EYRE` becomes `IANE EYRE` on one
+     page in ten. Left separate, the corrupted instance is missing from its
+     series, which doubles one gap and inflates the irregularity score enough
+     to reject a perfectly good running head.
+
+     That is a data problem, not a threshold problem, and must not be fixed by
+     loosening FURN_MAX_CV: a looser limit would start admitting refrains.
+
+     Merging is one-directional, so two large distinct heads are never
+     combined.                                                              */
+  const keys=Object.keys(groups).sort((a,b)=>groups[b].length-groups[a].length);
+  const absorbed=new Set();
+  for(let i=0;i<keys.length;i++){
+    const big=keys[i];
+    if(absorbed.has(big)||big.charCodeAt(0)===0) continue;
+    for(let j=i+1;j<keys.length;j++){
+      const small=keys[j];
+      if(absorbed.has(small)||small.charCodeAt(0)===0) continue;
+      // Only ever absorb the clearly smaller party, so that two genuine heads
+      // of similar frequency stay apart.
+      if(groups[small].length*3>groups[big].length) continue;
+      if(seqRatio(big,small)>=FURN_NEAR_DUPLICATE){
+        groups[big]=groups[big].concat(groups[small]);
+        absorbed.add(small);
+      }
+    }
+  }
+  for(const k of absorbed){delete groups[k];delete originals[k]}
+  for(const k in groups) groups[k].sort((a,b)=>a-b);
+}
+
+function furnCollect(lines,skip){
+  skip=skip||new Set();
+  const groups=Object.create(null),originals=Object.create(null),
+        numeric=Object.create(null);
+  const PAGENO=" page-number";
+  for(let i=0;i<lines.length;i++){
+    const n=i+1;
+    if(skip.has(n)) continue;
+    const s=lines[i].trim();
+    if(!s||s.length>FURN_MAX_LEN) continue;
+    let key;
+    // Page numbers first: they form one series together, which is what they
+    // are. Checked before normalisation so OCR misreadings such as `l3` are
+    // recognised rather than left as the stray letter `l`.
+    // A descriptive label rather than the first number seen. The review table
+    // is meant to be read, and a row headed "1" tells the reader nothing about
+    // what is being proposed for removal.
+    if(looksLikePageNumber(s)){ key=PAGENO; numeric[key]=true;
+                                originals[key]="(page numbers)"; }
+    else { key=furnNormalise(s); if(!key) continue; }
+    (groups[key]||(groups[key]=[])).push(n);
+    if(originals[key]===undefined) originals[key]=s;
+  }
+  mergeNearDuplicates(groups,originals);
+
+  const out=[];
+  for(const key in groups){
+    const where=groups[key];
+    if(where.length<FURN_MIN_OCCURRENCES) continue;
+    const gaps=[];
+    for(let k=1;k<where.length;k++) gaps.push(where[k]-where[k-1]);
+    out.push({text:originals[key],normal:key,lines:where,
+              isNumeric:!!numeric[key],gaps,cv:furnCV(gaps),
+              medianGap:furnMedian(gaps),accepted:false,reason:""});
+  }
+  return out;
+}
+
+function estimatePageLength(cands){
+  /* The most regular series is a better witness than the modal gap, which
+     would be swayed by whichever phrase happens to be common. Regularity is
+     the property that makes something furniture at all.                     */
+  const regular=cands.filter(c=>c.cv<FURN_MAX_CV&&c.medianGap>0);
+  if(!regular.length) return 0;
+  regular.sort((a,b)=>a.cv-b.cv||b.lines.length-a.lines.length);
+  const best=regular[0].medianGap;
+  // Heads alternating verso and recto recur every two pages, so the most
+  // regular series may be measuring a double page.
+  const halves=regular.filter(c=>Math.abs(c.medianGap*2-best)/best<FURN_PAGE_TOLERANCE)
+                      .map(c=>c.medianGap);
+  return halves.length?Math.min(...halves):best;
+}
+
+function furnJudge(cands,pageLength){
+  const pc=x=>Math.round(x*100)+"%";
+  for(const c of cands){
+    if(c.cv>=FURN_MAX_CV){
+      c.reason="irregular: gaps vary by "+pc(c.cv)+", above the "
+              +pc(FURN_MAX_CV)+" limit";
+      continue;
+    }
+    if(pageLength<=0){ c.reason="no page length could be estimated"; continue }
+    const ratio=c.medianGap/pageLength;
+    const near=Math.min(...[1,2,3].map(n=>Math.abs(ratio-n)));
+    if(near>FURN_PAGE_TOLERANCE){
+      c.reason="regular but off-page: recurs every "+Math.round(c.medianGap)
+              +" lines, page is "+Math.round(pageLength);
+      continue;
+    }
+    c.accepted=true;
+    c.reason="recurs every "+Math.round(c.medianGap)+" lines ("
+            +ratio.toFixed(1)+" pages), gaps vary by "+pc(c.cv);
+  }
+  return cands;
+}
+
+function findFurniture(lines,skip){
+  // Every candidate is returned, accepted or not, with its reason recorded.
+  // A rule the user cannot interrogate is a rule the user cannot trust.
+  const cands=furnCollect(lines,skip);
+  const pageLength=estimatePageLength(cands);
+  furnJudge(cands,pageLength);
+  const marked=new Set();
+  for(const c of cands) if(c.accepted) for(const i of c.lines) marked.add(i);
+  return {furniture:marked,candidates:cands,pageLength};
+}
+
+function findFurnitureIn(lines,regions){
+  /* Search the body only.
+
+     A title page carries the book's title, which is character-for-character
+     the running head, and an imprint date, which looks exactly like a page
+     number. Searched whole, a scanned novel has its title page mistaken for
+     furniture and deleted. Front and back matter have their own conventions
+     and are excluded.                                                       */
+  const skip=new Set();
+  for(const r of regions)
+    if(r.label!=="body")
+      for(let i=r.start;i<r.end;i++) skip.add(i+1);
+  return findFurniture(lines,skip);
+}
+
 /* ---- variants ---- */
 const PRESETS={
   "verbatim":       {keep:{pg_header:1,pg_licence:1,front_matter:1,body:1,back_matter:1,unknown:1},dropHeadings:0,collapse:0,
@@ -516,13 +739,19 @@ const PRESETS={
                      desc:"Body with CHAPTER heading lines stripped too. For word lists and frequency counts."},
 };
 
-function render(lines,regions,cfg){
+function render(lines,regions,cfg,furniture){
   const kept=[],dropped=[],out=[];
+  // Off unless the caller passes both the flag and the line set. The detector
+  // has been measured against synthetic text only, and a rule that has never
+  // met a real scan must not delete prose on its own authority.
+  const dropFurn=!!(cfg.dropFurniture&&furniture);
+  let furnitureRemoved=0;
   for(const r of regions){
     if(!cfg.keep[r.label]){dropped.push(r);continue}
     kept.push(r);
     for(let i=r.start;i<r.end;i++){
       let ln=lines[i];
+      if(dropFurn&&furniture.has(i+1)){furnitureRemoved++;continue}
       if(cfg.dropHeadings&&isChapterHeading(ln)) continue;
       out.push(ln.replace(/[ \t]+$/,""));
     }
@@ -533,7 +762,8 @@ function render(lines,regions,cfg){
   text=text.trim()+"\n";
   const tt=countTT(text);
   return {text,kept,dropped,stats:{chars:text.length,lines:text.split("\n").length-1,
-    tokens:tt.tokens,types:tt.types,kept:kept.length,dropped:dropped.length}};
+    tokens:tt.tokens,types:tt.types,kept:kept.length,dropped:dropped.length,
+    furnitureRemoved}};
 }
 
 /* =========================================================================

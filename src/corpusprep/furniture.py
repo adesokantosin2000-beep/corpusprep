@@ -134,6 +134,10 @@ def collect(lines: list[str], skip: set[int] | None = None) -> list[Candidate]:
         if looks_like_page_number(s):
             key = "\x00page-number"
             numeric[key] = True
+            # A descriptive label rather than the first number seen. The review
+            # table is meant to be read, and a row headed "1" tells the reader
+            # nothing about what is being proposed for removal.
+            originals[key] = "(page numbers)"
         else:
             key = normalise(s)
             if not key:

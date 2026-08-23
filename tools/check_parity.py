@@ -51,7 +51,8 @@ const fmtEnd=html.indexOf('/* ==================================================
 if(eng<0||engEnd<0||fmt<0||fmtEnd<0){
   console.error('could not locate engine/format blocks in index.html');process.exit(2);}
 const M=new Function(html.slice(eng,engEnd)+html.slice(fmt,fmtEnd)+
-  '; return {segment,render,PRESETS,coverageGaps,countTT,extractFile};')();
+  '; return {segment,render,PRESETS,coverageGaps,countTT,extractFile,'+
+  'findFurnitureIn,looksLikePageNumber};')();
 
 const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
 
@@ -76,7 +77,13 @@ const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
       const r=M.render(lines,seg.regions,M.PRESETS[p]);
       res[p]={tokens:r.stats.tokens,types:r.stats.types};
     }
+    // Furniture is detected on every file, including those with none. A text
+    // with no running heads must produce an empty set on both sides; silent
+    // disagreement about *absence* is as much a drift as one about presence.
+    const fu=M.findFurnitureIn(lines,seg.regions);
     out[path.basename(f)]={
+      furniture:[...fu.furniture].sort((a,b)=>a-b).join(","),
+      furniture_page:Math.round(fu.pageLength*10)/10,
       regions:seg.regions.length,
       chapters:seg.regions.filter(r=>r.kind==='chapter').length,
       labels:seg.regions.map(r=>r.label).join(","),
@@ -93,16 +100,20 @@ const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
 def run_python(files: list[Path]) -> dict:
     from corpusprep import BUILTIN, load, render, segment
     from corpusprep.document import count_tokens_types
+    from corpusprep.furniture import find_in_document
 
     out = {}
     for f in files:
         doc = segment(load(f))
+        marked, _cands, page = find_in_document(doc)
         res = {}
         for v in VARIANTS:
             r = render(doc, BUILTIN[v])
             res[v] = {"tokens": r.stats["word_tokens"], "types": r.stats["word_types"]}
         t, _ = count_tokens_types(doc.text)
         out[f.name] = {
+            "furniture": ",".join(str(i) for i in sorted(marked)),
+            "furniture_page": round(page, 1),
             "regions": len(doc.regions),
             "chapters": len([r for r in doc.regions if r.kind == "chapter"]),
             "labels": ",".join(r.label for r in doc.regions),
@@ -147,6 +158,10 @@ def main(argv: list[str]) -> int:
     else:
         fx = ROOT / "tests" / "fixtures"
         files = [fx / "CBronte_Jane.txt", fx / "pg_marked.txt",
+                 # The only fixture containing running heads. Without it the
+                 # furniture comparison below would pass on empty sets, which
+                 # proves nothing.
+                 fx / "scanned_novel.txt",
                  fx / "sample.docx", fx / "sample.epub", fx / "sample.html"]
 
     files = [f for f in files if f.exists()]
@@ -166,7 +181,7 @@ def main(argv: list[str]) -> int:
         print(f"    {', '.join(skipped)}")
 
     ok = True
-    scalar = ["regions", "chapters", "gaps", "source_tokens"]
+    scalar = ["regions", "chapters", "gaps", "source_tokens", "furniture_page"]
 
     for name in py:
         print(f"\n{name}")
@@ -180,6 +195,15 @@ def main(argv: list[str]) -> int:
             match = py[name][k] == js[name][k]
             ok &= match
             print(f"  {'OK  ' if match else 'DIFF'}  {k + ' sequence':<16}")
+
+        # Compared as exact line-number sets. A count would hide the case where
+        # both sides find the same number of lines but disagree about which.
+        a = set(filter(None, py[name]["furniture"].split(",")))
+        b = set(filter(None, js[name]["furniture"].split(",")))
+        ok &= a == b
+        detail = f"{len(a)} lines" if a == b else \
+            f"python-only={sorted(a - b)[:6]} js-only={sorted(b - a)[:6]}"
+        print(f"  {'OK  ' if a == b else 'DIFF'}  {'furniture lines':<16} {detail}")
 
         for v in VARIANTS:
             a, b = py[name]["variants"][v], js[name]["variants"][v]

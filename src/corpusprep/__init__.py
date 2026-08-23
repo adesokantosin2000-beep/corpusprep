@@ -38,9 +38,37 @@ __version__ = "0.1.0"
 __all__ = [
     "load", "segment", "render", "render_all", "prepare",
     "Document", "Region", "Variant", "VariantResult",
-    "BUILTIN", "DEFAULT_SET", "custom_variant", "write_log",
+    "BUILTIN", "DEFAULT_SET", "custom_variant", "write_log", "analyse",
     "PG_HEADER", "PG_LICENCE", "FRONT_MATTER", "BODY", "BACK_MATTER", "UNKNOWN",
 ]
+
+
+def analyse(path: str | Path) -> Document:
+    """Import a file, segment it, and detect page furniture.
+
+    The single place where the two detection stages are combined, so that
+    callers cannot accidentally render a document whose furniture was never
+    looked for. Detection only: nothing is removed here.
+    """
+    from .furniture import find_in_document
+
+    doc = segment(load(path))
+    marked, candidates, page_length = find_in_document(doc)
+    doc = doc.with_furniture(marked)
+    if marked:
+        doc.meta["furniture"] = {
+            "lines": len(marked),
+            "page_length": round(page_length, 1),
+            "series": [
+                {"text": c.text, "occurrences": len(c.lines), "reason": c.reason}
+                for c in candidates if c.accepted
+            ],
+        }
+        doc.notes.append(
+            f"{len(marked)} lines look like page furniture "
+            f"(running heads or page numbers). Not removed unless requested."
+        )
+    return doc
 
 
 def prepare(
@@ -53,7 +81,7 @@ def prepare(
     If ``out_dir`` is given, cleaned files and the preprocessing log are
     written there. The source file is never modified.
     """
-    doc = segment(load(path))
+    doc = analyse(path)
     results = render_all(doc, variants or DEFAULT_SET)
 
     if out_dir is not None:

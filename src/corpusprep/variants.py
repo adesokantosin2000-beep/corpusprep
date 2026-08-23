@@ -43,6 +43,15 @@ class Variant:
     max_blank_lines: int = 1
     collapse_inner_space: bool = False   # Off: destroys verse indentation
     drop_headings: bool = False          # Remove CHAPTER lines themselves
+    # Remove detected running heads and page numbers.
+    #
+    # Off by default in every built-in variant, including the aggressive ones.
+    # The detector has so far been measured only against synthetic text, and a
+    # rule that has never met a real scan must not delete prose on its own
+    # authority. Turning this on is a decision the user makes and the log
+    # records. It becomes a candidate for a default once measured against real
+    # OCR output.
+    drop_furniture: bool = False
 
     def keeps(self, label: str) -> bool:
         return self.keep.get(label, True)
@@ -58,6 +67,7 @@ class Variant:
                 "max_blank_lines": self.max_blank_lines,
                 "collapse_inner_space": self.collapse_inner_space,
                 "drop_headings": self.drop_headings,
+                "drop_furniture": self.drop_furniture,
             },
         }
 
@@ -149,6 +159,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
     kept: list[Region] = []
     dropped: list[Region] = []
     out: list[str] = []
+    furniture_removed = 0
 
     for region in doc.regions:
         if not variant.keeps(region.label):
@@ -156,7 +167,11 @@ def render(doc: Document, variant: Variant) -> VariantResult:
             continue
         kept.append(region)
 
-        for line in doc.lines[region.start:region.end]:
+        for offset, line in enumerate(doc.lines[region.start:region.end]):
+            # `start` is a 0-based index; furniture is recorded 1-based.
+            if variant.drop_furniture and doc.is_furniture(region.start + offset + 1):
+                furniture_removed += 1
+                continue
             if variant.drop_headings and is_chapter_heading(line):
                 continue
             if variant.strip_trailing_space:
@@ -183,6 +198,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
         "word_types": types,
         "regions_kept": len(kept),
         "regions_dropped": len(dropped),
+        "furniture_removed": furniture_removed,
     }
 
     return VariantResult(

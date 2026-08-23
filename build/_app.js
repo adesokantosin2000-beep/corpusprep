@@ -158,7 +158,12 @@ async function loadText(name,buf){
 
   const seg=segment(d.lines);
   const tt=countTT(d.lines.join("\n"));
+  // Detection, not removal. The result is shown for review and is removed
+  // only if the reader ticks the box below the section list.
+  const fu=findFurnitureIn(d.lines,seg.regions);
   DOC={name,...d,regions:seg.regions,notes:[...extraNotes,...seg.notes],
+       furniture:fu.furniture,furnSeries:fu.candidates.filter(c=>c.accepted),
+       pageLength:fu.pageLength,
        stats:{chars:d.lines.join("\n").length,lines:d.lines.length,
               tokens:tt.tokens,types:tt.types},
        gaps:coverageGaps(d.lines,seg.regions)};
@@ -166,6 +171,10 @@ async function loadText(name,buf){
   const pref=load_().preset;
   const start=(pref&&PRESETS[pref])?pref:"body-only";
   CFG=JSON.parse(JSON.stringify(PRESETS[start])); CFG.name=start;
+  // Deliberately not remembered between documents. Furniture removal is a
+  // judgement about one particular text, and a setting carried over from the
+  // last file would delete lines in this one without being asked again.
+  CFG.dropFurniture=0;
   $("#preset").value=start;
 
   $("#err").style.display="none";
@@ -219,7 +228,40 @@ function drawSummary(){
       ${cell(back,"Back-matter blocks")}
       ${cell(apparatus,"Apparatus blocks")}
       ${cell(plannedDrops().length,CLEANED?"Removed":"To be removed")}
-    </div></div>`;
+    </div>${furnitureNotice()}</div>`;
+}
+
+/* What the furniture detector found, and on what grounds.
+
+   Shown whether or not the reader intends to remove it. A detector that acts
+   silently cannot be checked, and the cost of a wrong removal here is deleted
+   prose. The reasoning is printed in full so that a mistaken judgement is
+   visible before it is acted on rather than discovered afterwards. */
+function furnitureNotice(){
+  if(!DOC.furniture||!DOC.furniture.size) return "";
+  const rows=DOC.furnSeries.map(c=>
+    `<tr><td class="mono">${esc(c.text.slice(0,40))}</td>
+         <td class="num">${c.lines.length}</td>
+         <td class="why">${esc(c.reason)}</td></tr>`).join("");
+  const on=!!CFG.dropFurniture;
+  return `<div class="furn-notice ${on?"on":""}">
+    <div class="furn-head">
+      <span class="t">Possible page furniture</span>
+      <span class="s">${DOC.furniture.size} lines · estimated page length
+        ${Math.round(DOC.pageLength)} lines</span>
+    </div>
+    <p class="furn-lead">These lines recur at the page interval, which is the
+      pattern a running head or page number makes. Ordinary repeated text, such
+      as a refrain, recurs irregularly and is not listed here.</p>
+    <table class="furn-table">
+      <thead><tr><th>Recurring line</th><th>Times</th><th>Grounds</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    <p class="furn-foot">${on
+      ? "These lines will be removed when you clean. Every one is listed in the log."
+      : "Nothing is removed unless you tick <b>Drop page furniture</b> in the section list."}
+      This rule has so far been tested against constructed examples rather than
+      real scans, so please check the list above before relying on it.</p>
+  </div>`;
 }
 
 function showError(msg){ const e=$("#err"); e.textContent=msg; e.style.display=""; }
@@ -260,12 +302,20 @@ function drawToggles(){
     +`<label class="toggle ${CFG.dropHeadings?"":"off"}" data-l="__h">
         <input type="checkbox" ${CFG.dropHeadings?"checked":""}>
         <span class="swatch" style="background:var(--rule)"></span>
-        <span>Drop heading lines</span></label>`;
+        <span>Drop heading lines</span></label>`
+    +(DOC.furniture.size?`
+      <label class="toggle ${CFG.dropFurniture?"":"off"}" data-l="__f">
+        <input type="checkbox" ${CFG.dropFurniture?"checked":""}>
+        <span class="swatch" style="background:var(--rule)"></span>
+        <span>Drop page furniture</span>
+        <span class="n">${DOC.furniture.size}</span>
+      </label>`:"");
 
   $$("#toggles .toggle").forEach(el=>{
     el.querySelector("input").addEventListener("change",e=>{
       const k=el.dataset.l;
       if(k==="__h") CFG.dropHeadings=e.target.checked?1:0;
+      else if(k==="__f") CFG.dropFurniture=e.target.checked?1:0;
       else CFG.keep[k]=e.target.checked?1:0;
       el.classList.toggle("off",!e.target.checked);
       CFG.name=matchPreset()||"custom";
@@ -277,6 +327,9 @@ function drawToggles(){
 }
 
 function matchPreset(){
+  // A preset never drops furniture, so a selection that does is custom by
+  // definition. Reporting a preset name here would mislabel the log.
+  if(CFG.dropFurniture) return null;
   for(const [n,p] of Object.entries(PRESETS)){
     if(p.dropHeadings!==CFG.dropHeadings) continue;
     if(LABELS.every(l=>!!p.keep[l.id]===!!CFG.keep[l.id])) return n;
@@ -301,7 +354,7 @@ function refreshPreview(){
 
 /* The explicit action. Nothing above this line produces cleaned text. */
 function runClean(){
-  RESULT=render(DOC.lines,DOC.regions,CFG);
+  RESULT=render(DOC.lines,DOC.regions,CFG,DOC.furniture);
   RESULT.base=render(DOC.lines,DOC.regions,PRESETS["verbatim"]).stats;
   CLEANED=true;
   drawSummary(); drawStats(); drawRegions();
@@ -515,7 +568,13 @@ function dl(kind){
         start_line:r.start+1,end_line:r.end,level:r.level,parent:r.parent,
         confidence:r.confidence,evidence:r.evidence})),
       coverage_gaps:DOC.gaps,
-      preset:{name:CFG.name||"custom",keep:CFG.keep,drop_headings:!!CFG.dropHeadings},
+      preset:{name:CFG.name||"custom",keep:CFG.keep,drop_headings:!!CFG.dropHeadings,
+              drop_furniture:!!CFG.dropFurniture},
+      furniture:{detected:[...DOC.furniture].sort((a,b)=>a-b),
+                 page_length:Math.round(DOC.pageLength*10)/10,
+                 removed:CFG.dropFurniture?RESULT.stats.furnitureRemoved:0,
+                 series:DOC.furnSeries.map(c=>({text:c.text,
+                        occurrences:c.lines.length,reason:c.reason}))},
       result:RESULT.stats},null,2);
     name=`${stem}_log.json`;type="application/json";
   }

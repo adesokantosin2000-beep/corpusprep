@@ -102,6 +102,23 @@ def build_markdown(doc: Document, results: list[VariantResult]) -> str:
           "except by explicit selection.")
     a("")
 
+    fx = doc.meta.get("furniture")
+    if fx:
+        a("### Page furniture")
+        a("")
+        a(f"{fx['lines']} lines look like running heads or page numbers, on an "
+          f"estimated page length of {fx['page_length']:g} lines.")
+        a("")
+        a("| Recurring line | Times | Why it was judged furniture |")
+        a("|----------------|-------|------------------------------|")
+        for s in fx["series"]:
+            a(f"| `{s['text'][:34]}` | {s['occurrences']} | {s['reason']} |")
+        a("")
+        a("**Detected, not removed.** Furniture is stripped only by a variant "
+          "with `drop_furniture` enabled, and no built-in variant enables it. "
+          "The detector has so far been measured against synthetic text only.")
+        a("")
+
     a("## 3. Variants produced")
     a("")
     a("| Variant | Chars | Tokens | Types | vs verbatim (tokens) | Regions dropped |")
@@ -134,6 +151,10 @@ def build_markdown(doc: Document, results: list[VariantResult]) -> str:
         if r.variant.drop_headings:
             a("")
             a("Chapter heading lines were also stripped.")
+        if r.variant.drop_furniture:
+            a("")
+            a(f"{r.stats.get('furniture_removed', 0)} page furniture lines were "
+              f"also removed from the regions kept above.")
         a("")
 
     a("## 5. Reproducing this run")
@@ -181,6 +202,12 @@ def build_json(doc: Document, results: list[VariantResult]) -> dict:
             for r in doc.regions
         ],
         "coverage_gaps": doc.coverage_gaps(),
+        # Line numbers, not a region list: furniture is a per-line property
+        # that sits inside regions rather than beside them.
+        "furniture": {
+            "detected_lines": sorted(doc.furniture),
+            **(doc.meta.get("furniture") or {}),
+        },
         "variants": [
             {
                 "config": r.variant.to_dict(),

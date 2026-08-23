@@ -66,12 +66,17 @@ can leave the corpus only because you chose to remove it.
 - Gutenberg headers, licence text and transcriber notes
 - TXT, DOCX, EPUB and HTML import with encoding detection
 - Five cleaning presets, or per-section selection
+- Running head, running foot and page number detection, off by default
 - Preprocessing log in Markdown and JSON
+
+Page furniture is detected but never removed unless asked. The detector has so
+far been measured against a synthetic fixture only, and a rule that has not met
+a real scan should not delete prose on its own authority. What it found and why
+is printed for review before any removal.
 
 ### Not yet implemented
 
-Page numbers, running headers and footers, OCR repair, de-hyphenation,
-paragraph reflow, PDF import. These are specified in
+OCR repair, de-hyphenation, paragraph reflow, PDF import. These are specified in
 [`design/design-spec.md`](design/design-spec.md) and scheduled in
 [`design/schedule-phase2.md`](design/schedule-phase2.md). They are listed in
 the application interface, marked as planned, so that current limitations are
@@ -128,7 +133,7 @@ which was quietly splitting words such as *æsthetic* and *naïve*.
 ## Tests
 
 ```bash
-python tests/test_corpusprep.py     # 125 checks, no pytest required
+python tests/test_corpusprep.py     # 160 checks, no pytest required
 python tools/check_parity.py        # Python and JavaScript must agree
 python tools/measure.py             # accuracy against hand-marked keys
 python tools/stress_test.py corpora # traffic-light report over a folder
@@ -158,6 +163,11 @@ prototype script, kept so the rewrite cannot reintroduce them:
 | B2 | Emphatic capitals deleted as a running header | `test_b2_allcaps_prose_survives` |
 | B3 | Chapter handling was unreachable dead code | `test_b3_chapter_headings_labelled` |
 | B4 | Standalone years such as `1847` removed as page numbers | `test_b4_standalone_number_survives` |
+
+Page furniture has its own regression set, since the rule that finds it is the
+one most able to destroy prose. The synthetic fixture repeats a refrain 64
+times, more often than its 60 furniture lines, so a rule counting repetitions
+alone fails it outright.
 
 ---
 

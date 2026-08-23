@@ -565,6 +565,70 @@ def test_page_number_ocr_variants():
         check(f"not a page number: {s!r}", not f(s))
 
 
+def test_furniture_never_removed_by_default():
+    """The invariant: an unvalidated detector must not delete on its own.
+
+    Every built-in variant must leave furniture alone. Removal is a decision
+    the user makes explicitly and the log records.
+    """
+    from corpusprep.variants import BUILTIN
+    for name, v in BUILTIN.items():
+        check(f"{name} does not drop furniture by default", not v.drop_furniture)
+
+
+def test_furniture_removal_is_opt_in_and_spares_prose():
+    from dataclasses import replace as _replace
+    from corpusprep import analyse
+    from corpusprep.variants import BUILTIN, render
+
+    fx = FIXTURES / "scanned_novel.txt"
+    if not fx.exists():
+        print("  SKIP  scanned fixture not present")
+        return
+
+    doc = analyse(fx)
+    check("furniture detected on import", len(doc.furniture) == 60,
+          f"got {len(doc.furniture)}")
+
+    off = render(doc, BUILTIN["body-only"])
+    check("default variant removes no furniture",
+          off.stats["furniture_removed"] == 0)
+    check("running head still present when not asked for",
+          "JANE EYRE" in off.text)
+
+    on = render(doc, _replace(BUILTIN["body-only"], drop_furniture=True))
+    check("opt-in variant removes furniture",
+          on.stats["furniture_removed"] == 60,
+          f"got {on.stats['furniture_removed']}")
+    check("running head gone once asked for", "JANE EYRE" not in on.text)
+
+    # The three shapes that the original prototype destroyed.
+    check("refrain survives removal", "And still the rain fell." in on.text)
+    check("emphatic capitals survive", "I READ IT AGAIN AND AGAIN." in on.text)
+    check("dialogue survives", '"No, sir."' in on.text)
+
+
+def test_furniture_reported_with_reasons():
+    """A rule the user cannot interrogate is a rule the user cannot trust."""
+    from corpusprep import analyse, render_all
+    from corpusprep.report import build_markdown, build_json
+
+    fx = FIXTURES / "scanned_novel.txt"
+    if not fx.exists():
+        print("  SKIP  scanned fixture not present")
+        return
+
+    doc = analyse(fx)
+    md = build_markdown(doc, render_all(doc, ["verbatim", "body-only"]))
+    check("log has a furniture section", "### Page furniture" in md)
+    check("log states detection did not delete", "Detected, not removed" in md)
+    check("log gives a reason per series", "recurs every" in md)
+
+    js = build_json(doc, render_all(doc, ["verbatim"]))
+    check("json lists furniture line numbers",
+          len(js["furniture"]["detected_lines"]) == 60)
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [

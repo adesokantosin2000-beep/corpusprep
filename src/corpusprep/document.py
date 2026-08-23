@@ -117,6 +117,16 @@ class Document:
     had_bom: bool = False
     newline: str = "\n"
     regions: list[Region] = field(default_factory=list)
+    #: 1-based line numbers judged to be page furniture: running heads, feet
+    #: and page numbers. Deliberately NOT a region. Regions are contiguous and
+    #: non-overlapping, and every line belongs to exactly one; that invariant
+    #: is what guarantees nothing is lost. A running head sits *inside* a
+    #: chapter, every thirty-odd lines, so labelling it as a region would
+    #: shatter one chapter into hundreds of fragments.
+    #:
+    #: Furniture is therefore orthogonal to segmentation: a line is body *and*
+    #: furniture at once. See design/DECISIONS.md.
+    furniture: set[int] = field(default_factory=set)
     meta: dict = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
@@ -124,6 +134,9 @@ class Document:
 
     def with_regions(self, regions: Iterable[Region]) -> "Document":
         return replace(self, regions=list(regions))
+
+    def with_furniture(self, lines: Iterable[int]) -> "Document":
+        return replace(self, furniture=set(lines))
 
     def with_note(self, note: str) -> "Document":
         return replace(self, notes=[*self.notes, note])
@@ -133,6 +146,10 @@ class Document:
     @property
     def text(self) -> str:
         return "\n".join(self.lines)
+
+    def is_furniture(self, line_no: int) -> bool:
+        """``line_no`` is 1-based, matching the numbering users see."""
+        return line_no in self.furniture
 
     def region_text(self, region: Region) -> str:
         return region.text(self.lines)
