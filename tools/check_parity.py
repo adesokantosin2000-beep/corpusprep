@@ -168,6 +168,9 @@ def main(argv: list[str]) -> int:
                  # Catchwords. Also the negative case for the other fixtures,
                  # which must yield none.
                  fx / "early_modern.txt",
+                 # Real text. The negative control a generator cannot supply.
+                 fx / "pg9405_ballads.txt",
+                 fx / "romeo_juliet.txt",
                  fx / "sample.docx", fx / "sample.epub", fx / "sample.html"]
 
     files = [f for f in files if f.exists()]

@@ -110,8 +110,20 @@ def main() -> int:
         # Page number, occasionally misread.
         lines.append("")
         num = str(page + 1)
-        if rng.random() < 0.08:
-            num = rng.choice(["l" + num, num + ".", "(" + num + ")"])
+        if rng.random() < 0.20:
+            # Corrupt a digit that is ALREADY THERE. An earlier version built
+            # `l3` by prefixing a letter to `3`, which invents a digit: the
+            # line then reads as 13 sitting between 2 and 4. Real OCR misreads
+            # the `1` in `13`; it does not hallucinate one. The ascending-run
+            # test caught this, correctly rejecting an impossible sequence, and
+            # the fault was in the generator rather than the rule.
+            for digit, wrong in (("1", "l"), ("0", "O"), ("5", "S"),
+                                 ("8", "B"), ("2", "Z")):
+                if digit in num:
+                    num = num.replace(digit, wrong, 1)
+                    break
+            else:
+                num = rng.choice([num + ".", "(" + num + ")"])
         lines.append(num)
         furniture.append(len(lines))
         lines.append("")

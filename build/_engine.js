@@ -670,19 +670,71 @@ function furnCollect(lines,skip){
   return out;
 }
 
+function pageNumberValue(line){
+  const s=line.replace(FURN_PUNCT,"").trim();
+  if(!s||s.length>FURN_MAX_PAGENO_LEN) return null;
+  if(s.length===1) return /^\d$/.test(s)?parseInt(s,10):null;
+  let real=0;
+  for(const ch of s) if(ch>="0"&&ch<="9") real++;
+  if(real*2<s.length) return null;
+  let out="";
+  for(const ch of s) out+=(DIGIT_LOOKALIKE[ch]!==undefined?DIGIT_LOOKALIKE[ch]:ch);
+  return /^\d+$/.test(out)?parseInt(out,10):null;
+}
+
+// Indices of the longest ascending subsequence, gaps allowed. Page numbers
+// count up; missing and misread pages leave holes, but never go backwards.
+function ascendingRun(values){
+  const n=values.length;
+  if(!n) return [];
+  const best=new Array(n).fill(1), prev=new Array(n).fill(-1);
+  for(let i=0;i<n;i++) for(let j=0;j<i;j++)
+    if(values[j]<values[i]&&best[j]+1>best[i]){best[i]=best[j]+1;prev[i]=j}
+  let end=0;
+  for(let i=1;i<n;i++) if(best[i]>best[end]) end=i;
+  const out=[];
+  while(end!==-1){out.push(end);end=prev[end]}
+  return out.reverse();
+}
+
+/* Keep only the lines of a numeric series that count upwards.
+
+   This is what makes page numbers independent evidence. Any recurring line can
+   be regular; only a page number counts up, and a refrain cannot fake an
+   ascending sequence. Without this test the rule below has nothing to anchor
+   on.                                                                       */
+function restrictToAscending(c,lines){
+  const pairs=[];
+  for(const ln of c.lines){
+    const v=pageNumberValue(lines[ln-1]);
+    if(v!==null) pairs.push([ln,v]);
+  }
+  if(pairs.length<FURN_MIN_OCCURRENCES) return false;
+  const keep=ascendingRun(pairs.map(p=>p[1]));
+  if(keep.length<FURN_MIN_OCCURRENCES) return false;
+  c.lines=keep.map(i=>pairs[i][0]);
+  c.gaps=[];
+  for(let k=1;k<c.lines.length;k++) c.gaps.push(c.lines[k]-c.lines[k-1]);
+  c.cv=furnCV(c.gaps);
+  c.medianGap=furnMedian(c.gaps);
+  return true;
+}
+
+/* Estimate the page length FROM THE PAGE-NUMBER SERIES ALONE.
+
+   An earlier version took the most regular series of any kind. That was
+   circular, and real text exposed it immediately: in a poem of fixed stanza
+   length the refrain recurs perfectly regularly, becomes the page-length
+   estimate, and then validates itself against it. On a real ballad collection
+   it marked 63 lines of verse as furniture.
+
+   If no ascending page-number sequence exists, the document is not
+   page-imaged and no running head can be corroborated.                      */
 function estimatePageLength(cands){
-  /* The most regular series is a better witness than the modal gap, which
-     would be swayed by whichever phrase happens to be common. Regularity is
-     the property that makes something furniture at all.                     */
-  const regular=cands.filter(c=>c.cv<FURN_MAX_CV&&c.medianGap>0);
-  if(!regular.length) return 0;
-  regular.sort((a,b)=>a.cv-b.cv||b.lines.length-a.lines.length);
-  const best=regular[0].medianGap;
-  // Heads alternating verso and recto recur every two pages, so the most
-  // regular series may be measuring a double page.
-  const halves=regular.filter(c=>Math.abs(c.medianGap*2-best)/best<FURN_PAGE_TOLERANCE)
-                      .map(c=>c.medianGap);
-  return halves.length?Math.min(...halves):best;
+  const numeric=cands.filter(c=>c.isNumeric&&c.cv<FURN_MAX_CV&&c.medianGap>0);
+  if(!numeric.length) return 0;
+  numeric.sort((a,b)=>a.cv-b.cv||b.lines.length-a.lines.length);
+  return numeric[0].medianGap;
 }
 
 function furnJudge(cands,pageLength){
@@ -693,7 +745,11 @@ function furnJudge(cands,pageLength){
               +pc(FURN_MAX_CV)+" limit";
       continue;
     }
-    if(pageLength<=0){ c.reason="no page length could be estimated"; continue }
+    if(pageLength<=0){
+      c.reason="no ascending page-number sequence in this text, so there is "
+              +"no page structure to corroborate against";
+      continue;
+    }
     const ratio=c.medianGap/pageLength;
     const near=Math.min(...[1,2,3].map(n=>Math.abs(ratio-n)));
     if(near>FURN_PAGE_TOLERANCE){
@@ -791,6 +847,13 @@ function findFurniture(lines,skip){
   // Every candidate is returned, accepted or not, with its reason recorded.
   // A rule the user cannot interrogate is a rule the user cannot trust.
   const cands=furnCollect(lines,skip);
+  // Numeric series must prove they count upwards before they can be treated
+  // as page numbers, and everything downstream depends on that proof.
+  for(const c of cands)
+    if(c.isNumeric&&!restrictToAscending(c,lines)){
+      c.isNumeric=false; c.cv=Infinity;
+      c.reason="numbers do not form an ascending sequence";
+    }
   const pageLength=estimatePageLength(cands);
   furnJudge(cands,pageLength);
   const marked=new Set();

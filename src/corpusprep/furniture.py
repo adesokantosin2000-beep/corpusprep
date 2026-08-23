@@ -213,23 +213,86 @@ def _merge_near_duplicates(groups: dict[str, list[int]],
     return groups, originals
 
 
-def estimate_page_length(candidates: list[Candidate]) -> float:
-    """Estimate the document's page length from the most regular series.
+def page_number_value(line: str) -> int | None:
+    """The numeric value of a page-number line, or None."""
+    s = _PUNCT.sub("", line).strip()
+    if not s or len(s) > MAX_PAGE_NUMBER_LEN:
+        return None
+    if len(s) == 1:
+        return int(s) if s.isdigit() else None
+    if sum(ch.isdigit() for ch in s) * 2 < len(s):
+        return None
+    t = s.translate(_DIGIT_LOOKALIKE)
+    return int(t) if t.isdigit() else None
 
-    Taking the modal gap across all candidates would be swayed by whichever
-    phrase happens to be common. The most regular series is a better witness,
-    since regularity is the property that makes something furniture at all.
+
+def ascending_run(values: list[int]) -> list[int]:
+    """Indices of the longest ascending subsequence, gaps allowed.
+
+    Page numbers count up. Missing and misread pages leave holes, so the run
+    need not be consecutive, but it must never go backwards.
     """
-    regular = [c for c in candidates if c.cv < MAX_CV and c.median_gap > 0]
-    if not regular:
+    if not values:
+        return []
+    n = len(values)
+    best = [1] * n
+    prev = [-1] * n
+    for i in range(n):
+        for j in range(i):
+            if values[j] < values[i] and best[j] + 1 > best[i]:
+                best[i] = best[j] + 1
+                prev[i] = j
+    end = max(range(n), key=lambda i: best[i])
+    out = []
+    while end != -1:
+        out.append(end)
+        end = prev[end]
+    return out[::-1]
+
+
+def restrict_to_ascending(c: Candidate, lines: list[str]) -> bool:
+    """Keep only the lines of a numeric series that count upwards.
+
+    **This is what makes page numbers independent evidence.** Any recurring
+    line can be regular; only a page number counts up, and a refrain cannot
+    fake an ascending sequence. Without this test the rule below has nothing
+    to anchor on.
+    """
+    vals = [page_number_value(lines[i - 1]) for i in c.lines]
+    pairs = [(ln, v) for ln, v in zip(c.lines, vals) if v is not None]
+    if len(pairs) < MIN_OCCURRENCES:
+        return False
+    keep = ascending_run([v for _, v in pairs])
+    if len(keep) < MIN_OCCURRENCES:
+        return False
+    c.lines = [pairs[i][0] for i in keep]
+    c.gaps = [b - a for a, b in zip(c.lines, c.lines[1:])]
+    c.cv = _cv(c.gaps)
+    c.median_gap = statistics.median(c.gaps) if c.gaps else 0.0
+    return True
+
+
+def estimate_page_length(candidates: list[Candidate]) -> float:
+    """Estimate the page length **from the page-number series alone**.
+
+    An earlier version took the most regular series of any kind. That was
+    circular, and real text exposed it immediately: in a poem of fixed stanza
+    length the refrain recurs perfectly regularly, becomes the page-length
+    estimate, and then validates itself against it. On a real ballad
+    collection it marked 63 lines of verse as furniture.
+
+    A page number is the one candidate with independent evidence behind it,
+    because it counts upwards and a refrain cannot imitate that. So the page
+    length comes only from there. **If no ascending page-number sequence
+    exists, the document is not page-imaged and no running head can be
+    corroborated**, which is the honest answer rather than a guess.
+    """
+    numeric = [c for c in candidates
+               if c.is_numeric and c.cv < MAX_CV and c.median_gap > 0]
+    if not numeric:
         return 0.0
-    regular.sort(key=lambda c: (c.cv, -len(c.lines)))
-    best = regular[0].median_gap
-    # Heads alternating verso and recto recur every two pages, so the most
-    # regular series may be measuring a double page.
-    halves = [c.median_gap for c in regular
-              if abs(c.median_gap * 2 - best) / best < PAGE_GAP_TOLERANCE]
-    return min(halves) if halves else best
+    numeric.sort(key=lambda c: (c.cv, -len(c.lines)))
+    return numeric[0].median_gap
 
 
 def judge(candidates: list[Candidate], page_length: float) -> list[Candidate]:
@@ -240,7 +303,8 @@ def judge(candidates: list[Candidate], page_length: float) -> list[Candidate]:
                         f"above the {MAX_CV:.0%} limit")
             continue
         if page_length <= 0:
-            c.reason = "no page length could be estimated"
+            c.reason = ("no ascending page-number sequence in this text, so "
+                        "there is no page structure to corroborate against")
             continue
         ratio = c.median_gap / page_length
         near = min(abs(ratio - n) for n in (1, 2, 3))
@@ -399,6 +463,13 @@ def find(lines: list[str], skip: set[int] | None = None
     A rule the user cannot interrogate is a rule the user cannot trust.
     """
     candidates = collect(lines, skip)
+    # Numeric series must prove they count upwards before they can be treated
+    # as page numbers, and everything downstream depends on that proof.
+    for c in candidates:
+        if c.is_numeric and not restrict_to_ascending(c, lines):
+            c.is_numeric = False
+            c.cv = float("inf")
+            c.reason = "numbers do not form an ascending sequence"
     page_length = estimate_page_length(candidates)
     judge(candidates, page_length)
     marked = {i for c in candidates if c.accepted for i in c.lines}

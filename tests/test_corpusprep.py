@@ -526,7 +526,11 @@ def test_furniture_detection():
     pred, _, page, _catch = find_in_document(doc)
 
     check("page length estimated", 25 <= page <= 40, f"got {page}")
-    check("no furniture missed", not (truth - pred),
+    # One known miss, and it is a deliberate trade. Page 8 is scanned as a
+    # lone `B`, and a single character must be a real digit to count as a page
+    # number, because a lone `B` is far more often a letter. A miss leaves a
+    # visible artefact the user can report; a false positive deletes prose.
+    check("at most one furniture line missed", len(truth - pred) <= 1,
           f"missed {sorted(truth - pred)[:5]}")
     check("no prose marked as furniture", not (pred - truth),
           f"wrongly marked {sorted(pred - truth)[:5]}")
@@ -539,6 +543,51 @@ def test_furniture_detection():
     dialogue = {i for i, l in enumerate(doc.lines, 1)
                 if l.strip().startswith('"')}
     check("short dialogue survives", not (dialogue & pred))
+
+
+def test_no_furniture_in_real_texts():
+    """Real texts with no page furniture must yield none.
+
+    This is the test that matters most, and the one a synthetic fixture cannot
+    provide. `pg9405_ballads.txt` is a real ballad collection in which a
+    dialogue poem of fixed stanza length repeats `HE`, `SHE` and two refrains
+    thirteen times each, at a perfectly constant interval.
+
+    An earlier version of the detector marked 63 lines of that verse as
+    furniture. It had estimated a page length from a text with no pages, taking
+    the most regular repeated line as its yardstick and then confirming that
+    line against itself.
+    """
+    from corpusprep.furniture import find_in_document
+
+    for name in ("pg9405_ballads.txt", "CBronte_Jane.txt", "romeo_juliet.txt",
+                 "pg_marked.txt"):
+        fx = FIXTURES / name
+        if not fx.exists():
+            continue
+        doc = segment(load(fx))
+        marked, _c, page, catch = find_in_document(doc)
+        check(f"no furniture found in {name}", not marked,
+              f"{len(marked)} lines marked, e.g. "
+              f"{[doc.lines[i-1].strip()[:30] for i in sorted(marked)[:3]]}")
+        check(f"no page structure claimed for {name}", page == 0,
+              f"page length {page} estimated for a text with no page numbers")
+        check(f"no catchwords in {name}",
+              not [m for m in catch if m.accepted])
+
+
+def test_page_numbers_must_ascend():
+    """A refrain can be regular; only a page number counts upwards."""
+    from corpusprep.furniture import ascending_run, page_number_value
+
+    check("ascending kept", len(ascending_run([1, 2, 3, 4, 5])) == 5)
+    check("out-of-order dropped", len(ascending_run([1, 2, 13, 4, 5])) == 4)
+    check("constant sequence is not ascending",
+          len(ascending_run([7, 7, 7, 7])) == 1)
+    check("descending reduces to one", len(ascending_run([9, 7, 5, 3])) == 1)
+    check("gaps allowed", len(ascending_run([1, 2, 5, 9, 14])) == 5)
+    check("value read through OCR damage", page_number_value("l3") == 13)
+    check("lone letter is not a value", page_number_value("B") is None)
 
 
 def test_furniture_ignores_front_matter():
@@ -587,7 +636,9 @@ def test_furniture_removal_is_opt_in_and_spares_prose():
         return
 
     doc = analyse(fx)
-    check("furniture detected on import", len(doc.furniture) == 60,
+    # 59 of the 60 furniture lines: page 8 is scanned as a lone `B` and is
+    # deliberately not recovered. See test_furniture_detection.
+    check("furniture detected on import", len(doc.furniture) == 59,
           f"got {len(doc.furniture)}")
 
     off = render(doc, BUILTIN["body-only"])
@@ -598,7 +649,7 @@ def test_furniture_removal_is_opt_in_and_spares_prose():
 
     on = render(doc, _replace(BUILTIN["body-only"], drop_furniture=True))
     check("opt-in variant removes furniture",
-          on.stats["furniture_removed"] == 60,
+          on.stats["furniture_removed"] == 59,
           f"got {on.stats['furniture_removed']}")
     check("running head gone once asked for", "JANE EYRE" not in on.text)
 
@@ -626,7 +677,7 @@ def test_furniture_reported_with_reasons():
 
     js = build_json(doc, render_all(doc, ["verbatim"]))
     check("json lists furniture line numbers",
-          len(js["furniture"]["detected_lines"]) == 60)
+          len(js["furniture"]["detected_lines"]) == 59)
 
 
 def test_catchword_detection():

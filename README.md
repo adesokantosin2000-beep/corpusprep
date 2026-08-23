@@ -134,7 +134,7 @@ which was quietly splitting words such as *æsthetic* and *naïve*.
 ## Tests
 
 ```bash
-python tests/test_corpusprep.py     # 183 checks, no pytest required
+python tests/test_corpusprep.py     # 202 checks, no pytest required
 python tools/check_parity.py        # Python and JavaScript must agree
 python tools/measure.py             # accuracy against hand-marked keys
 python tools/stress_test.py corpora # traffic-light report over a folder
@@ -173,9 +173,20 @@ of prose whose first word genuinely opens the next page.
 
 That second fixture immediately found a fault in the first rule. The OCR
 digit-lookalike table read the word `So` as the page number 50, which would have
-deleted it wherever it recurred near a page break. **A fixture only tests the
-failure modes its author thought of**, which is why real EEBO and OCR text is
-still needed rather than a third generator.
+deleted it wherever it recurred near a page break.
+
+Then a real text broke it properly. The detector scored 100% on synthetic data
+and, on the first genuine book it met, marked 63 lines of a ballad collection as
+page furniture: a dialogue poem of fixed stanza length repeats `HE`, `SHE` and
+two refrains thirteen times each at a perfectly constant interval. The rule had
+been estimating a page length from a text with no pages, then confirming lines
+against a yardstick they had set themselves.
+
+Page numbers must now form an ascending sequence, and the page length is derived
+only from them. No ascending sequence means no page structure and no detection.
+**A fixture only tests the failure modes its author thought of.** Fixture
+provenance and licensing are recorded in
+[`tests/fixtures/SOURCES.md`](tests/fixtures/SOURCES.md).
 
 ---
 

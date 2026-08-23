@@ -348,3 +348,98 @@ and OCR text is still required, rather than a caveat repeated out of caution.
 It was comparing the merged furniture set. Two rules disagreeing in opposite
 directions would cancel out in a union and read as agreement. Catchwords are
 now compared as their own field.
+
+---
+
+## 2026-08-23 — The first real text breaks the detector
+
+The outstanding blocker was real page-imaged data. Project Gutenberg turns out
+not to supply it, and to explain why is worth more than the search took.
+
+### Gutenberg cannot validate this rule, confirmed three ways
+
+1. The Distributed Proofreaders documentation states that `[pg n]` markers are
+   converted to anchors and **removed from the plain-text flow**.
+2. PG eBook #55002, whose transcriber's note discusses pagination directly,
+   contains **zero bare page-number lines**.
+3. Its HTML edition carries page anchors with **no visible text**.
+
+Page furniture is removed during transcription, by policy. That closes the
+question: no amount of searching Gutenberg will produce a positive example.
+
+### What it can supply is a negative control, and that broke everything
+
+*The Book of Old English Ballads* (PG #9405) was added as a real text on which
+the detector should find nothing.
+
+**It marked 63 lines of verse as furniture.**
+
+*The Nut-brown Maid* is a dialogue poem of fixed stanza length. `HE`, `SHE`,
+and two refrains each recur thirteen times, every 32 lines, at a coefficient of
+variation of **0.00**. Perfectly regular — more regular than any real running
+head, which drifts as paragraphs break.
+
+### The flaw was circular reasoning, and it was in the design
+
+`estimate_page_length` took the most regular series *of any kind* as the page
+length. In a text with no pages, the most regular series is the refrain. The
+refrain therefore set the yardstick and was then measured against it, and of
+course it passed.
+
+**The rule had no independent evidence that the document had pages at all.**
+
+The synthetic fixture concealed this because I wrote its refrain to recur at
+`randint(6, 20)` — irregularly. That encoded my assumption. Real verse in fixed
+stanzas is metronomic, and the assumption was simply wrong.
+
+### The fix: page numbers must count upwards
+
+A page number is the one candidate that carries evidence a refrain cannot
+imitate. It is part of an **ascending sequence**. So:
+
+1. A numeric series is restricted to its longest ascending run before it counts
+   as page numbers at all. Gaps are allowed, for missing and misread pages;
+   going backwards is not.
+2. The page length is derived **only** from that series.
+3. **No ascending page-number sequence means no page structure**, and no
+   running head can be corroborated. The detector returns nothing and says why.
+
+This was in the Week 3 plan as "requiring a monotonic sequence rather than a
+bare integer" and was never implemented. The synthetic fixture passed without
+it, so nothing forced the issue.
+
+### After the fix
+
+| Fixture | Kind | Furniture found | Correct |
+|---|---|---|---|
+| `pg9405_ballads.txt` | Real verse, heavy refrains | 0 | ✅ |
+| `CBronte_Jane.txt` | Real prose | 0 | ✅ |
+| `romeo_juliet.txt` | Real drama | 0 | ✅ |
+| `pg_marked.txt` | Gutenberg apparatus | 0 | ✅ |
+| `scanned_novel.txt` | Synthetic, page-imaged | 59 of 60 | 100% precision |
+| `early_modern.txt` | Synthetic, catchwords | 62 + 18 catchwords | 100% |
+
+Recall on the scanned novel fell from 60 to 59, and the lost line is a correct
+refusal. Page 8 is scanned as a lone `B`, and a single character must be a real
+digit to count as a page number, because a lone `B` is far more often a letter.
+**A miss leaves a visible artefact the user can report; a false positive deletes
+prose.** The trade is the right way round and is left as it is.
+
+### A fixture bug, found by the same test
+
+Two further lines were initially missed, and the fault was in my generator.
+It built `l3` by prefixing a letter to `3`, which **invents a digit**: the line
+then reads as 13 sitting between 2 and 4. Real OCR misreads the `1` already
+present in `13`; it does not hallucinate one. The ascending-run test was right
+to reject an impossible sequence. The generator now corrupts a digit that is
+already there.
+
+### What this episode is worth
+
+The detector scored 100% on synthetic data and failed on the first real text it
+ever saw. That is the entire argument for real fixtures, made concrete, and it
+is a better result than another passing number would have been.
+
+It also sharpens what remains outstanding. Gutenberg is settled and closed. The
+open requirement is now specifically **OCR or PDF-derived text for running
+heads, and an EEBO or ECCO transcription for catchwords.**

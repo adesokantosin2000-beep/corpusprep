@@ -103,7 +103,7 @@ He turned the page and read the passage over a second time.
 "I cannot," she said.
 "Wait here."
 
-l3
+3.
 
 A JOURNEY BY NIGHT
 
@@ -266,11 +266,11 @@ The garden had gone to seed in the months since her leaving.
 The garden had gone to seed in the months since her leaving.
 I READ IT AGAIN AND AGAIN.
 
-l8
+B
 
 JANE EYRE
 
-She sat by the window and watched the rain come across the moor.
+"I cannot," she said.
 There was no possibility of taking a walk that day, and the wind rose.
 Morning came grey and slow, and brought no comfort with it.
 "Wait here."
@@ -294,6 +294,7 @@ The house was silent but for the clock in the hall below.
 And still the rain fell.
 The road ran east between hedgerows heavy with the night's water.
 The road ran east between hedgerows heavy with the night's water.
+She sat by the window and watched the rain come across the moor.
 
 9
 
@@ -314,9 +315,10 @@ He turned the page and read the passage over a second time.
 Nobody spoke of the letter again, though everybody had read it.
 Nobody spoke of the letter again, though everybody had read it.
 Nobody spoke of the letter again, though everybody had read it.
-She sat by the window and watched the rain come across the moor.
 And still the rain fell.
-He counted the hours until the coach would come, and then again.
+She sat by the window and watched the rain come across the moor.
+Nobody spoke of the letter again, though everybody had read it.
+A candle guttered on the sill and went out without ceremony.
 Nobody spoke of the letter again, though everybody had read it.
 He turned the page and read the passage over a second time.
 He counted the hours until the coach would come, and then again.
@@ -334,9 +336,9 @@ Morning came grey and slow, and brought no comfort with it.
 JANE EYRE
 
 He counted the hours until the coach would come, and then again.
+He counted the hours until the coach would come, and then again.
 And still the rain fell.
-A candle guttered on the sill and went out without ceremony.
-A candle guttered on the sill and went out without ceremony.
+He counted the hours until the coach would come, and then again.
 She sat by the window and watched the rain come across the moor.
 The road ran east between hedgerows heavy with the night's water.
 "Then do not."
@@ -351,27 +353,28 @@ A candle guttered on the sill and went out without ceremony.
 The garden had gone to seed in the months since her leaving.
 "I cannot," she said.
 He counted the hours until the coach would come, and then again.
+And still the rain fell.
 There was no possibility of taking a walk that day, and the wind rose.
 Morning came grey and slow, and brought no comfort with it.
-And still the rain fell.
-The garden had gone to seed in the months since her leaving.
-She sat by the window and watched the rain come across the moor.
 The house was silent but for the clock in the hall below.
+He turned the page and read the passage over a second time.
+Morning came grey and slow, and brought no comfort with it.
+"Then do not."
 There was no possibility of taking a walk that day, and the wind rose.
 "Wait here."
 "You are cold."
 "Then do not."
-She sat by the window and watched the rain come across the moor.
 
 11
 
 A JOURNEY BY NIGHT
 
-A candle guttered on the sill and went out without ceremony.
-She sat by the window and watched the rain come across the moor.
-The house was silent but for the clock in the hall below.
+He turned the page and read the passage over a second time.
 And still the rain fell.
-A candle guttered on the sill and went out without ceremony.
+"I cannot," she said.
+The house was silent but for the clock in the hall below.
+He counted the hours until the coach would come, and then again.
+The house was silent but for the clock in the hall below.
 He turned the page and read the passage over a second time.
 "Wait here."
 The road ran east between hedgerows heavy with the night's water.
@@ -379,15 +382,15 @@ She sat by the window and watched the rain come across the moor.
 "You are cold."
 The road ran east between hedgerows heavy with the night's water.
 She sat by the window and watched the rain come across the moor.
-And still the rain fell.
-"No, sir."
+Nobody spoke of the letter again, though everybody had read it.
 "Wait here."
 The house was silent but for the clock in the hall below.
 Morning came grey and slow, and brought no comfort with it.
 "You are cold."
 A candle guttered on the sill and went out without ceremony.
 The garden had gone to seed in the months since her leaving.
-"I cannot," she said.
+And still the rain fell.
+Nobody spoke of the letter again, though everybody had read it.
 Nobody spoke of the letter again, though everybody had read it.
 The garden had gone to seed in the months since her leaving.
 Morning came grey and slow, and brought no comfort with it.
@@ -398,14 +401,15 @@ The road ran east between hedgerows heavy with the night's water.
 JANE EYRE
 
 Morning came grey and slow, and brought no comfort with it.
+And still the rain fell.
 A candle guttered on the sill and went out without ceremony.
 "I cannot," she said.
 The house was silent but for the clock in the hall below.
 There was no possibility of taking a walk that day, and the wind rose.
 Nobody spoke of the letter again, though everybody had read it.
-And still the rain fell.
-"Then do not."
-Nobody spoke of the letter again, though everybody had read it.
+He turned the page and read the passage over a second time.
+Morning came grey and slow, and brought no comfort with it.
+He turned the page and read the passage over a second time.
 A candle guttered on the sill and went out without ceremony.
 There was no possibility of taking a walk that day, and the wind rose.
 "No, sir."
@@ -413,12 +417,11 @@ There was no possibility of taking a walk that day, and the wind rose.
 He turned the page and read the passage over a second time.
 Nobody spoke of the letter again, though everybody had read it.
 "Then do not."
-And still the rain fell.
 She sat by the window and watched the rain come across the moor.
 Nobody spoke of the letter again, though everybody had read it.
 "You are cold."
 There was no possibility of taking a walk that day, and the wind rose.
-Morning came grey and slow, and brought no comfort with it.
+And still the rain fell.
 The house was silent but for the clock in the hall below.
 The garden had gone to seed in the months since her leaving.
 Morning came grey and slow, and brought no comfort with it.
@@ -436,39 +439,38 @@ She sat by the window and watched the rain come across the moor.
 Morning came grey and slow, and brought no comfort with it.
 The garden had gone to seed in the months since her leaving.
 "Wait here."
-And still the rain fell.
-Nobody spoke of the letter again, though everybody had read it.
 A candle guttered on the sill and went out without ceremony.
-He turned the page and read the passage over a second time.
-A candle guttered on the sill and went out without ceremony.
+He counted the hours until the coach would come, and then again.
 The garden had gone to seed in the months since her leaving.
 And still the rain fell.
-"Wait here."
+A candle guttered on the sill and went out without ceremony.
+The garden had gone to seed in the months since her leaving.
+The garden had gone to seed in the months since her leaving.
 Nobody spoke of the letter again, though everybody had read it.
 Nobody spoke of the letter again, though everybody had read it.
 He turned the page and read the passage over a second time.
 The road ran east between hedgerows heavy with the night's water.
 The road ran east between hedgerows heavy with the night's water.
-He counted the hours until the coach would come, and then again.
+And still the rain fell.
+Morning came grey and slow, and brought no comfort with it.
 She sat by the window and watched the rain come across the moor.
 He counted the hours until the coach would come, and then again.
 The garden had gone to seed in the months since her leaving.
 "You are cold."
-And still the rain fell.
-There was no possibility of taking a walk that day, and the wind rose.
+A candle guttered on the sill and went out without ceremony.
+"Wait here."
+He turned the page and read the passage over a second time.
+"You are cold."
 The garden had gone to seed in the months since her leaving.
-The house was silent but for the clock in the hall below.
-The house was silent but for the clock in the hall below.
 
-14
+l4
 
 JANE EYRE
 
-"Wait here."
 Morning came grey and slow, and brought no comfort with it.
 He turned the page and read the passage over a second time.
-The house was silent but for the clock in the hall below.
-She sat by the window and watched the rain come across the moor.
+And still the rain fell.
+"I cannot," she said.
 "Wait here."
 He counted the hours until the coach would come, and then again.
 He counted the hours until the coach would come, and then again.
@@ -476,116 +478,111 @@ He counted the hours until the coach would come, and then again.
 "No, sir."
 He turned the page and read the passage over a second time.
 The road ran east between hedgerows heavy with the night's water.
-And still the rain fell.
+He counted the hours until the coach would come, and then again.
 Nobody spoke of the letter again, though everybody had read it.
-She sat by the window and watched the rain come across the moor.
-He turned the page and read the passage over a second time.
+And still the rain fell.
+"I cannot," she said.
 He turned the page and read the passage over a second time.
 She sat by the window and watched the rain come across the moor.
 The road ran east between hedgerows heavy with the night's water.
 Nobody spoke of the letter again, though everybody had read it.
 She sat by the window and watched the rain come across the moor.
 Morning came grey and slow, and brought no comfort with it.
-And still the rain fell.
-"You are cold."
+"No, sir."
 Nobody spoke of the letter again, though everybody had read it.
+Nobody spoke of the letter again, though everybody had read it.
+The house was silent but for the clock in the hall below.
+There was no possibility of taking a walk that day, and the wind rose.
+There was no possibility of taking a walk that day, and the wind rose.
+"No, sir."
 
-15
+l5
 
 A JOURNEY BY NIGHT
 
 The house was silent but for the clock in the hall below.
-There was no possibility of taking a walk that day, and the wind rose.
-There was no possibility of taking a walk that day, and the wind rose.
-"No, sir."
-He turned the page and read the passage over a second time.
-And still the rain fell.
-The house was silent but for the clock in the hall below.
 "You are cold."
 "I cannot," she said.
 The house was silent but for the clock in the hall below.
-"Wait here."
-A candle guttered on the sill and went out without ceremony.
-She sat by the window and watched the rain come across the moor.
-She sat by the window and watched the rain come across the moor.
-A candle guttered on the sill and went out without ceremony.
-He turned the page and read the passage over a second time.
-There was no possibility of taking a walk that day, and the wind rose.
 And still the rain fell.
 He counted the hours until the coach would come, and then again.
-"I cannot," she said.
+A candle guttered on the sill and went out without ceremony.
+She sat by the window and watched the rain come across the moor.
+She sat by the window and watched the rain come across the moor.
+A candle guttered on the sill and went out without ceremony.
+And still the rain fell.
 He turned the page and read the passage over a second time.
+There was no possibility of taking a walk that day, and the wind rose.
+Nobody spoke of the letter again, though everybody had read it.
+She sat by the window and watched the rain come across the moor.
+There was no possibility of taking a walk that day, and the wind rose.
 The garden had gone to seed in the months since her leaving.
 "You are cold."
 He turned the page and read the passage over a second time.
 There was no possibility of taking a walk that day, and the wind rose.
 She sat by the window and watched the rain come across the moor.
-There was no possibility of taking a walk that day, and the wind rose.
-
-16
-
-JANE EYRE
-
+And still the rain fell.
+The house was silent but for the clock in the hall below.
+"I cannot," she said.
 The house was silent but for the clock in the hall below.
 "Wait here."
 "I cannot," she said.
-There was no possibility of taking a walk that day, and the wind rose.
-"You are cold."
-"I cannot," she said.
-And still the rain fell.
+
+16
+
+JANEREYRE
+
+He turned the page and read the passage over a second time.
 She sat by the window and watched the rain come across the moor.
 He turned the page and read the passage over a second time.
 There was no possibility of taking a walk that day, and the wind rose.
 The road ran east between hedgerows heavy with the night's water.
+And still the rain fell.
 Morning came grey and slow, and brought no comfort with it.
 A candle guttered on the sill and went out without ceremony.
 There was no possibility of taking a walk that day, and the wind rose.
 The road ran east between hedgerows heavy with the night's water.
-And still the rain fell.
-"No, sir."
-He turned the page and read the passage over a second time.
-"Wait here."
+There was no possibility of taking a walk that day, and the wind rose.
+A candle guttered on the sill and went out without ceremony.
+A candle guttered on the sill and went out without ceremony.
 She sat by the window and watched the rain come across the moor.
 He turned the page and read the passage over a second time.
 A candle guttered on the sill and went out without ceremony.
 He turned the page and read the passage over a second time.
-Nobody spoke of the letter again, though everybody had read it.
+And still the rain fell.
+"No, sir."
+The house was silent but for the clock in the hall below.
+A candle guttered on the sill and went out without ceremony.
+He counted the hours until the coach would come, and then again.
+He counted the hours until the coach would come, and then again.
+He turned the page and read the passage over a second time.
+There was no possibility of taking a walk that day, and the wind rose.
 
 17
 
 A JOURNEY BY NIGHT
 
-A candle guttered on the sill and went out without ceremony.
 He counted the hours until the coach would come, and then again.
-He counted the hours until the coach would come, and then again.
-He turned the page and read the passage over a second time.
 There was no possibility of taking a walk that day, and the wind rose.
-Nobody spoke of the letter again, though everybody had read it.
-Nobody spoke of the letter again, though everybody had read it.
-Morning came grey and slow, and brought no comfort with it.
-"Wait here."
+He counted the hours until the coach would come, and then again.
 He counted the hours until the coach would come, and then again.
 The garden had gone to seed in the months since her leaving.
+The road ran east between hedgerows heavy with the night's water.
+"No, sir."
+Morning came grey and slow, and brought no comfort with it.
+Nobody spoke of the letter again, though everybody had read it.
 And still the rain fell.
 "I cannot," she said.
-Morning came grey and slow, and brought no comfort with it.
-Nobody spoke of the letter again, though everybody had read it.
-Nobody spoke of the letter again, though everybody had read it.
-The garden had gone to seed in the months since her leaving.
-There was no possibility of taking a walk that day, and the wind rose.
+The road ran east between hedgerows heavy with the night's water.
 He turned the page and read the passage over a second time.
 Nobody spoke of the letter again, though everybody had read it.
 "Then do not."
 "You are cold."
 She sat by the window and watched the rain come across the moor.
+The garden had gone to seed in the months since her leaving.
+The road ran east between hedgerows heavy with the night's water.
+He turned the page and read the passage over a second time.
 And still the rain fell.
-"Wait here."
-
-18
-
-JANE EYRE
-
-The house was silent but for the clock in the hall below.
 The garden had gone to seed in the months since her leaving.
 "Wait here."
 He turned the page and read the passage over a second time.
@@ -593,8 +590,12 @@ He turned the page and read the passage over a second time.
 He turned the page and read the passage over a second time.
 "Then do not."
 There was no possibility of taking a walk that day, and the wind rose.
-"Then do not."
-There was no possibility of taking a walk that day, and the wind rose.
+
+l8
+
+JANE EYRE
+
+And still the rain fell.
 He turned the page and read the passage over a second time.
 He counted the hours until the coach would come, and then again.
 He counted the hours until the coach would come, and then again.
@@ -614,25 +615,24 @@ Nobody spoke of the letter again, though everybody had read it.
 He counted the hours until the coach would come, and then again.
 There was no possibility of taking a walk that day, and the wind rose.
 And still the rain fell.
+A candle guttered on the sill and went out without ceremony.
+The house was silent but for the clock in the hall below.
+He counted the hours until the coach would come, and then again.
+She sat by the window and watched the rain come across the moor.
+The house was silent but for the clock in the hall below.
+And still the rain fell.
+The house was silent but for the clock in the hall below.
 
 19
 
 A JOURNEY BY NIGHT
 
-The house was silent but for the clock in the hall below.
-He counted the hours until the coach would come, and then again.
+Nobody spoke of the letter again, though everybody had read it.
 She sat by the window and watched the rain come across the moor.
-The house was silent but for the clock in the hall below.
 "Wait here."
+Nobody spoke of the letter again, though everybody had read it.
 And still the rain fell.
-"No, sir."
 A candle guttered on the sill and went out without ceremony.
-Nobody spoke of the letter again, though everybody had read it.
-She sat by the window and watched the rain come across the moor.
-"Wait here."
-Nobody spoke of the letter again, though everybody had read it.
-The road ran east between hedgerows heavy with the night's water.
-The garden had gone to seed in the months since her leaving.
 He turned the page and read the passage over a second time.
 The garden had gone to seed in the months since her leaving.
 "You are cold."
@@ -642,25 +642,24 @@ He turned the page and read the passage over a second time.
 A candle guttered on the sill and went out without ceremony.
 The garden had gone to seed in the months since her leaving.
 She sat by the window and watched the rain come across the moor.
-There was no possibility of taking a walk that day, and the wind rose.
 And still the rain fell.
-There was no possibility of taking a walk that day, and the wind rose.
+"You are cold."
+Nobody spoke of the letter again, though everybody had read it.
+The garden had gone to seed in the months since her leaving.
+A candle guttered on the sill and went out without ceremony.
+He turned the page and read the passage over a second time.
+And still the rain fell.
+He turned the page and read the passage over a second time.
+"Then do not."
+Nobody spoke of the letter again, though everybody had read it.
 The road ran east between hedgerows heavy with the night's water.
+The house was silent but for the clock in the hall below.
 
 20
 
-JANE EYRE
+JLNE EYRE
 
-There was no possibility of taking a walk that day, and the wind rose.
-He turned the page and read the passage over a second time.
-"Then do not."
-Nobody spoke of the letter again, though everybody had read it.
-The road ran east between hedgerows heavy with the night's water.
 And still the rain fell.
-The house was silent but for the clock in the hall below.
-There was no possibility of taking a walk that day, and the wind rose.
-She sat by the window and watched the rain come across the moor.
-The garden had gone to seed in the months since her leaving.
 "I cannot," she said.
 "Then do not."
 "Wait here."
@@ -668,105 +667,108 @@ She sat by the window and watched the rain come across the moor.
 "Wait here."
 "No, sir."
 "I cannot," she said.
+There was no possibility of taking a walk that day, and the wind rose.
+Morning came grey and slow, and brought no comfort with it.
+"Wait here."
+"Wait here."
+He counted the hours until the coach would come, and then again.
+Morning came grey and slow, and brought no comfort with it.
 And still the rain fell.
 He turned the page and read the passage over a second time.
-There was no possibility of taking a walk that day, and the wind rose.
-There was no possibility of taking a walk that day, and the wind rose.
 He turned the page and read the passage over a second time.
+A candle guttered on the sill and went out without ceremony.
+The house was silent but for the clock in the hall below.
+A candle guttered on the sill and went out without ceremony.
 "You are cold."
-He turned the page and read the passage over a second time.
-He turned the page and read the passage over a second time.
-He turned the page and read the passage over a second time.
+"Wait here."
 A candle guttered on the sill and went out without ceremony.
-The house was silent but for the clock in the hall below.
-A candle guttered on the sill and went out without ceremony.
-
-21.
-
-A JOURNEY BY LIGHT
-
-The house was silent but for the clock in the hall below.
 And still the rain fell.
+"Wait here."
 The house was silent but for the clock in the hall below.
 The house was silent but for the clock in the hall below.
 A candle guttered on the sill and went out without ceremony.
 There was no possibility of taking a walk that day, and the wind rose.
+
+21
+
+A JOURNEY BY NIGHT
+
 She sat by the window and watched the rain come across the moor.
 "Then do not."
 She sat by the window and watched the rain come across the moor.
 Morning came grey and slow, and brought no comfort with it.
+And still the rain fell.
 Nobody spoke of the letter again, though everybody had read it.
 The garden had gone to seed in the months since her leaving.
 She sat by the window and watched the rain come across the moor.
 She sat by the window and watched the rain come across the moor.
 Nobody spoke of the letter again, though everybody had read it.
 Morning came grey and slow, and brought no comfort with it.
-And still the rain fell.
-The road ran east between hedgerows heavy with the night's water.
+"You are cold."
 The house was silent but for the clock in the hall below.
 The house was silent but for the clock in the hall below.
 Nobody spoke of the letter again, though everybody had read it.
 The road ran east between hedgerows heavy with the night's water.
 The house was silent but for the clock in the hall below.
-And still the rain fell.
-"I cannot," she said.
+She sat by the window and watched the rain come across the moor.
 Nobody spoke of the letter again, though everybody had read it.
 Morning came grey and slow, and brought no comfort with it.
+The house was silent but for the clock in the hall below.
+The road ran east between hedgerows heavy with the night's water.
+She sat by the window and watched the rain come across the moor.
+The garden had gone to seed in the months since her leaving.
+And still the rain fell.
+A candle guttered on the sill and went out without ceremony.
+Morning came grey and slow, and brought no comfort with it.
+She sat by the window and watched the rain come across the moor.
+"Wait here."
 
 22
 
 JANE EYRE
 
-She sat by the window and watched the rain come across the moor.
-The garden had gone to seed in the months since her leaving.
-A candle guttered on the sill and went out without ceremony.
-Morning came grey and slow, and brought no comfort with it.
-She sat by the window and watched the rain come across the moor.
-"Wait here."
-Nobody spoke of the letter again, though everybody had read it.
-Morning came grey and slow, and brought no comfort with it.
-The garden had gone to seed in the months since her leaving.
-Nobody spoke of the letter again, though everybody had read it.
-And still the rain fell.
-The garden had gone to seed in the months since her leaving.
-"Then do not."
 He turned the page and read the passage over a second time.
-"You are cold."
-She sat by the window and watched the rain come across the moor.
-She sat by the window and watched the rain come across the moor.
-The garden had gone to seed in the months since her leaving.
-She sat by the window and watched the rain come across the moor.
-The garden had gone to seed in the months since her leaving.
-"I cannot," she said.
-She sat by the window and watched the rain come across the moor.
-And still the rain fell.
-"I cannot," she said.
+He turned the page and read the passage over a second time.
 Nobody spoke of the letter again, though everybody had read it.
 The house was silent but for the clock in the hall below.
+He counted the hours until the coach would come, and then again.
+The garden had gone to seed in the months since her leaving.
+There was no possibility of taking a walk that day, and the wind rose.
+She sat by the window and watched the rain come across the moor.
+And still the rain fell.
+"Wait here."
+She sat by the window and watched the rain come across the moor.
+The garden had gone to seed in the months since her leaving.
+"I cannot," she said.
+She sat by the window and watched the rain come across the moor.
+"I cannot," she said.
+He turned the page and read the passage over a second time.
+Nobody spoke of the letter again, though everybody had read it.
+The house was silent but for the clock in the hall below.
+Nobody spoke of the letter again, though everybody had read it.
+She sat by the window and watched the rain come across the moor.
+"Then do not."
+She sat by the window and watched the rain come across the moor.
+"I cannot," she said.
+There was no possibility of taking a walk that day, and the wind rose.
 
 23
 
 A JOURNEY BY NIGHT
 
-"No, sir."
-He turned the page and read the passage over a second time.
-"I cannot," she said.
-There was no possibility of taking a walk that day, and the wind rose.
 And still the rain fell.
-Morning came grey and slow, and brought no comfort with it.
-He turned the page and read the passage over a second time.
 He turned the page and read the passage over a second time.
 Morning came grey and slow, and brought no comfort with it.
 A candle guttered on the sill and went out without ceremony.
 He counted the hours until the coach would come, and then again.
 The house was silent but for the clock in the hall below.
 Nobody spoke of the letter again, though everybody had read it.
-And still the rain fell.
 The garden had gone to seed in the months since her leaving.
 "Wait here."
 The road ran east between hedgerows heavy with the night's water.
 "Then do not."
 He counted the hours until the coach would come, and then again.
+And still the rain fell.
 The house was silent but for the clock in the hall below.
 The garden had gone to seed in the months since her leaving.
 She sat by the window and watched the rain come across the moor.
@@ -776,21 +778,23 @@ Nobody spoke of the letter again, though everybody had read it.
 He counted the hours until the coach would come, and then again.
 "Then do not."
 Morning came grey and slow, and brought no comfort with it.
-
-24
-
-IANE EYRE
-
+And still the rain fell.
+He turned the page and read the passage over a second time.
+"I cannot," she said.
 Nobody spoke of the letter again, though everybody had read it.
 The house was silent but for the clock in the hall below.
 There was no possibility of taking a walk that day, and the wind rose.
 Morning came grey and slow, and brought no comfort with it.
 "Then do not."
-And still the rain fell.
-He turned the page and read the passage over a second time.
+
+24
+
+JANE EYRE
+
 The garden had gone to seed in the months since her leaving.
 Morning came grey and slow, and brought no comfort with it.
 He turned the page and read the passage over a second time.
+And still the rain fell.
 The road ran east between hedgerows heavy with the night's water.
 "You are cold."
 Nobody spoke of the letter again, though everybody had read it.
@@ -800,27 +804,25 @@ Morning came grey and slow, and brought no comfort with it.
 "I cannot," she said.
 "You are cold."
 The house was silent but for the clock in the hall below.
-And still the rain fell.
-He counted the hours until the coach would come, and then again.
+Nobody spoke of the letter again, though everybody had read it.
 Morning came grey and slow, and brought no comfort with it.
 Nobody spoke of the letter again, though everybody had read it.
 The road ran east between hedgerows heavy with the night's water.
+Nobody spoke of the letter again, though everybody had read it.
+"You are cold."
+The garden had gone to seed in the months since her leaving.
+And still the rain fell.
+"You are cold."
+There was no possibility of taking a walk that day, and the wind rose.
+There was no possibility of taking a walk that day, and the wind rose.
+Nobody spoke of the letter again, though everybody had read it.
 
 25
 
 A JOURNEY BY NIGHT
 
-The garden had gone to seed in the months since her leaving.
-The house was silent but for the clock in the hall below.
-He counted the hours until the coach would come, and then again.
-There was no possibility of taking a walk that day, and the wind rose.
-There was no possibility of taking a walk that day, and the wind rose.
-Nobody spoke of the letter again, though everybody had read it.
-She sat by the window and watched the rain come across the moor.
-He turned the page and read the passage over a second time.
 A candle guttered on the sill and went out without ceremony.
 A candle guttered on the sill and went out without ceremony.
-And still the rain fell.
 He turned the page and read the passage over a second time.
 Morning came grey and slow, and brought no comfort with it.
 Nobody spoke of the letter again, though everybody had read it.
@@ -830,29 +832,29 @@ He counted the hours until the coach would come, and then again.
 The house was silent but for the clock in the hall below.
 She sat by the window and watched the rain come across the moor.
 "Then do not."
-And still the rain fell.
-The road ran east between hedgerows heavy with the night's water.
+The garden had gone to seed in the months since her leaving.
 The house was silent but for the clock in the hall below.
 The road ran east between hedgerows heavy with the night's water.
-Morning came grey and slow, and brought no comfort with it.
+And still the rain fell.
+Nobody spoke of the letter again, though everybody had read it.
+A candle guttered on the sill and went out without ceremony.
+The road ran east between hedgerows heavy with the night's water.
+The road ran east between hedgerows heavy with the night's water.
+"Wait here."
+Nobody spoke of the letter again, though everybody had read it.
+"I cannot," she said.
+"I cannot," she said.
+He counted the hours until the coach would come, and then again.
+A candle guttered on the sill and went out without ceremony.
 
 26
 
 JANE EYRE
 
-The road ran east between hedgerows heavy with the night's water.
-The road ran east between hedgerows heavy with the night's water.
-"Wait here."
 Nobody spoke of the letter again, though everybody had read it.
-"I cannot," she said.
-"I cannot," she said.
-He counted the hours until the coach would come, and then again.
-A candle guttered on the sill and went out without ceremony.
-The road ran east between hedgerows heavy with the night's water.
-She sat by the window and watched the rain come across the moor.
-He turned the page and read the passage over a second time.
-"I cannot," she said.
-He turned the page and read the passage over a second time.
+There was no possibility of taking a walk that day, and the wind rose.
+"Then do not."
+"You are cold."
 Morning came grey and slow, and brought no comfort with it.
 The road ran east between hedgerows heavy with the night's water.
 And still the rain fell.
@@ -870,27 +872,29 @@ She sat by the window and watched the rain come across the moor.
 The road ran east between hedgerows heavy with the night's water.
 Morning came grey and slow, and brought no comfort with it.
 And still the rain fell.
+The road ran east between hedgerows heavy with the night's water.
+"Wait here."
+The road ran east between hedgerows heavy with the night's water.
+The garden had gone to seed in the months since her leaving.
+A candle guttered on the sill and went out without ceremony.
+The garden had gone to seed in the months since her leaving.
 
 27
 
 A JOURNEY BY NIGHT
 
-The road ran east between hedgerows heavy with the night's water.
 The garden had gone to seed in the months since her leaving.
-A candle guttered on the sill and went out without ceremony.
+The house was silent but for the clock in the hall below.
 The garden had gone to seed in the months since her leaving.
-Nobody spoke of the letter again, though everybody had read it.
-Morning came grey and slow, and brought no comfort with it.
-He counted the hours until the coach would come, and then again.
 The house was silent but for the clock in the hall below.
 The house was silent but for the clock in the hall below.
 "No, sir."
 He turned the page and read the passage over a second time.
+And still the rain fell.
 Morning came grey and slow, and brought no comfort with it.
 The garden had gone to seed in the months since her leaving.
-And still the rain fell.
-She sat by the window and watched the rain come across the moor.
-Morning came grey and slow, and brought no comfort with it.
+The road ran east between hedgerows heavy with the night's water.
+"You are cold."
 The garden had gone to seed in the months since her leaving.
 She sat by the window and watched the rain come across the moor.
 The garden had gone to seed in the months since her leaving.
@@ -899,49 +903,51 @@ She sat by the window and watched the rain come across the moor.
 The road ran east between hedgerows heavy with the night's water.
 There was no possibility of taking a walk that day, and the wind rose.
 "Wait here."
-"No, sir."
 And still the rain fell.
+Morning came grey and slow, and brought no comfort with it.
 He turned the page and read the passage over a second time.
+There was no possibility of taking a walk that day, and the wind rose.
+A candle guttered on the sill and went out without ceremony.
+"Then do not."
+He counted the hours until the coach would come, and then again.
+The road ran east between hedgerows heavy with the night's water.
+And still the rain fell.
+Nobody spoke of the letter again, though everybody had read it.
 
 28
 
-JANE EYIE
+JANE EYRE
 
+There was no possibility of taking a walk that day, and the wind rose.
 He counted the hours until the coach would come, and then again.
-The road ran east between hedgerows heavy with the night's water.
+The house was silent but for the clock in the hall below.
+He turned the page and read the passage over a second time.
+Nobody spoke of the letter again, though everybody had read it.
+He turned the page and read the passage over a second time.
+There was no possibility of taking a walk that day, and the wind rose.
+There was no possibility of taking a walk that day, and the wind rose.
 The garden had gone to seed in the months since her leaving.
 Nobody spoke of the letter again, though everybody had read it.
-A candle guttered on the sill and went out without ceremony.
-He turned the page and read the passage over a second time.
-There was no possibility of taking a walk that day, and the wind rose.
-He counted the hours until the coach would come, and then again.
-And still the rain fell.
-"Wait here."
-There was no possibility of taking a walk that day, and the wind rose.
-He turned the page and read the passage over a second time.
-There was no possibility of taking a walk that day, and the wind rose.
-There was no possibility of taking a walk that day, and the wind rose.
-And still the rain fell.
-Nobody spoke of the letter again, though everybody had read it.
 He counted the hours until the coach would come, and then again.
 She sat by the window and watched the rain come across the moor.
 Nobody spoke of the letter again, though everybody had read it.
-He counted the hours until the coach would come, and then again.
-A candle guttered on the sill and went out without ceremony.
-She sat by the window and watched the rain come across the moor.
-She sat by the window and watched the rain come across the moor.
 And still the rain fell.
+The road ran east between hedgerows heavy with the night's water.
+"Then do not."
+She sat by the window and watched the rain come across the moor.
+She sat by the window and watched the rain come across the moor.
 She sat by the window and watched the rain come across the moor.
 "Then do not."
 "I cannot," she said.
 Morning came grey and slow, and brought no comfort with it.
 He turned the page and read the passage over a second time.
+The garden had gone to seed in the months since her leaving.
+Morning came grey and slow, and brought no comfort with it.
 
 29
 
 A JOURNEY BY NIGHT
 
-The road ran east between hedgerows heavy with the night's water.
 Nobody spoke of the letter again, though everybody had read it.
 "Wait here."
 Nobody spoke of the letter again, though everybody had read it.
@@ -950,21 +956,23 @@ The road ran east between hedgerows heavy with the night's water.
 He turned the page and read the passage over a second time.
 "You are cold."
 Nobody spoke of the letter again, though everybody had read it.
+And still the rain fell.
 The road ran east between hedgerows heavy with the night's water.
 There was no possibility of taking a walk that day, and the wind rose.
 Nobody spoke of the letter again, though everybody had read it.
 The garden had gone to seed in the months since her leaving.
-And still the rain fell.
-She sat by the window and watched the rain come across the moor.
-The road ran east between hedgerows heavy with the night's water.
+He turned the page and read the passage over a second time.
+"Wait here."
+A candle guttered on the sill and went out without ceremony.
 He counted the hours until the coach would come, and then again.
 She sat by the window and watched the rain come across the moor.
 She sat by the window and watched the rain come across the moor.
 The garden had gone to seed in the months since her leaving.
 He turned the page and read the passage over a second time.
 Nobody spoke of the letter again, though everybody had read it.
+The road ran east between hedgerows heavy with the night's water.
 And still the rain fell.
-Nobody spoke of the letter again, though everybody had read it.
 "Then do not."
+"You are cold."
 
 30
