@@ -83,11 +83,32 @@ visible rather than discovered mid-project.
 
 ```
 src/corpusprep/     Python package. Standard library only.
-docs/index.html     The web application. Also what GitHub Pages serves.
+build/              Sources for the web application.
+docs/index.html     The built application. Also what GitHub Pages serves.
 tests/              Test suite and fixtures.
 tools/              Parity check, stress test, copy audit.
 design/             Specification, schedules, operational notes.
 ```
+
+### Building the web application
+
+`docs/index.html` is generated. **Edit the sources in `build/`, not the page**,
+since a hand edit to it is silently lost on the next build.
+
+```bash
+python build/build.py            # rebuild docs/index.html
+python build/build.py --check    # verify the page matches its sources
+```
+
+The application is one self-contained file so it can be opened by double-click
+and served from anywhere, which makes it awkward to edit at 83 KB. It is
+therefore authored in three parts and concatenated: `_shell.html` for markup
+and styling, `_engine.js` for the segmentation engine, `_app.js` for interface
+behaviour.
+
+The split is not only convenience. `_engine.js` is the half that must agree
+with the Python package, and giving it its own file makes that boundary
+visible.
 
 ### Two implementations, kept in step
 
