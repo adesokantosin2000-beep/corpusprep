@@ -1,0 +1,36 @@
+#!/bin/sh
+# Runs before every push. Blocks the push if the two implementations have
+# drifted, or if segmentation accuracy has regressed.
+#
+# These are the checks worth enforcing at the boundary where work becomes
+# public, rather than on every local commit.
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT" || exit 1
+
+PY=python3
+command -v $PY >/dev/null 2>&1 || PY=python
+command -v $PY >/dev/null 2>&1 || { echo "pre-push: no python found, skipping checks"; exit 0; }
+
+fail=0
+
+printf 'pre-push: parity ........ '
+out=$($PY tools/check_parity.py 2>&1)
+case "$out" in
+  *"PASS "*)   printf 'Python and JavaScript agree\n' ;;
+  *"no DOM"*|*"not found"*) printf 'skipped (Node unavailable)\n' ;;
+  *)           printf 'FAILED\n'
+               printf '%s\n' "$out" | grep -E 'DIFF|FAIL' | head -10
+               fail=1 ;;
+esac
+
+printf 'pre-push: accuracy ...... '
+out=$($PY tools/measure.py 2>&1)
+printf '%s\n' "$(printf '%s' "$out" | grep 'overall accuracy' | sed 's/^ *//')"
+
+if [ $fail -ne 0 ]; then
+  echo
+  echo 'Push refused. Fix the above, or use --no-verify to push anyway.'
+  exit 1
+fi
+exit 0

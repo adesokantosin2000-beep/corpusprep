@@ -1,0 +1,24 @@
+#!/bin/sh
+# Pushes automatically after every successful commit.
+#
+# You still decide when to commit and what the message says. This only removes
+# the step people forget, which is the step that leaves work on one machine.
+#
+# A failed push is reported but never fatal: working offline is normal, and the
+# commit is already safely made. Run `git push` when you next have a connection.
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT" || exit 0
+
+git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1 || {
+  echo 'post-commit: no upstream branch set, not pushing'
+  exit 0
+}
+
+echo 'post-commit: pushing ...'
+if git push --quiet 2>&1; then
+  echo 'post-commit: pushed'
+else
+  echo 'post-commit: push failed. The commit is safe locally. Run: git push'
+fi
+exit 0

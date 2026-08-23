@@ -1,0 +1,40 @@
+#!/bin/sh
+# Runs before every commit. Blocks the commit if anything fails.
+#
+# Deliberately fast: the test suite and the build check, about two seconds.
+# Parity and measurement run in pre-push instead, since they are slower and
+# only matter at the point work leaves this machine.
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT" || exit 1
+
+PY=python3
+command -v $PY >/dev/null 2>&1 || PY=python
+command -v $PY >/dev/null 2>&1 || { echo "pre-commit: no python found, skipping checks"; exit 0; }
+
+fail=0
+
+printf 'pre-commit: tests ....... '
+if out=$($PY tests/test_corpusprep.py 2>&1); then
+  printf '%s\n' "$(printf '%s' "$out" | grep 'passed,' | tr -s ' ')"
+else
+  printf 'FAILED\n'
+  printf '%s\n' "$out" | grep -E '^  FAIL' | head -10
+  fail=1
+fi
+
+printf 'pre-commit: build ....... '
+if $PY build/build.py --check >/dev/null 2>&1; then
+  printf 'docs/index.html matches its sources\n'
+else
+  printf 'FAILED\n'
+  echo '  docs/index.html does not match build/. Run: python build/build.py'
+  fail=1
+fi
+
+if [ $fail -ne 0 ]; then
+  echo
+  echo 'Commit refused. Fix the above, or use --no-verify to commit anyway.'
+  exit 1
+fi
+exit 0

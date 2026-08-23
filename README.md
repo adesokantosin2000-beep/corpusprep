@@ -161,6 +161,34 @@ prototype script, kept so the rewrite cannot reintroduce them:
 
 ---
 
+## Automatic checks and pushing
+
+Git hooks live outside the repository, so install them once per clone:
+
+```bash
+python tools/install_hooks.py
+```
+
+After that, `git commit` runs the checks and pushes for you:
+
+| Hook | Runs | Time |
+|---|---|---|
+| `pre-commit` | Test suite, build check. **Blocks the commit if either fails.** | ~2 s |
+| `pre-push` | Parity and accuracy. **Blocks the push if the engines have drifted.** | ~5 s |
+| `post-commit` | Pushes automatically. A failed push warns but is never fatal. | |
+
+Fast checks run on every commit; slower ones only when work leaves the machine.
+Use `--no-verify` to bypass either on a particular commit.
+
+**The hooks do not commit for you, and that is deliberate.** A timed automatic
+commit would produce a history of meaningless messages and would happily record
+broken states. This history is part of the project's record: it is what the
+Zenodo archive preserves and what a reviewer would read. You decide when a
+change is worth recording and what to call it. The hooks only remove the step
+that gets forgotten, which is the one that leaves work stranded on one machine.
+
+---
+
 ## Licence
 
 MIT. See [`LICENSE`](LICENSE).
