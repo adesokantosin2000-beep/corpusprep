@@ -1,0 +1,73 @@
+# Furniture key: scanned_novel.txt
+#
+# SYNTHETIC. Line numbers of page furniture: running heads and page numbers.
+# Exact by construction, since the generator records them as it writes.
+#
+# 60 furniture lines across 30 pages.
+#
+# What must NOT appear here, and is the real test:
+#   - "And still the rain fell." repeats often but irregularly. A rule counting
+#     repetitions alone would delete it.
+#   - "I READ IT AGAIN AND AGAIN." is emphatic prose in capitals.
+#   - Short dialogue such as '"No, sir."' recurs and is very short.
+
+13
+43
+45
+72
+74
+106
+108
+137
+139
+170
+172
+201
+203
+236
+238
+269
+271
+298
+300
+332
+334
+366
+368
+396
+398
+429
+431
+463
+465
+493
+495
+525
+527
+554
+556
+584
+586
+618
+620
+650
+652
+684
+686
+716
+718
+747
+749
+780
+782
+809
+811
+839
+841
+874
+876
+906
+908
+940
+942
+970

@@ -497,6 +497,74 @@ def test_named_front_matter_title_case():
         check(f"not a heading: {s[:34]}…", not F(s))
 
 
+def test_furniture_detection():
+    """Running heads and page numbers on a synthetic scanned text.
+
+    The fixture is deliberately hostile: the refrain repeats 64 times, more
+    often than the 60 furniture lines, so a rule counting repetitions alone
+    fails outright.
+    """
+    import re as _re
+    from corpusprep.furniture import find_in_document
+
+    fx = FIXTURES / "scanned_novel.txt"
+    fk = Path(__file__).parent / "keys" / "scanned_novel.furniture"
+    if not fx.exists() or not fk.exists():
+        print("  SKIP  scanned fixture not present")
+        return
+
+    truth = set()
+    for raw in fk.read_text(encoding="utf-8").splitlines():
+        s = raw.split("#")[0].strip()
+        if not s:
+            continue
+        m = _re.match(r"^(\d+)(?:-(\d+))?$", s)
+        a, b = int(m.group(1)), int(m.group(2) or m.group(1))
+        truth.update(range(a, b + 1))
+
+    doc = segment(load(fx))
+    pred, _, page = find_in_document(doc)
+
+    check("page length estimated", 25 <= page <= 40, f"got {page}")
+    check("no furniture missed", not (truth - pred),
+          f"missed {sorted(truth - pred)[:5]}")
+    check("no prose marked as furniture", not (pred - truth),
+          f"wrongly marked {sorted(pred - truth)[:5]}")
+
+    refrain = {i for i, l in enumerate(doc.lines, 1)
+               if l.strip() == "And still the rain fell."}
+    check("frequent refrain survives", not (refrain & pred),
+          f"{len(refrain & pred)} of {len(refrain)} refrain lines deleted")
+
+    dialogue = {i for i, l in enumerate(doc.lines, 1)
+                if l.strip().startswith('"')}
+    check("short dialogue survives", not (dialogue & pred))
+
+
+def test_furniture_ignores_front_matter():
+    """A title page carries the same words as the running head."""
+    from corpusprep.furniture import find_in_document
+
+    fx = FIXTURES / "scanned_novel.txt"
+    if not fx.exists():
+        print("  SKIP  scanned fixture not present")
+        return
+    doc = segment(load(fx))
+    pred, _, _ = find_in_document(doc)
+    check("title page line 1 not treated as a running head", 1 not in pred)
+    check("imprint date not treated as a page number", 9 not in pred)
+
+
+def test_page_number_ocr_variants():
+    """`l3` for 13 is routine in scanned text and must still be recognised."""
+    from corpusprep.furniture import looks_like_page_number as f
+
+    for s in ["13", "l3", "l8", "(7)", "42.", "1847"]:
+        check(f"page number recognised: {s!r}", f(s))
+    for s in ["JANE EYRE", "and", "I", "O", "the end"]:
+        check(f"not a page number: {s!r}", not f(s))
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [
