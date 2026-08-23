@@ -17,7 +17,7 @@ removed and you can hand them a file.
 
 ## Try it
 
-Open **[the web application](https://YOUR-USERNAME.github.io/corpusprep/)** in
+Open **[the web application](https://adesokantosin2000-beep.github.io/corpusprep/)** in
 a browser. Nothing to install. Your text is processed locally and never
 transmitted anywhere.
 

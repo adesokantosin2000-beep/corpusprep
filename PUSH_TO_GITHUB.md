@@ -29,7 +29,7 @@ push, so leave all three unticked.
 In a terminal, from the `corpusprep-repo` folder:
 
 ```bash
-git remote add origin https://github.com/YOUR-USERNAME/corpusprep.git
+git remote add origin https://github.com/adesokantosin2000-beep/corpusprep.git
 git push -u origin main
 git push origin v0.2.0
 ```
@@ -55,7 +55,7 @@ In the repository, go to **Settings, Pages**.
 After a minute or two the application is live at:
 
 ```
-https://YOUR-USERNAME.github.io/corpusprep/
+https://adesokantosin2000-beep.github.io/corpusprep/
 ```
 
 Because it deploys from `docs/` in the repository, the page being served is
@@ -65,7 +65,7 @@ always provably the committed source. There is no upload step that can drift.
 
 ## 4. Replace the placeholders
 
-Three files contain `YOUR-USERNAME`:
+Three files contain `adesokantosin2000-beep`:
 
 - `README.md`, in the "Try it" link
 - `CITATION.cff`, in `repository-code`

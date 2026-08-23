@@ -8,7 +8,7 @@ authors:
 version: 0.2.0
 date-released: "2026-08-23"
 license: MIT
-repository-code: "https://github.com/YOUR-USERNAME/corpusprep"
+repository-code: "https://github.com/adesokantosin2000-beep/corpusprep"
 abstract: >-
   CorpusPrep prepares source texts for corpus analysis. Every line of a
   document is labelled before anything is removed, so the researcher decides

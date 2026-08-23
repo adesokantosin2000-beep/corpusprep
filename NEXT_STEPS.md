@@ -17,7 +17,7 @@ licence, since all three already exist here and would collide.
 **2. Push.** In a terminal, in this folder:
 
 ```bash
-git remote add origin https://github.com/YOUR-USERNAME/corpusprep.git
+git remote add origin https://github.com/adesokantosin2000-beep/corpusprep.git
 git push -u origin main
 git push origin v0.2.0
 ```
@@ -40,13 +40,13 @@ Stop there if you like. The rest is not urgent.
 
 **4. Turn on GitHub Pages.** Repository **Settings, Pages**. Source: deploy
 from branch `main`, folder `/docs`. Save. A minute later the application is
-live at `https://YOUR-USERNAME.github.io/corpusprep/`.
+live at `https://adesokantosin2000-beep.github.io/corpusprep/`.
 
 **5. Open that URL and clean a text with it.** Confirm the hosted copy behaves
 exactly like the local file. This is the first time the tool exists as
 something you can send someone.
 
-**6. Replace the placeholders.** `YOUR-USERNAME` appears in `README.md` and
+**6. Replace the placeholders.** `adesokantosin2000-beep` appears in `README.md` and
 `CITATION.cff`. Then:
 
 ```bash
