@@ -130,8 +130,24 @@ which was quietly splitting words such as *æsthetic* and *naïve*.
 ```bash
 python tests/test_corpusprep.py     # 125 checks, no pytest required
 python tools/check_parity.py        # Python and JavaScript must agree
+python tools/measure.py             # accuracy against hand-marked keys
 python tools/stress_test.py corpora # traffic-light report over a folder
 ```
+
+### Measured accuracy
+
+`tools/measure.py` scores the segmenter against hand-marked answer keys in
+`tests/keys/`, per content line rather than per region, because a boundary
+placed ten lines wrong silently moves ten lines of prose into or out of the
+corpus.
+
+Current baseline, recorded before Phase 2: **99.98% across 6,228 content lines,
+1 misclassified.** The single error and why it is left unfixed are recorded in
+[`tests/keys/BASELINE.md`](tests/keys/BASELINE.md).
+
+The keys are read from the sources, never copied from the tool's output. A key
+derived from what the tool already produces measures only consistency with
+itself.
 
 The first four tests are regressions against confirmed bugs in the original
 prototype script, kept so the rewrite cannot reintroduce them:
