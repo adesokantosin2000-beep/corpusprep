@@ -1761,3 +1761,41 @@ export.
 
 Recorded rather than quietly reversed, because the argument was sound when it
 was written and the constraint that overrode it is a different one.
+
+
+---
+
+## 2026-08-24 — Less on the screen
+
+Reported: the explanations of what the tool does and will do look bad, remove
+them.
+
+The opening screen carried a paragraph of positioning, a four-step diagram of
+the pipeline, a capabilities list including everything not yet built, and a
+closing instruction. **All of it is read once and then is furniture**, which is
+a word this project ought to have recognised sooner.
+
+Now: one heading, one sentence, and where to put the file. The capabilities
+list is kept behind a closed disclosure rather than deleted, because listing
+what is *not* implemented is a commitment made deliberately — a researcher
+should meet the limits before choosing the tool, not halfway through a project.
+That commitment survives one click. Four paragraphs of it on first sight does
+not survive contact with a user.
+
+The option panels were the same fault at smaller scale. Each carried a
+paragraph explaining the reasoning behind its rule:
+
+> A line break inside a word is always an artefact, but the hyphen may be real:
+> to-morrow is a word and tomorrow is a different one. Each case is settled
+> from the surrounding text — whether the finished word appears elsewhere, and
+> whether both halves are words in their own right, since a compound is built
+> out of words and a broken word is not.
+
+Accurate, and it sits above a checkbox. Cut to two lines. **The reasoning
+belongs in the log, which is written for exactly this purpose and which the
+reader reaches when they want it, rather than beside a control they are trying
+to use.**
+
+Dead CSS for the removed markup was deleted rather than left. In a single-file
+application every unused rule is weight on every load and a trap for whoever
+reads it next.

@@ -179,6 +179,16 @@ select:focus{outline:none;border-color:var(--accent)}
   0 3px 12px -4px rgba(138,109,47,.34)}
 .btn-run.stale:hover{background:#755c27}
 .run-note{font-size:12px;color:var(--muted);line-height:1.6;margin:9px 0 0}
+.onboard-cta{margin-top:18px;font-size:13.5px;color:var(--muted)}
+.caps-wrap{max-width:760px;margin:34px auto 0;border-top:1px solid var(--rule);
+  padding-top:18px}
+.caps-wrap summary{cursor:pointer;font:13.5px var(--sans);color:var(--muted);
+  list-style:none;display:flex;align-items:center;gap:9px}
+.caps-wrap summary::-webkit-details-marker{display:none}
+.caps-wrap summary::before{content:"▸";font-size:11px;transition:transform .15s}
+.caps-wrap[open] summary::before{transform:rotate(90deg)}
+.caps-wrap summary:hover{color:var(--ink)}
+.caps-wrap .caps{margin-top:16px}
 
 /* Cleaning is the one operation here that can take real time: the Internet
    Archive scans are 45 MB and the work is synchronous, so the page stops
@@ -221,20 +231,9 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
   letter-spacing:-.015em;line-height:1.25}
 .onboard-hero p{margin:0;color:var(--muted);font-size:15.5px;line-height:1.7;max-width:60ch}
 
-.flow{display:flex;align-items:stretch;gap:0;margin:0 0 38px;border:1px solid var(--rule);
-  border-radius:5px;background:var(--card);overflow:hidden}
-.flow-step{flex:1;padding:20px 18px;position:relative}
-.flow-step + .flow-step{border-left:1px solid var(--hair)}
-.flow-step .n{font-size:10px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--faint);font-weight:700;margin-bottom:9px}
-.flow-step .t{font-family:var(--serif);font-size:16.5px;margin-bottom:5px;line-height:1.3}
-.flow-step .d{font-size:12.5px;color:var(--muted);line-height:1.6}
-.flow-step svg{margin-bottom:11px;color:var(--accent)}
-
-.cap-head{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+.flow-step + 
 .cap-head h4{font-family:var(--serif);font-size:19px;font-weight:500;margin:0}
 .cap-head .c{font-size:12px;color:var(--faint);margin-left:auto}
-.cap-sub{font-size:13px;color:var(--muted);margin:0 0 18px}
 .caps{display:grid;grid-template-columns:1fr 1fr;gap:0 34px;
   border-top:1px solid var(--hair)}
 .cap{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--hair);
@@ -247,8 +246,6 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
   font-weight:700;padding:2px 6px;border-radius:2px;margin-left:7px;vertical-align:1.5px;
   background:var(--gold-soft);color:var(--gold)}
 
-.onboard-foot{display:flex;gap:14px;align-items:center;margin-top:34px;padding-top:22px;
-  border-top:1px solid var(--rule);font-size:13px;color:var(--muted)}
 
 /* ════════════════════ upload summary ════════════════════ */
 .summary{border:1px solid var(--rule);border-radius:5px;background:var(--card);
@@ -330,8 +327,7 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
   padding:15px 17px;font-size:13.5px;margin:22px 0;line-height:1.7}
 .dl{display:flex;gap:11px;margin-top:30px;flex-wrap:wrap;padding-top:22px;
   border-top:1px solid var(--rule)}
-@media(max-width:1080px){.caps{grid-template-columns:1fr}.flow{flex-wrap:wrap}
-  .flow-step{min-width:46%}}
+@media(max-width:1080px){.caps{grid-template-columns:1fr}  .flow-step{min-width:46%}}
 @media(max-width:1000px){.wrap{grid-template-columns:1fr}
   .cmp{grid-template-columns:1fr;height:auto}.canvas{padding:26px 22px 50px}}
 /* ---- page furniture review ---- */
@@ -549,66 +545,22 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
       <div class="onboard" id="welcome">
         <div class="onboard-hero">
           <h3>Prepare a source text for analysis<br>without losing track of what was removed.</h3>
-          <p>CorpusPrep labels every line of a document before anything is removed.
-          You determine what constitutes your corpus, and the accompanying log
-          documents precisely how that determination was made. Intended for corpus
-          linguists, translation scholars, literary researchers and digital
-          humanists.</p>
+          <p>Every line is labelled before anything is removed, and the log
+          records how the decision was made.</p>
+          <p class="onboard-cta">Select or drop a file on the left.
+          TXT, DOCX, EPUB or HTML.</p>
         </div>
 
-        <div class="flow">
-          <div class="flow-step">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <path d="M14 2v6h6"/></svg>
-            <div class="n">Step one</div>
-            <div class="t">Import</div>
-            <div class="d">Encoding, byte-order marks and line endings are resolved on import.</div>
-          </div>
-          <div class="flow-step">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 6h18M3 12h18M3 18h18"/><circle cx="7" cy="6" r="1.6" fill="currentColor" stroke="none"/>
-              <circle cx="13" cy="12" r="1.6" fill="currentColor" stroke="none"/>
-              <circle cx="9" cy="18" r="1.6" fill="currentColor" stroke="none"/></svg>
-            <div class="n">Step two</div>
-            <div class="t">Segment</div>
-            <div class="d">Every line is labelled: apparatus, front matter, body, back matter.</div>
-          </div>
-          <div class="flow-step">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="7" height="16" rx="1.5"/>
-              <rect x="14" y="4" width="7" height="16" rx="1.5" stroke-dasharray="2.5 2.5"/></svg>
-            <div class="n">Step three</div>
-            <div class="t">Choose</div>
-            <div class="d">Retain or remove each section. Review the difference before exporting.</div>
-          </div>
-          <div class="flow-step">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <path d="M7 11l5 5 5-5"/><path d="M12 16V4"/></svg>
-            <div class="n">Step four</div>
-            <div class="t">Export</div>
-            <div class="d">Cleaned text accompanied by a citable log of every decision taken.</div>
-          </div>
-        </div>
-
-        <div class="cap-head">
-          <h4>Capabilities</h4>
-          <span class="c" id="cap-count"></span>
-        </div>
-        <p class="cap-sub">Capabilities marked <span class="tag">planned</span> are
-          specified but not yet implemented. They are listed so that the present
-          limitations of this version are clear.</p>
-        <div class="caps" id="caps"></div>
-
-        <div class="onboard-foot">
-          <span>To begin, select or drop a source file in the panel on the left.
-          Supported formats are TXT, DOCX, EPUB and HTML.</span>
-        </div>
+        <!-- Closed by default. The planned items are listed so the present
+             limits of this version are visible rather than discovered halfway
+             through a project, which is a commitment worth keeping; four
+             paragraphs of it on the opening screen is not. Kept, not deleted,
+             and one click away. -->
+        <details class="caps-wrap">
+          <summary>What this version can and cannot do
+            <span class="c" id="cap-count"></span></summary>
+          <div class="caps" id="caps"></div>
+        </details>
       </div>
 
       <!-- loaded -->
@@ -665,7 +617,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
 <script>
 "use strict";
 
-const CORPUSPREP_VERSION="0.6.2";
+const CORPUSPREP_VERSION="0.6.3";
 const PG_HEADER="pg_header", PG_LICENCE="pg_licence", FRONT_MATTER="front_matter",
       BODY="body", BACK_MATTER="back_matter", UNKNOWN="unknown";
 
@@ -3232,28 +3184,20 @@ function hyphenNotice(){
            left?` · ${left} kept exactly as printed`:""}`
         : "this text is hard-wrapped"}</span>
     </div>
-    <p class="furn-lead">A line break inside a word is always an artefact, but
-      the hyphen may be real: <b>to-morrow</b> is a word and <b>tomorrow</b> is a
-      different one. Each case is settled from the surrounding text — whether
-      the finished word appears elsewhere, and whether both halves are words in
-      their own right, since a compound is built out of words and a broken word
-      is not.${!CLEANED?" Anything the text cannot settle keeps the hyphen "
-      +"exactly as the source prints it."
-      :left?` <b>${left}</b> could not be settled that way, so ${
-      left===1?"it is":"they are"} left with the hyphen exactly as the source
-      prints ${left===1?"it":"them"}. Nothing is required of you.`:` Every one
-      was settled.`}</p>
+    <p class="furn-lead">The line break is an artefact; the hyphen may be real.
+      Each case is settled from this text's own vocabulary, and anything it
+      cannot settle keeps the hyphen exactly as printed.${
+      CLEANED&&left?` <b>${left}</b> did. Nothing is required of you.`:""}</p>
     <div class="fn-opts">
       <label class="fn-opt ${on?"on":""}">
         <input type="checkbox" id="dh-on" ${on?"checked":""}>
         <span class="fn-t">Rejoin broken words</span>
-        <span class="fn-d">Repairs the line break. The hyphen is decided
-          separately.</span></label>
+        <span class="fn-d">The hyphen is decided separately.</span></label>
       <label class="fn-opt ${CFG.reflow?"on":""}">
         <input type="checkbox" id="rf-on" ${CFG.reflow?"checked":""}>
         <span class="fn-t">Rejoin paragraphs</span>
-        <span class="fn-d">Undoes fixed-width line wrapping. Verse, drama and
-          tables are left alone. 99.5% accurate; see the log.</span></label>
+        <span class="fn-d">Undoes fixed-width wrapping. Verse and drama are
+          left alone.</span></label>
     </div>
     ${CLEANED&&left?`<div class="rv-bar">
       <button class="btn-sm ghost" id="rv-start">Look at the ${left} kept
@@ -3363,17 +3307,13 @@ function footnoteNotice(){
           matched`:""}`
         : "this text carries footnotes"}</span>
     </div>
-    <p class="furn-lead">A marker is treated as a footnote only when a note
-      elsewhere carries the same label. Stage directions, illustrations and
-      other bracketed material have no matching note and are left alone.${
-      !CLEANED?" Anything that cannot be matched is never removed, by any "
-      +"option below."
-      :loose?` The ${loose} unmatched label${loose===1?"":"s"} will not be
-      removed by any option below.`:""}</p>
+    <p class="furn-lead">A marker counts only when a note elsewhere carries the
+      same label, so stage directions are left alone. Anything unmatched is
+      never removed.${CLEANED&&loose?` ${loose} here.`:""}</p>
     <div class="fn-opts">
-      ${opt("retain","Keep footnotes","Markers and notes stay. Study the edition.")}
-      ${opt("remove","Remove footnotes","Markers stripped, notes dropped. Study the work.")}
-      ${opt("extract","Extract to a second file","Notes saved separately. Study both.")}
+      ${opt("retain","Keep","Study the edition.")}
+      ${opt("remove","Remove","Study the work.")}
+      ${opt("extract","Extract to a second file","Study both.")}
     </div>
   </div>`;
 }
@@ -3404,14 +3344,11 @@ function furnitureNotice(){
            ${Math.round(DOC.pageLength)} lines`
         : "this text appears to come from printed pages"}</span>
     </div>
-    <p class="furn-lead">Lines recurring at the page interval are the pattern a
-      running head or page number makes. Ordinary repeated text, such as a
-      refrain, recurs irregularly and is not treated as furniture.${
-      DOC.catchwords.size?` This text also appears to use <b>catchwords</b>, the
-      early modern practice of printing the next page's first word at the foot
-      of the page.`:""}${!CLEANED?` <b>Every line proposed for removal is
-      listed with its grounds once cleaning has run</b>, and this option is off
-      unless you turn it on.`:""}</p>
+    <p class="furn-lead">Running heads and page numbers recur at the page
+      interval; a refrain recurs irregularly and is left alone.${
+      DOC.catchwords.size?" This text also uses catchwords.":""}${
+      !CLEANED?" Every line proposed for removal is listed with its grounds"
+      +" once cleaning has run.":""}</p>
     ${CLEANED?`<table class="furn-table">
       <thead><tr><th>Recurring line</th><th>Times</th><th>Grounds</th></tr></thead>
       <tbody>${rows}</tbody></table>`:""}

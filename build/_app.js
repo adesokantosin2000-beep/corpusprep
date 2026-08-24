@@ -273,28 +273,20 @@ function hyphenNotice(){
            left?` · ${left} kept exactly as printed`:""}`
         : "this text is hard-wrapped"}</span>
     </div>
-    <p class="furn-lead">A line break inside a word is always an artefact, but
-      the hyphen may be real: <b>to-morrow</b> is a word and <b>tomorrow</b> is a
-      different one. Each case is settled from the surrounding text — whether
-      the finished word appears elsewhere, and whether both halves are words in
-      their own right, since a compound is built out of words and a broken word
-      is not.${!CLEANED?" Anything the text cannot settle keeps the hyphen "
-      +"exactly as the source prints it."
-      :left?` <b>${left}</b> could not be settled that way, so ${
-      left===1?"it is":"they are"} left with the hyphen exactly as the source
-      prints ${left===1?"it":"them"}. Nothing is required of you.`:` Every one
-      was settled.`}</p>
+    <p class="furn-lead">The line break is an artefact; the hyphen may be real.
+      Each case is settled from this text's own vocabulary, and anything it
+      cannot settle keeps the hyphen exactly as printed.${
+      CLEANED&&left?` <b>${left}</b> did. Nothing is required of you.`:""}</p>
     <div class="fn-opts">
       <label class="fn-opt ${on?"on":""}">
         <input type="checkbox" id="dh-on" ${on?"checked":""}>
         <span class="fn-t">Rejoin broken words</span>
-        <span class="fn-d">Repairs the line break. The hyphen is decided
-          separately.</span></label>
+        <span class="fn-d">The hyphen is decided separately.</span></label>
       <label class="fn-opt ${CFG.reflow?"on":""}">
         <input type="checkbox" id="rf-on" ${CFG.reflow?"checked":""}>
         <span class="fn-t">Rejoin paragraphs</span>
-        <span class="fn-d">Undoes fixed-width line wrapping. Verse, drama and
-          tables are left alone. 99.5% accurate; see the log.</span></label>
+        <span class="fn-d">Undoes fixed-width wrapping. Verse and drama are
+          left alone.</span></label>
     </div>
     ${CLEANED&&left?`<div class="rv-bar">
       <button class="btn-sm ghost" id="rv-start">Look at the ${left} kept
@@ -404,17 +396,13 @@ function footnoteNotice(){
           matched`:""}`
         : "this text carries footnotes"}</span>
     </div>
-    <p class="furn-lead">A marker is treated as a footnote only when a note
-      elsewhere carries the same label. Stage directions, illustrations and
-      other bracketed material have no matching note and are left alone.${
-      !CLEANED?" Anything that cannot be matched is never removed, by any "
-      +"option below."
-      :loose?` The ${loose} unmatched label${loose===1?"":"s"} will not be
-      removed by any option below.`:""}</p>
+    <p class="furn-lead">A marker counts only when a note elsewhere carries the
+      same label, so stage directions are left alone. Anything unmatched is
+      never removed.${CLEANED&&loose?` ${loose} here.`:""}</p>
     <div class="fn-opts">
-      ${opt("retain","Keep footnotes","Markers and notes stay. Study the edition.")}
-      ${opt("remove","Remove footnotes","Markers stripped, notes dropped. Study the work.")}
-      ${opt("extract","Extract to a second file","Notes saved separately. Study both.")}
+      ${opt("retain","Keep","Study the edition.")}
+      ${opt("remove","Remove","Study the work.")}
+      ${opt("extract","Extract to a second file","Study both.")}
     </div>
   </div>`;
 }
@@ -445,14 +433,11 @@ function furnitureNotice(){
            ${Math.round(DOC.pageLength)} lines`
         : "this text appears to come from printed pages"}</span>
     </div>
-    <p class="furn-lead">Lines recurring at the page interval are the pattern a
-      running head or page number makes. Ordinary repeated text, such as a
-      refrain, recurs irregularly and is not treated as furniture.${
-      DOC.catchwords.size?` This text also appears to use <b>catchwords</b>, the
-      early modern practice of printing the next page's first word at the foot
-      of the page.`:""}${!CLEANED?` <b>Every line proposed for removal is
-      listed with its grounds once cleaning has run</b>, and this option is off
-      unless you turn it on.`:""}</p>
+    <p class="furn-lead">Running heads and page numbers recur at the page
+      interval; a refrain recurs irregularly and is left alone.${
+      DOC.catchwords.size?" This text also uses catchwords.":""}${
+      !CLEANED?" Every line proposed for removal is listed with its grounds"
+      +" once cleaning has run.":""}</p>
     ${CLEANED?`<table class="furn-table">
       <thead><tr><th>Recurring line</th><th>Times</th><th>Grounds</th></tr></thead>
       <tbody>${rows}</tbody></table>`:""}

@@ -173,8 +173,10 @@ breaks. Run the other way round, de-hyphenation sees 0 of 180 breaks instead of
 PDF import, and OCR repair beyond what the scan rules already handle. These are specified in
 [`design/design-spec.md`](design/design-spec.md) and scheduled in
 [`design/schedule-phase2.md`](design/schedule-phase2.md). They are listed in
-the application interface, marked as planned, so that current limitations are
-visible rather than discovered mid-project.
+the application under *What this version can and cannot do*, marked as planned,
+so that current limitations are available rather than discovered mid-project.
+That list is collapsed by default: stating the limits is a commitment worth
+keeping, and four paragraphs of it on the opening screen is not.
 
 ---
 
