@@ -110,6 +110,22 @@ scanning notice and usage guidelines, a Stanford library catalogue stamp, 28
 pages the scanner itself reports as unreadable — median **5.1% accurate** — and
 a book whose text is one page per line with the headings buried inside them.
 
+### `mary-shelley_frankenstein.epub`
+
+*Frankenstein; or, The Modern Prometheus*, Mary Shelley, 1818.
+
+- **Status:** Public domain. Shelley died in 1851.
+- **Modified:** No.
+
+**The negative control for the prefix rule, and it matters.** This file is
+page-per-line like the Oz scan — median line 396 characters — so the
+running-head prefix rule *runs* on it. It has no running heads, and the rule
+correctly makes **zero** edits. Without a file of this shape carrying no
+furniture, that guard would be asserted rather than tested.
+
+It also segments correctly without help: 24 chapters, found because its
+headings sit on their own lines as `Chapter` / `I`.
+
 ### `pg921-images-3.epub`
 
 - **Source:** Project Gutenberg eBook #921, <https://www.gutenberg.org/ebooks/921>

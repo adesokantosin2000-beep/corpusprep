@@ -34,6 +34,7 @@ from __future__ import annotations
 import re
 import statistics
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 
 #: Longest line that can plausibly be furniture.
 MAX_LEN = 60
@@ -511,6 +512,11 @@ PAGE_PER_LINE_MIN_MEDIAN = 200
 #: once, which is precisely what keeps it safe from this rule.
 PREFIX_MIN_OCCURRENCES = 3
 
+#: Similarity above which a prefix group is treated as an OCR-damaged copy of
+#: a larger one. Looser than the line rule's threshold because a running head
+#: is long, so a few wrong characters matter proportionally less.
+PREFIX_NEAR_DUPLICATE = 0.80
+
 #: Two or more words in capitals at the start of a line, optionally preceded
 #: by a page number.
 #:
@@ -588,6 +594,38 @@ def find_prefix_furniture(lines: list[str], skip: set[int] | None = None
         # Grouped on the TITLE only; the page number varies by definition.
         groups.setdefault(normalise(m.group(2)), []).append(
             (i, m.group(0).strip(), m.end(2)))
+
+    # Fold OCR variants back into the series they belong to.
+    #
+    # This scan mangles a head about one page in six: `WIZARB>` for WIZARD,
+    # `W0NBERFUL` for WONDERFUL, `QZ` for OZ, `DOROXrHY` for DOROTHY. Each
+    # damaged copy forms its own group, too rare to reach the threshold, and
+    # survives into the corpus.
+    #
+    # **This is the fourth time OCR damage has split a series this package was
+    # right about**, and the cure has been the same every time. It is worth
+    # reaching for before anything else when a rule finds most of something and
+    # misses a scattering.
+    #
+    # Merging is one-directional, smallest into largest, so two genuinely
+    # different running heads of similar frequency are never combined.
+    keys = sorted(groups, key=lambda k: -len(groups[k]))
+    absorbed: set[str] = set()
+    for i, big in enumerate(keys):
+        if big in absorbed:
+            continue
+        for small in keys[i + 1:]:
+            if small in absorbed:
+                continue
+            if len(groups[small]) * 2 > len(groups[big]):
+                continue
+            if SequenceMatcher(None, big, small).ratio() >= PREFIX_NEAR_DUPLICATE:
+                groups[big].extend(groups[small])
+                absorbed.add(small)
+    for k in absorbed:
+        del groups[k]
+    for v in groups.values():
+        v.sort()
 
     out: list[PrefixEdit] = []
     for key, hits in groups.items():

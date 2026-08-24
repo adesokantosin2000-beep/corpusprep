@@ -1519,3 +1519,74 @@ something and misses a handful, suspect the key before the threshold.**
 | Words removed | 895 |
 | Untouched lines altered | **0** |
 | Both engines agree | line and cut position, all 155 |
+
+
+---
+
+## 2026-08-23 — Where the chapters were hiding
+
+The goal was to find the chapters in the Internet Archive scan. They are found,
+and not where anyone would look for them.
+
+### The chapter titles are not in the text
+
+There are no chapter headings in this book's body at all. The chapter opening
+pages carry decorative drop-capitals that OCR has destroyed:
+
+```
+^^^^ Dorothy awoke ^^^|[ %, the sun was shining through the trees...
+11 §W^^ little party of travel*^ ^ lers awakened the next morning...
+iWwas some time before the Cowardly Lion 1 awakened...
+```
+
+`A little party of travellers awakened the next morning`. The title that should
+head that page is simply absent.
+
+**But the titles do appear — as running heads.** Every page of a chapter is
+headed with that chapter's title, so the title survives dozens of times over
+even though it appears nowhere as a heading.
+
+### So a new running-head series IS a chapter boundary
+
+Grouping the prefix edits by title and discarding the book title, which is the
+verso head, gives the chapter structure directly:
+
+```
+line  58  ( 5 pages)  the council with the munchkins
+line  78  ( 4 pages)  dorothy saved the scarecrow
+line  98  ( 3 pages)  the road through the forest
+line 122  ( 3 pages)  the rescue of the tin woodman
+line 138  ( 3 pages)  the cowardly lion
+...
+line 446  ( 4 pages)  the dainty china country
+```
+
+**18 of the book's 24 chapters, in order, with correct titles.** Those are
+Baum's actual chapter titles, recovered from a text that contains no headings.
+
+The six missing are chapters whose head series is too short or too badly
+mangled to group: Chapter 1 appears as `THE CYCLONE 3` and `THE CYCLONE 5`,
+only twice, below the threshold.
+
+### Why this is worth more than a heading rule
+
+A heading rule reads what the typesetter wrote once. This reads what the
+typesetter repeated on every page, which in a damaged scan is far more evidence
+and survives far more damage. **The redundancy of print is a resource, and OCR
+destroys it unevenly rather than uniformly.**
+
+### The fourth OCR merge
+
+Getting from 155 heads to 162 needed near-duplicate merging on the prefix
+groups, which the line rule has had since Week 2: `WIZARB>` for WIZARD,
+`W0NBERFUL` for WONDERFUL, `QZ` for OZ, `DOROXrHY` for DOROTHY.
+
+**Four times now a rule has been right and its groups have been split by OCR.**
+The reflex should be automatic by this point: when a detector finds most of
+something and misses a scattering, look at the key before the threshold.
+
+### Not yet built into the segmenter
+
+Deriving regions from head series would touch `Document`, both engines, the
+parity harness and the log, and this has been a long day. The measurement is
+recorded so it can be picked up cold.
