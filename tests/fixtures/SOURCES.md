@@ -45,6 +45,25 @@ refrains each recur thirteen times at a perfectly constant interval. The
 running-head detector marked 63 lines of it as furniture on first contact. See
 `design/DECISIONS.md`.
 
+### `pg1232_prince.txt`
+
+*The Prince*, Niccolò Machiavelli, written 1513. English translation by W. K.
+Marriott, 1908, with the translator's notes.
+
+- **Source:** Project Gutenberg eBook #1232, <https://www.gutenberg.org/ebooks/1232>
+- **Status:** Public domain. Machiavelli died in 1527; Marriott's translation
+  was published in 1908 and its US copyright has long expired.
+- **Modified:** Yes. Project Gutenberg header and licence removed, on the same
+  reasoning as the ballads above. Truncated before Chapter XIII so that every
+  retained chapter is complete.
+
+**Why this text is in the repository.** It is the positive control for footnote
+detection, and it settled a design question that no synthetic fixture would
+have raised. The translator's numbering **restarts in every chapter**, so the
+label `[1]` occurs fourteen times: seven markers and seven notes, in seven
+different chapters. Pairing markers to notes by label alone would join a marker
+in chapter two to a note belonging to chapter nine. Pairing has to be local.
+
 ### `CBronte_Jane.txt`
 
 *Jane Eyre: An Autobiography*, Charlotte Brontë, 1847.
@@ -58,9 +77,16 @@ running-head detector marked 63 lines of it as furniture on first contact. See
 
 Excerpts from *Romeo and Juliet*, William Shakespeare.
 
+- **Source:** Project Gutenberg eBook #1513, <https://www.gutenberg.org/ebooks/1513>
 - **Status:** Public domain.
 - **Modified:** Excerpted for use as fixtures. `romeo_juliet_notes.txt` retains
   a transcriber's note block, which is what it exists to test.
+
+**Also the negative control for footnote detection.** The full text carries 69
+bracketed items — `[_Exeunt._]`, `[_Exit._]`, `[_They fight._]` — and not one
+footnote. A rule that deleted bracketed material would strip the stage
+directions, and a corpus of drama without its stage directions is a corpus of a
+different work.
 
 ### `pg921-images-3.epub`
 
@@ -100,6 +126,12 @@ can never drift apart. Regenerate with the command in each script's docstring.
 ---
 
 ## Still needed
+
+**Real footnote data exists and is used**, unlike page furniture. Gutenberg
+keeps footnotes, because a footnote is content; its practice is to relocate
+them rather than remove them. `pg1232_prince.txt` supplies real marker-and-note
+pairs and `romeo_juliet.txt` supplies the bracketed material that must not be
+mistaken for them.
 
 **Real page-imaged text.** No fixture here contains genuine running heads,
 because Project Gutenberg's volunteers remove page furniture during

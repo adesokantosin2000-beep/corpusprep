@@ -165,6 +165,7 @@ async function loadText(name,buf){
        furniture:fu.furniture,
        furnSeries:fu.candidates.filter(c=>c.accepted),
        catchwords:fu.catchwords,catchwordMatches:fu.catchwordMatches,
+       footnotes:findFootnotesIn(d.lines,seg.regions),
        pageLength:fu.pageLength,
        stats:{chars:d.lines.join("\n").length,lines:d.lines.length,
               tokens:tt.tokens,types:tt.types},
@@ -177,6 +178,8 @@ async function loadText(name,buf){
   // judgement about one particular text, and a setting carried over from the
   // last file would delete lines in this one without being asked again.
   CFG.dropFurniture=0;
+  // Footnotes are content, not printing debris. The default keeps them.
+  CFG.footnotes="retain";
   $("#preset").value=start;
 
   $("#err").style.display="none";
@@ -230,7 +233,41 @@ function drawSummary(){
       ${cell(back,"Back-matter blocks")}
       ${cell(apparatus,"Apparatus blocks")}
       ${cell(plannedDrops().length,CLEANED?"Removed":"To be removed")}
-    </div>${furnitureNotice()}</div>`;
+    </div>${furnitureNotice()}${footnoteNotice()}</div>`;
+}
+
+/* What the footnote rule found, and the three things that can be done with it.
+
+   A footnote is editorial content, not printing debris, so removal is not the
+   obvious answer and the choice belongs to the reader. Unpaired labels are
+   listed separately and are never removed by any route. */
+function footnoteNotice(){
+  if(!DOC.footnotes||!DOC.footnotes.length) return "";
+  const paired=DOC.footnotes.filter(f=>f.paired);
+  const loose=DOC.footnotes.length-paired.length;
+  if(!paired.length&&!loose) return "";
+  const route=CFG.footnotes||"retain";
+  const opt=(v,label,desc)=>`<label class="fn-opt ${route===v?"on":""}">
+      <input type="radio" name="fn-route" value="${v}" ${route===v?"checked":""}>
+      <span class="fn-t">${label}</span><span class="fn-d">${desc}</span></label>`;
+  return `<div class="furn-notice fn-notice">
+    <div class="furn-head">
+      <span class="t">Footnotes</span>
+      <span class="s">${paired.length} note${paired.length===1?"":"s"}
+        matched to a marker${loose?` · ${loose} bracketed label${loose===1?"":"s"}
+        could not be matched`:""}</span>
+    </div>
+    <p class="furn-lead">A marker is treated as a footnote only when a note
+      elsewhere carries the same label. Stage directions, illustrations and
+      other bracketed material have no matching note and are left alone.${
+      loose?` The ${loose} unmatched label${loose===1?"":"s"} will not be
+      removed by any option below.`:""}</p>
+    <div class="fn-opts">
+      ${opt("retain","Keep footnotes","Markers and notes stay. Study the edition.")}
+      ${opt("remove","Remove footnotes","Markers stripped, notes dropped. Study the work.")}
+      ${opt("extract","Extract to a second file","Notes saved separately. Study both.")}
+    </div>
+  </div>`;
 }
 
 /* What the furniture detector found, and on what grounds.
@@ -273,6 +310,15 @@ function furnitureNotice(){
       real scans, so please check the list above before relying on it.</p>
   </div>`;
 }
+
+document.addEventListener("change",e=>{
+  if(e.target&&e.target.name==="fn-route"){
+    CFG.footnotes=e.target.value;
+    CFG.name=matchPreset()||"custom";
+    $("#preset").value=CFG.name;
+    refreshPreview();
+  }
+});
 
 function showError(msg){ const e=$("#err"); e.textContent=msg; e.style.display=""; }
 function handleFile(f){ if(f) f.arrayBuffer().then(b=>loadText(f.name,b)); }
@@ -340,6 +386,7 @@ function matchPreset(){
   // A preset never drops furniture, so a selection that does is custom by
   // definition. Reporting a preset name here would mislabel the log.
   if(CFG.dropFurniture) return null;
+  if(CFG.footnotes&&CFG.footnotes!=="retain") return null;
   for(const [n,p] of Object.entries(PRESETS)){
     if(p.dropHeadings!==CFG.dropHeadings) continue;
     if(LABELS.every(l=>!!p.keep[l.id]===!!CFG.keep[l.id])) return n;
@@ -364,7 +411,7 @@ function refreshPreview(){
 
 /* The explicit action. Nothing above this line produces cleaned text. */
 function runClean(){
-  RESULT=render(DOC.lines,DOC.regions,CFG,DOC.furniture);
+  RESULT=render(DOC.lines,DOC.regions,CFG,DOC.furniture,DOC.footnotes);
   RESULT.base=render(DOC.lines,DOC.regions,PRESETS["verbatim"]).stats;
   CLEANED=true;
   drawSummary(); drawStats(); drawRegions();

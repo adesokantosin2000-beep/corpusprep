@@ -334,6 +334,15 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
   color:var(--muted)}
 .furn-table td.why{color:var(--faint);line-height:1.45}
 .furn-foot{margin:10px 0 0;font-size:12px;line-height:1.55;color:var(--faint)}
+.fn-notice{margin-top:10px}
+.fn-opts{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.fn-opt{display:flex;align-items:baseline;gap:8px;padding:6px 8px;
+  border-radius:4px;cursor:pointer;font-size:12.5px}
+.fn-opt:hover{background:var(--hair)}
+.fn-opt.on{background:var(--accent-soft)}
+.fn-opt input{margin:0}
+.fn-opt .fn-t{font-weight:600;color:var(--ink);white-space:nowrap}
+.fn-opt .fn-d{color:var(--faint);font-size:12px}
 </style>
 </head>
 <body>
@@ -1469,6 +1478,146 @@ function findFurnitureIn(lines,regions){
   return findFurniture(lines,skip);
 }
 
+/* ---- footnotes ---------------------------------------------------------
+   A footnote leaves two marks: a marker welded to a word, and a body
+   elsewhere. Both corrupt a corpus, differently.
+
+   The signal is a content relationship. A marker is a footnote marker if, and
+   only if, something elsewhere carries the same label and reads as a note.
+   That pairing is verifiable, unlike the running-head rule and its thresholds,
+   and it is what keeps stage directions, [Illustration] and [sic] out of the
+   rule entirely: none of them has a matching body.
+
+   Mirrors src/corpusprep/footnotes.py.                                      */
+
+// A label is numeric, one or two letters, or the FN#1 form. Anything longer is
+// a word, and words are not labels.
+const FN_LABEL="(?:\\d{1,4}|[A-Za-z]{1,2}|FN#\\d{1,4})";
+const FN_MARKER=new RegExp("\\[("+FN_LABEL+")\\]|\\{("+FN_LABEL+")\\}","g");
+const FN_BODY=new RegExp("^\\s*[\\[{]("+FN_LABEL+")[\\]}]\\s*[:.]?\\s+(\\S.*)$");
+const FN_PG_BODY=/^\s*\[Footnote\s+([A-Za-z0-9#]{1,6})\s*[:.]?\s*(.*)$/i;
+const FN_MAX_BODY_LINES=40;
+
+function fnNorm(label){
+  const s=label.trim().toLowerCase().replace(/^0+/,"");
+  return s||"0";
+}
+
+/* Bodies run until a blank line or the next body. Continuation lines are part
+   of the note and must travel with it, or extraction leaves half a sentence
+   behind in the corpus.                                                     */
+function findFootnoteBodies(lines,skip){
+  skip=skip||new Set();
+  const out=[];
+  let i=0;
+  while(i<lines.length){
+    const n=i+1;
+    if(skip.has(n)){i++;continue}
+    const m=FN_PG_BODY.exec(lines[i])||FN_BODY.exec(lines[i]);
+    if(!m){i++;continue}
+    const label=fnNorm(m[1]);
+    const text=[m[2].trim()];
+    let j=i+1;
+    while(j<lines.length&&lines[j].trim()
+          &&!FN_PG_BODY.test(lines[j])&&!FN_BODY.test(lines[j])
+          &&j-i<FN_MAX_BODY_LINES){
+      text.push(lines[j].trim()); j++;
+    }
+    out.push({start:n,end:j,label,text:text.join(" ").trim()});
+    i=j;
+  }
+  return out;
+}
+
+function findFootnoteMarkers(lines,bodyLines,skip){
+  const ignore=new Set(bodyLines);
+  if(skip) for(const i of skip) ignore.add(i);
+  const out=[];
+  for(let i=0;i<lines.length;i++){
+    const n=i+1;
+    if(ignore.has(n)||!lines[i].trim()) continue;
+    FN_MARKER.lastIndex=0;
+    let m;
+    while((m=FN_MARKER.exec(lines[i]))!==null){
+      const label=m[1]||m[2];
+      // A label alone on its line is a page number or a list bullet. A marker
+      // is attached to the text it annotates.
+      const t=lines[i].trim();
+      if(t==="["+label+"]"||t==="{"+label+"}") continue;
+      out.push({line:n,label:fnNorm(label)});
+    }
+  }
+  return out;
+}
+
+/* Pair each body with the nearest preceding unpaired marker of its label.
+
+   Pairing cannot be done by label alone, and real text proved it. In
+   Machiavelli's The Prince the numbering restarts every chapter, so label 1
+   occurs fourteen times across seven chapters. Matching globally would join a
+   marker in chapter two to a note belonging to chapter nine.               */
+function pairFootnotes(markers,bodies){
+  const events=[];
+  for(const m of markers) events.push({kind:0,line:m.line,label:m.label});
+  for(const b of bodies)
+    events.push({kind:1,line:b.start,label:b.label,end:b.end,text:b.text});
+  events.sort((a,b)=>a.line-b.line||a.kind-b.kind);
+
+  const pending=new Map(), out=[];
+  for(const ev of events){
+    if(ev.kind===0){
+      if(!pending.has(ev.label)) pending.set(ev.label,[]);
+      pending.get(ev.label).push(ev.line);
+      continue;
+    }
+    const stack=pending.get(ev.label)||[];
+    const fn={label:ev.label,markerLine:null,bodyStart:ev.line,
+              bodyEnd:ev.end,text:ev.text,paired:false,reason:""};
+    if(stack.length){
+      fn.markerLine=stack.pop();
+      fn.paired=true;
+      fn.reason="marker at line "+fn.markerLine+" is answered by this note "
+               +(ev.line-fn.markerLine)+" lines below";
+    } else {
+      fn.reason="a note with no marker referring to it";
+    }
+    out.push(fn);
+  }
+  for(const [label,stack] of pending)
+    for(const line of stack)
+      out.push({label,markerLine:line,bodyStart:null,bodyEnd:null,text:"",
+                paired:false,reason:"marker with no matching note"});
+  out.sort((a,b)=>(a.markerLine||a.bodyStart||0)-(b.markerLine||b.bodyStart||0));
+  return out;
+}
+
+/* Unpaired entries are returned deliberately. An unpaired marker is exactly
+   the case where the tool does not know what it is looking at, which is
+   precisely when it must not act.                                          */
+function findFootnotes(lines,skip){
+  const bodies=findFootnoteBodies(lines,skip);
+  const bodyLines=new Set();
+  for(const b of bodies) for(let n=b.start;n<=b.end;n++) bodyLines.add(n);
+  return pairFootnotes(findFootnoteMarkers(lines,bodyLines,skip),bodies);
+}
+
+function findFootnotesIn(lines,regions){
+  // The licence block is full of bracketed references and section numbers,
+  // and is not part of anybody's corpus.
+  const skip=new Set();
+  for(const r of regions)
+    if(r.label==="pg_header"||r.label==="pg_licence")
+      for(let i=r.start;i<r.end;i++) skip.add(i+1);
+  return findFootnotes(lines,skip);
+}
+
+// Only labels that were successfully paired are stripped. An unrecognised
+// bracketed thing is left exactly where it is.
+function stripFootnoteMarkers(line,labels){
+  return line.replace(FN_MARKER,(whole,a,b)=>
+    labels.has(fnNorm(a||b))?"":whole);
+}
+
 /* ---- variants ---- */
 const PRESETS={
   "verbatim":       {keep:{pg_header:1,pg_licence:1,front_matter:1,body:1,back_matter:1,unknown:1},dropHeadings:0,collapse:0,
@@ -1483,8 +1632,18 @@ const PRESETS={
                      desc:"Body with CHAPTER heading lines stripped too. For word lists and frequency counts."},
 };
 
-function render(lines,regions,cfg,furniture){
+function render(lines,regions,cfg,furniture,footnotes){
   const kept=[],dropped=[],out=[];
+  // Only paired labels may be stripped. An unpaired marker is the case where
+  // the tool does not know what it is looking at, and no route touches it.
+  const handleNotes=(cfg.footnotes==="remove"||cfg.footnotes==="extract")
+                    &&Array.isArray(footnotes);
+  const paired=handleNotes?footnotes.filter(f=>f.paired):[];
+  const noteLabels=new Set(paired.map(f=>f.label));
+  const noteLines=new Set();
+  for(const f of paired)
+    if(f.bodyStart) for(let n=f.bodyStart;n<=(f.bodyEnd||f.bodyStart);n++) noteLines.add(n);
+  let noteLinesRemoved=0;
   // Off unless the caller passes both the flag and the line set. The detector
   // has been measured against synthetic text only, and a rule that has never
   // met a real scan must not delete prose on its own authority.
@@ -1496,6 +1655,8 @@ function render(lines,regions,cfg,furniture){
     for(let i=r.start;i<r.end;i++){
       let ln=lines[i];
       if(dropFurn&&furniture.has(i+1)){furnitureRemoved++;continue}
+      if(noteLines.has(i+1)){noteLinesRemoved++;continue}
+      if(handleNotes&&noteLabels.size) ln=stripFootnoteMarkers(ln,noteLabels);
       if(cfg.dropHeadings&&isChapterHeading(ln)) continue;
       out.push(ln.replace(/[ \t]+$/,""));
     }
@@ -1507,7 +1668,10 @@ function render(lines,regions,cfg,furniture){
   const tt=countTT(text);
   return {text,kept,dropped,stats:{chars:text.length,lines:text.split("\n").length-1,
     tokens:tt.tokens,types:tt.types,kept:kept.length,dropped:dropped.length,
-    furnitureRemoved}};
+    furnitureRemoved,footnotesRemoved:paired.length,
+    footnoteLinesRemoved:noteLinesRemoved},
+    footnoteText:cfg.footnotes==="extract"&&paired.length
+      ? paired.map(f=>"["+f.label+"]\t"+f.text).join("\n")+"\n" : null};
 }
 
 /* =========================================================================
@@ -1867,6 +2031,7 @@ async function loadText(name,buf){
        furniture:fu.furniture,
        furnSeries:fu.candidates.filter(c=>c.accepted),
        catchwords:fu.catchwords,catchwordMatches:fu.catchwordMatches,
+       footnotes:findFootnotesIn(d.lines,seg.regions),
        pageLength:fu.pageLength,
        stats:{chars:d.lines.join("\n").length,lines:d.lines.length,
               tokens:tt.tokens,types:tt.types},
@@ -1879,6 +2044,8 @@ async function loadText(name,buf){
   // judgement about one particular text, and a setting carried over from the
   // last file would delete lines in this one without being asked again.
   CFG.dropFurniture=0;
+  // Footnotes are content, not printing debris. The default keeps them.
+  CFG.footnotes="retain";
   $("#preset").value=start;
 
   $("#err").style.display="none";
@@ -1932,7 +2099,41 @@ function drawSummary(){
       ${cell(back,"Back-matter blocks")}
       ${cell(apparatus,"Apparatus blocks")}
       ${cell(plannedDrops().length,CLEANED?"Removed":"To be removed")}
-    </div>${furnitureNotice()}</div>`;
+    </div>${furnitureNotice()}${footnoteNotice()}</div>`;
+}
+
+/* What the footnote rule found, and the three things that can be done with it.
+
+   A footnote is editorial content, not printing debris, so removal is not the
+   obvious answer and the choice belongs to the reader. Unpaired labels are
+   listed separately and are never removed by any route. */
+function footnoteNotice(){
+  if(!DOC.footnotes||!DOC.footnotes.length) return "";
+  const paired=DOC.footnotes.filter(f=>f.paired);
+  const loose=DOC.footnotes.length-paired.length;
+  if(!paired.length&&!loose) return "";
+  const route=CFG.footnotes||"retain";
+  const opt=(v,label,desc)=>`<label class="fn-opt ${route===v?"on":""}">
+      <input type="radio" name="fn-route" value="${v}" ${route===v?"checked":""}>
+      <span class="fn-t">${label}</span><span class="fn-d">${desc}</span></label>`;
+  return `<div class="furn-notice fn-notice">
+    <div class="furn-head">
+      <span class="t">Footnotes</span>
+      <span class="s">${paired.length} note${paired.length===1?"":"s"}
+        matched to a marker${loose?` · ${loose} bracketed label${loose===1?"":"s"}
+        could not be matched`:""}</span>
+    </div>
+    <p class="furn-lead">A marker is treated as a footnote only when a note
+      elsewhere carries the same label. Stage directions, illustrations and
+      other bracketed material have no matching note and are left alone.${
+      loose?` The ${loose} unmatched label${loose===1?"":"s"} will not be
+      removed by any option below.`:""}</p>
+    <div class="fn-opts">
+      ${opt("retain","Keep footnotes","Markers and notes stay. Study the edition.")}
+      ${opt("remove","Remove footnotes","Markers stripped, notes dropped. Study the work.")}
+      ${opt("extract","Extract to a second file","Notes saved separately. Study both.")}
+    </div>
+  </div>`;
 }
 
 /* What the furniture detector found, and on what grounds.
@@ -1975,6 +2176,15 @@ function furnitureNotice(){
       real scans, so please check the list above before relying on it.</p>
   </div>`;
 }
+
+document.addEventListener("change",e=>{
+  if(e.target&&e.target.name==="fn-route"){
+    CFG.footnotes=e.target.value;
+    CFG.name=matchPreset()||"custom";
+    $("#preset").value=CFG.name;
+    refreshPreview();
+  }
+});
 
 function showError(msg){ const e=$("#err"); e.textContent=msg; e.style.display=""; }
 function handleFile(f){ if(f) f.arrayBuffer().then(b=>loadText(f.name,b)); }
@@ -2042,6 +2252,7 @@ function matchPreset(){
   // A preset never drops furniture, so a selection that does is custom by
   // definition. Reporting a preset name here would mislabel the log.
   if(CFG.dropFurniture) return null;
+  if(CFG.footnotes&&CFG.footnotes!=="retain") return null;
   for(const [n,p] of Object.entries(PRESETS)){
     if(p.dropHeadings!==CFG.dropHeadings) continue;
     if(LABELS.every(l=>!!p.keep[l.id]===!!CFG.keep[l.id])) return n;
@@ -2066,7 +2277,7 @@ function refreshPreview(){
 
 /* The explicit action. Nothing above this line produces cleaned text. */
 function runClean(){
-  RESULT=render(DOC.lines,DOC.regions,CFG,DOC.furniture);
+  RESULT=render(DOC.lines,DOC.regions,CFG,DOC.furniture,DOC.footnotes);
   RESULT.base=render(DOC.lines,DOC.regions,PRESETS["verbatim"]).stats;
   CLEANED=true;
   drawSummary(); drawStats(); drawRegions();

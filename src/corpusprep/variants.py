@@ -52,6 +52,13 @@ class Variant:
     # records. It becomes a candidate for a default once measured against real
     # OCR output.
     drop_furniture: bool = False
+    # What to do with footnotes: "retain", "remove" or "extract".
+    #
+    # Page furniture is an artefact of printing and nobody wants it. A footnote
+    # is editorial content, and whether it belongs in the corpus depends on the
+    # research question, so removal is not the obvious default. It stays
+    # "retain" until the researcher says otherwise.
+    footnotes: str = "retain"
 
     def keeps(self, label: str) -> bool:
         return self.keep.get(label, True)
@@ -68,6 +75,7 @@ class Variant:
                 "collapse_inner_space": self.collapse_inner_space,
                 "drop_headings": self.drop_headings,
                 "drop_furniture": self.drop_furniture,
+                "footnotes": self.footnotes,
             },
         }
 
@@ -146,6 +154,8 @@ class VariantResult:
     dropped: list[Region]
     stats: dict
     baseline: dict | None = None
+    #: Populated only by the "extract" route: the notes, as a parallel file.
+    footnote_text: str | None = None
 
     @property
     def dropped_lines(self) -> int:
@@ -154,12 +164,23 @@ class VariantResult:
 
 def render(doc: Document, variant: Variant) -> VariantResult:
     """Produce the cleaned text for one variant."""
+    from .footnotes import strip_markers
     from .segment import is_chapter_heading
 
     kept: list[Region] = []
     dropped: list[Region] = []
     out: list[str] = []
     furniture_removed = 0
+
+    # Only labels that were successfully paired may be stripped. An unpaired
+    # marker is the case where the tool does not know what it is looking at,
+    # and no route touches it.
+    handle_notes = variant.footnotes in ("remove", "extract")
+    paired = [f for f in doc.footnotes if f.paired] if handle_notes else []
+    note_labels = {f.label for f in paired}
+    note_lines = {n for f in paired for n in f.body_lines}
+    extracted: list[str] = []
+    notes_removed = 0
 
     for region in doc.regions:
         if not variant.keeps(region.label):
@@ -169,9 +190,18 @@ def render(doc: Document, variant: Variant) -> VariantResult:
 
         for offset, line in enumerate(doc.lines[region.start:region.end]):
             # `start` is a 0-based index; furniture is recorded 1-based.
-            if variant.drop_furniture and doc.is_furniture(region.start + offset + 1):
+            line_no = region.start + offset + 1
+            if variant.drop_furniture and doc.is_furniture(line_no):
                 furniture_removed += 1
                 continue
+            if line_no in note_lines:
+                notes_removed += 1
+                continue
+            if handle_notes and note_labels:
+                stripped = strip_markers(line, note_labels)
+                if stripped != line:
+                    notes_removed += 0  # markers are counted per note, below
+                line = stripped
             if variant.drop_headings and is_chapter_heading(line):
                 continue
             if variant.strip_trailing_space:
@@ -199,10 +229,18 @@ def render(doc: Document, variant: Variant) -> VariantResult:
         "regions_kept": len(kept),
         "regions_dropped": len(dropped),
         "furniture_removed": furniture_removed,
+        "footnotes_removed": len(paired),
+        "footnote_lines_removed": notes_removed,
     }
 
+    if variant.footnotes == "extract":
+        # A parallel file, and a usable object in its own right: a corpus of
+        # one editor's annotations, separated from the work it annotates.
+        extracted = [f"[{f.label}]\t{f.text}" for f in paired]
+
     return VariantResult(
-        variant=variant, text=text, kept=kept, dropped=dropped, stats=stats
+        variant=variant, text=text, kept=kept, dropped=dropped, stats=stats,
+        footnote_text=("\n".join(extracted) + "\n") if extracted else None,
     )
 
 

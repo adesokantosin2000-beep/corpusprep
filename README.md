@@ -68,12 +68,20 @@ can leave the corpus only because you chose to remove it.
 - Five cleaning presets, or per-section selection
 - Running head, running foot and page number detection, off by default
 - Catchword detection for early modern printing
+- Footnote detection, with three routes: keep, remove, or extract to a
+  parallel file
 - Preprocessing log in Markdown and JSON
 
 Page furniture is detected but never removed unless asked. The detector has so
 far been measured against a synthetic fixture only, and a rule that has not met
 a real scan should not delete prose on its own authority. What it found and why
 is printed for review before any removal.
+
+Footnotes are the one rule here built and measured entirely against real books,
+because Gutenberg keeps footnotes where it strips page furniture. A marker
+counts as a footnote only when a note elsewhere carries the same label, so
+stage directions and other bracketed material are never touched. Anything that
+cannot be paired is reported and left alone by every route.
 
 ### Not yet implemented
 
@@ -134,7 +142,7 @@ which was quietly splitting words such as *æsthetic* and *naïve*.
 ## Tests
 
 ```bash
-python tests/test_corpusprep.py     # 202 checks, no pytest required
+python tests/test_corpusprep.py     # 234 checks, no pytest required
 python tools/check_parity.py        # Python and JavaScript must agree
 python tools/measure.py             # accuracy against hand-marked keys
 python tools/stress_test.py corpora # traffic-light report over a folder

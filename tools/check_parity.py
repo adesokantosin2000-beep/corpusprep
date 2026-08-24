@@ -52,7 +52,7 @@ if(eng<0||engEnd<0||fmt<0||fmtEnd<0){
   console.error('could not locate engine/format blocks in index.html');process.exit(2);}
 const M=new Function(html.slice(eng,engEnd)+html.slice(fmt,fmtEnd)+
   '; return {segment,render,PRESETS,coverageGaps,countTT,extractFile,'+
-  'findFurnitureIn,looksLikePageNumber,findCatchwords};')();
+  'findFurnitureIn,looksLikePageNumber,findCatchwords,findFootnotesIn};')();
 
 const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
 
@@ -84,6 +84,9 @@ const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
     out[path.basename(f)]={
       furniture:[...fu.furniture].sort((a,b)=>a-b).join(","),
       catchwords:[...fu.catchwords].sort((a,b)=>a-b).join(","),
+      footnotes:M.findFootnotesIn(lines,seg.regions)
+        .map(f=>f.label+":"+(f.markerLine||0)+">"+(f.bodyStart||0)+":"+(f.paired?1:0))
+        .sort().join(","),
       furniture_page:Math.round(fu.pageLength*10)/10,
       regions:seg.regions.length,
       chapters:seg.regions.filter(r=>r.kind==='chapter').length,
@@ -101,6 +104,7 @@ const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
 def run_python(files: list[Path]) -> dict:
     from corpusprep import BUILTIN, load, render, segment
     from corpusprep.document import count_tokens_types
+    from corpusprep.footnotes import find_in_document as find_footnotes
     from corpusprep.furniture import find_in_document
 
     out = {}
@@ -108,6 +112,8 @@ def run_python(files: list[Path]) -> dict:
         doc = segment(load(f))
         marked, _cands, page, _catch = find_in_document(doc)
         cw = sorted(m.line for m in _catch if m.accepted)
+        fn = sorted(f"{f.label}:{f.marker_line or 0}>{f.body_start or 0}:"
+                    f"{1 if f.paired else 0}" for f in find_footnotes(doc))
         res = {}
         for v in VARIANTS:
             r = render(doc, BUILTIN[v])
@@ -116,6 +122,7 @@ def run_python(files: list[Path]) -> dict:
         out[f.name] = {
             "furniture": ",".join(str(i) for i in sorted(marked)),
             "catchwords": ",".join(str(i) for i in cw),
+            "footnotes": ",".join(fn),
             "furniture_page": round(page, 1),
             "regions": len(doc.regions),
             "chapters": len([r for r in doc.regions if r.kind == "chapter"]),
@@ -171,6 +178,8 @@ def main(argv: list[str]) -> int:
                  # Real text. The negative control a generator cannot supply.
                  fx / "pg9405_ballads.txt",
                  fx / "romeo_juliet.txt",
+                 # Real footnotes, with labels restarting every chapter.
+                 fx / "pg1232_prince.txt",
                  fx / "sample.docx", fx / "sample.epub", fx / "sample.html"]
 
     files = [f for f in files if f.exists()]
@@ -209,7 +218,7 @@ def main(argv: list[str]) -> int:
         # both sides find the same number of lines but disagree about which.
         # Compared separately, not merged. Two rules disagreeing in opposite
         # directions would cancel out in a union and read as agreement.
-        for field in ("furniture", "catchwords"):
+        for field in ("furniture", "catchwords", "footnotes"):
             a = set(filter(None, py[name][field].split(",")))
             b = set(filter(None, js[name][field].split(",")))
             ok &= a == b

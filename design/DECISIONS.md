@@ -443,3 +443,151 @@ is a better result than another passing number would have been.
 It also sharpens what remains outstanding. Gutenberg is settled and closed. The
 open requirement is now specifically **OCR or PDF-derived text for running
 heads, and an EEBO or ECCO transcription for catchwords.**
+
+---
+
+## 2026-08-23 — Footnotes: design
+
+Week 4, Tuesday. On paper, before any code.
+
+### The problem, and why it is not the same as page furniture
+
+A footnote leaves two marks on a text: a **marker** in the body, and a **body**
+elsewhere.
+
+```
+    Gowden graith'd[FN#1] his horse before,      <- marker, inside a verse line
+    ...
+    [FN#1]  Graitih'd, girthed.                  <- body, in a block below
+```
+
+Both corrupt a corpus, and they corrupt it differently. The marker is welded to
+a word, so `graith'd[FN#1]` is one token to every downstream tool and never
+matches `graith'd`. The body is editorial prose by a modern scholar sitting
+inside what is supposed to be a 15th-century ballad, and it inflates every
+count with the wrong century's vocabulary.
+
+**Unlike page furniture, Gutenberg preserves this.** Transcribers strip running
+heads and page numbers, but they keep footnotes, because a footnote is content.
+So for the first rule in this phase, real test data exists in quantity.
+
+### The signal, again, is a content relationship
+
+The running-head rule had to infer furniture from position, needed four
+thresholds, and was wrong. The catchword rule checked a relationship and was
+right. Footnotes allow the same kind of check.
+
+**A marker is confirmed by the existence of a body carrying the same label.**
+`[1]` in the text is a footnote marker if, and only if, something elsewhere
+begins `[1]` and reads as a note. That pairing is verifiable rather than
+estimated, so the rule rests on evidence and not on a tuned number.
+
+### Why this matters more than it sounds
+
+Square brackets in a literary text are crowded with things that are not
+footnotes:
+
+| Form | What it is |
+|---|---|
+| `[Exit.]`, `[Enter Romeo]` | Stage direction. Part of the play. |
+| `[Illustration]`, `[sic]` | Editorial apparatus, but not a note. |
+| `[eBook #1513]` | Gutenberg boilerplate. |
+| `[1]` with no matching body | Anything at all. |
+
+A rule that deletes bracketed things deletes stage directions, and a corpus of
+drama without its stage directions is a corpus of a different work. The pairing
+requirement handles every row of that table at once: none of them has a
+matching body, so none of them is touched.
+
+### Algorithm
+
+1. **Collect candidate markers**: short bracketed labels, `[1]`, `[12]`,
+   `[A]`, `[FN#1]`, `{1}`. Labels are numeric, one or two letters, or roman
+   numerals. Anything longer is a word, and words are not labels.
+2. **Collect candidate bodies**: lines *beginning* with such a label, or the
+   `[Footnote N: ...]` form Gutenberg uses widely.
+3. **Pair by label.** A marker with a body is a footnote. A body with a marker
+   is a footnote body.
+4. **Report the unpaired separately, and never remove them.** An unpaired
+   marker is exactly the case where the tool does not know what it is looking
+   at, and that is precisely when it must not act.
+
+### Three routes, because a footnote is not obviously rubbish
+
+Page furniture is an artefact of printing and nobody wants it. A footnote is
+editorial content, and whether it belongs in the corpus depends entirely on the
+research question. So removal is not the only sensible answer:
+
+| Route | Markers | Bodies | For |
+|---|---|---|---|
+| `retain` | kept | kept | Default. Studying the edition. |
+| `remove` | stripped | dropped | Studying the work. |
+| `extract` | stripped | written to a parallel file | Studying both, separately. |
+
+`extract` is the one that makes this worth building. It turns a contaminated
+corpus into two clean ones, and the parallel file is itself a usable object: a
+corpus of one editor's annotations.
+
+### What it must not do
+
+Guess at symbol markers. An asterisk is a footnote marker, a censorship mark, a
+typographic ornament and a multiplication sign, and only the first should go.
+Symbols are detected and reported but not paired, unless a body confirms them.
+
+The default remains `retain`, since a footnote is content until the researcher
+says otherwise.
+
+---
+
+## 2026-08-23 — Footnotes: measurement, on real text throughout
+
+The first rule in this phase built and measured entirely against real books,
+because Gutenberg keeps footnotes. Its practice is to *relocate* them, not
+remove them, so the marker and body both survive transcription.
+
+| Fixture | Kind | Result |
+|---|---|---|
+| `pg1232_prince.txt` | Real, translator's notes | 28 pairs, 0 unpaired |
+| `romeo_juliet.txt` | Real drama, 69 stage directions | 0 found ✅ |
+| `pg9405_ballads.txt` | Real verse | 1 pair, 1 unpaired label ✅ |
+| `CBronte_Jane.txt` | Real prose, no notes | 0 found ✅ |
+
+### Real text settled a design question I had got wrong
+
+The design said to "pair by label". Machiavelli's translator restarts the
+numbering **in every chapter**, so `[1]` occurs fourteen times: seven markers
+and seven notes, spread across seven chapters.
+
+Pairing globally by label would have joined a marker in chapter two to a note
+belonging to chapter nine, and the extracted file would have been confidently,
+invisibly wrong — every note attached to the wrong sentence. Nothing would have
+looked broken.
+
+Pairing now walks the document in order and consumes the most recent unclaimed
+marker, which resolves this without needing to know where the chapters are.
+**A synthetic fixture would not have raised it**, because I would have numbered
+the notes straight through.
+
+### The unpaired case, found in real verse
+
+The ballads contain the line:
+
+```
+That day made many [a] fatherlesse child,
+```
+
+That `[a]` is editorial, and nothing answers it. It is reported as an unmatched
+label and **no route removes it**, including `remove`. An unpaired marker is
+precisely the case where the tool does not know what it is looking at, which is
+exactly when it must not act.
+
+### What removal is worth
+
+On *The Prince*, the `remove` route takes the corpus from 19,935 to 19,285
+tokens. Those 650 tokens are a 1908 translator's prose sitting inside a 1513
+Italian political treatise, and they were contaminating every frequency count
+with the wrong century and the wrong author.
+
+The marker comes off the word and leaves the word: `intrattenere[2]` becomes
+`intrattenere`, which now matches the other occurrences of the same word. That
+is the quieter half of the damage and probably the more common one.

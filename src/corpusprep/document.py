@@ -127,6 +127,10 @@ class Document:
     #: Furniture is therefore orthogonal to segmentation: a line is body *and*
     #: furniture at once. See design/DECISIONS.md.
     furniture: set[int] = field(default_factory=set)
+    #: Footnotes found, paired and unpaired alike. Like furniture this is a
+    #: line-level property rather than a region: a marker sits inside a word
+    #: inside a paragraph inside a chapter.
+    footnotes: list = field(default_factory=list)
     meta: dict = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
@@ -137,6 +141,9 @@ class Document:
 
     def with_furniture(self, lines: Iterable[int]) -> "Document":
         return replace(self, furniture=set(lines))
+
+    def with_footnotes(self, found: list) -> "Document":
+        return replace(self, footnotes=list(found))
 
     def with_note(self, note: str) -> "Document":
         return replace(self, notes=[*self.notes, note])

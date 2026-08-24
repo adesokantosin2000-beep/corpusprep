@@ -50,6 +50,7 @@ def analyse(path: str | Path) -> Document:
     callers cannot accidentally render a document whose furniture was never
     looked for. Detection only: nothing is removed here.
     """
+    from .footnotes import find_in_document as find_footnotes
     from .furniture import find_in_document
 
     doc = segment(load(path))
@@ -74,6 +75,21 @@ def analyse(path: str | Path) -> Document:
             f"{len(marked)} lines look like page furniture "
             f"(running heads or page numbers). Not removed unless requested."
         )
+
+    found = find_footnotes(doc)
+    doc = doc.with_footnotes(found)
+    paired = [f for f in found if f.paired]
+    if found:
+        doc.meta["footnotes"] = {
+            "paired": len(paired),
+            "unpaired": len(found) - len(paired),
+            "lines": sum(len(f.body_lines) for f in paired),
+        }
+        note = f"{len(paired)} footnotes found"
+        if len(found) > len(paired):
+            note += (f", and {len(found) - len(paired)} bracketed labels that "
+                     f"could not be paired and will not be touched")
+        doc.notes.append(note + ". Retained unless you choose otherwise.")
     return doc
 
 

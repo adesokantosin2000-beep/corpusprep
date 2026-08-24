@@ -751,6 +751,106 @@ def test_page_number_guard_against_word_lookalikes():
         check(f"word not read as a page number: {s!r}", not f(s))
 
 
+def test_footnote_pairing_on_real_text():
+    """Machiavelli's *The Prince*, where the numbering restarts each chapter."""
+    from corpusprep.footnotes import find_in_document
+
+    fx = FIXTURES / "pg1232_prince.txt"
+    if not fx.exists():
+        print("  SKIP  Prince fixture not present")
+        return
+
+    doc = segment(load(fx))
+    fns = find_in_document(doc)
+    paired = [f for f in fns if f.paired]
+
+    check("footnotes found in real text", len(paired) == 28, f"got {len(paired)}")
+    check("nothing left unpaired here", len(fns) == len(paired),
+          f"{len(fns) - len(paired)} unpaired")
+
+    # Label 1 alone occurs fourteen times: seven markers and seven notes, in
+    # seven different chapters. Pairing globally by label would join a marker
+    # in one chapter to a note in another, so every pair must be local.
+    ones = [f for f in paired if f.label == "1"]
+    check("label 1 reused across chapters", len(ones) >= 6, f"got {len(ones)}")
+    for f in ones:
+        check(f"note for [1] at {f.body_start} follows its own marker",
+              f.body_start > f.marker_line)
+        check(f"and is near it, not in another chapter",
+              f.body_start - f.marker_line < 200,
+              f"gap of {f.body_start - f.marker_line} lines")
+
+
+def test_stage_directions_are_not_footnotes():
+    """A corpus of drama without its stage directions is a different work."""
+    from corpusprep.footnotes import find_in_document
+
+    fx = FIXTURES / "romeo_juliet.txt"
+    if not fx.exists():
+        return
+    doc = segment(load(fx))
+    bracketed = sum(l.count("[") for l in doc.lines)
+    fns = find_in_document(doc)
+    check("drama has bracketed material to trip over", bracketed > 0)
+    check("but none of it is treated as a footnote", not fns,
+          f"{len(fns)} found, e.g. {[f.label for f in fns[:3]]}")
+
+
+def test_unpaired_marker_is_reported_not_removed():
+    """The case where the tool does not know what it is looking at.
+
+    `pg9405_ballads.txt` contains the line "That day made many [a] fatherlesse
+    child". That `[a]` is editorial, not a footnote, and nothing answers it.
+    """
+    from dataclasses import replace as _replace
+    from corpusprep import analyse
+    from corpusprep.variants import BUILTIN, render
+
+    fx = FIXTURES / "pg9405_ballads.txt"
+    if not fx.exists():
+        return
+    doc = analyse(fx)
+    unpaired = [f for f in doc.footnotes if not f.paired]
+    check("the lone bracketed label is reported", len(unpaired) == 1,
+          f"got {len(unpaired)}")
+
+    r = render(doc, _replace(BUILTIN["body-only"], footnotes="remove"))
+    check("and survives even the remove route", "[a] fatherlesse" in r.text)
+    check("while the real footnote marker is stripped", "[FN#1]" not in r.text)
+
+
+def test_footnote_routes():
+    from dataclasses import replace as _replace
+    from corpusprep import analyse
+    from corpusprep.variants import BUILTIN, render
+
+    fx = FIXTURES / "pg1232_prince.txt"
+    if not fx.exists():
+        return
+    doc = analyse(fx)
+    v = BUILTIN["body-only"]
+
+    keep = render(doc, v)
+    check("retain is the default", v.footnotes == "retain")
+    check("retain leaves markers alone", "[1]" in keep.text)
+    check("retain removes no notes", keep.stats["footnotes_removed"] == 0)
+
+    gone = render(doc, _replace(v, footnotes="remove"))
+    check("remove strips markers", "[1]" not in gone.text)
+    check("remove drops note bodies",
+          gone.stats["footnote_lines_removed"] > 0)
+    # The marker comes off the word; the word stays.
+    check("the annotated word survives", "intrattenere" in gone.text)
+    check("no parallel file from remove", gone.footnote_text is None)
+
+    out = render(doc, _replace(v, footnotes="extract"))
+    check("extract produces a parallel file", out.footnote_text)
+    check("with one line per note",
+          len(out.footnote_text.strip().split(chr(10))) == 28)
+    check("extract and remove leave the same corpus",
+          out.stats["word_tokens"] == gone.stats["word_tokens"])
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [
