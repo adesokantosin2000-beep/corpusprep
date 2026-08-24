@@ -126,6 +126,50 @@ furniture, that guard would be asserted rather than tested.
 It also segments correctly without help: 24 chapters, found because its
 headings sit on their own lines as `Chapter` / `I`.
 
+### `treasureisland0000unse_k0j8.epub`
+
+*Treasure Island*, Robert Louis Stevenson. Cassell and Company, 1912.
+
+- **Source:** Internet Archive, identifier `treasureisland0000unse_k0j8`
+- **Status:** Public domain. Stevenson died in 1894; the 1912 Cassell printing
+  is long out of copyright and the scan adds none.
+- **Modified:** No.
+
+**The second real scan, and it disproves what the first one taught.** Oz
+suggested that a page-imaged book has no usable chapter headings, because OCR
+destroys the decorative opening of every chapter. Treasure Island is the same
+format from the same source and its headings survive perfectly — `CHAPTER II.
+BLACK DOG APPEARS AND DISAPPEARS.` — welded to the front of the page line where
+no rule was looking for them.
+
+One scan is an anecdote. This is the fixture that turns the page-per-line
+handling from a special case for one book into a format the tool understands.
+
+### `h-rider-haggard_king-solomons-mines.epub`
+
+*King Solomon's Mines*, H. Rider Haggard, 1885.
+
+- **Status:** Public domain. Haggard died in 1925.
+- **Modified:** No.
+
+Segments to 20 of 20 chapters. Its value is as an ordinary case: a clean modern
+transcription that is *not* page-per-line, median line 154, so it exercises the
+common path and would notice if work on scanned books broke it.
+
+### `jane-austen_emma_advanced.epub`
+
+*Emma*, Jane Austen, 1815.
+
+- **Status:** Public domain. Austen died in 1817.
+- **Modified:** No.
+
+Segments to 55 of 55 chapters, and is the fixture that exposed **I5**. It is
+stored one paragraph per line with a median of 231 characters, which is enough
+to satisfy `is_page_per_line` — a predicate whose name claims something about
+pagination that a length test cannot establish. Nothing went wrong, and the
+reasons nothing went wrong were luck rather than design. See
+`design/integration-failures.md`.
+
 ### `pg921-images-3.epub`
 
 - **Source:** Project Gutenberg eBook #921, <https://www.gutenberg.org/ebooks/921>
