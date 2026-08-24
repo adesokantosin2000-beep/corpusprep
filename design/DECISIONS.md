@@ -1321,3 +1321,81 @@ none of them can be told apart from the text.
 Recorded rather than fixed. It needs headings to be found *within* a line,
 which is a different rule from the one that exists, and it is the right first
 task for Week 12.
+
+---
+
+## 2026-08-23 — Page furniture is a line PREFIX in page-per-line OCR
+
+Week 12, on paper before any code. This reframes the furniture detector rather
+than extending it, so it is worth writing down first.
+
+### What the real scan actually contains
+
+Investigating why no chapters were found in the Internet Archive scan turned up
+something more important. The capitalised runs at the start of those long lines
+are not chapter headings. They recur:
+
+```
+    9 x  WONDERFUL [EMERALD CITY OF OZ]
+    7 x  DISCOVERY [OF OZ THE TERRIBLE]
+    6 x  THE RESCUE
+    6 x  SEARCH FOR [THE WICKED WITCH]
+```
+
+**They are running heads.** And what follows each is the page number, mangled
+by OCR:
+
+```
+WONDERFUL EMERALD CITY OF OZ  loi  fore I have no brains, and I c...
+THE COUNCIL WITH THE MUNCHKINS  ii  *'But who was she?" asked Dorot...
+SEARCH FOR THE WICKED WITCH  iii  one is a girl and another a Li...
+```
+
+`loi` is 101. `iii` is 111. `IffJ` is 108.
+
+**92 of 269 non-blank lines carry one.** Every one of them is page furniture,
+and the detector finds none of it.
+
+### Why the existing rule cannot see them
+
+Every furniture rule in `furniture.py` assumes furniture occupies **its own
+line**. That is true of plain-text transcription, where a page break is a line
+break. It is false of page-per-line OCR, where a whole page is one paragraph
+and the running head is simply the first words of it.
+
+The signal itself — regularity, and a page-number series that counts upwards —
+is unchanged and still correct. What changes is where to look for it.
+
+### The shape of the fix
+
+Treat a **line prefix** as a furniture candidate:
+
+1. Take the leading capitalised run of each line, up to the first ordinary word.
+2. Group and score exactly as now: recurrence, interval regularity, and
+   corroboration against an ascending page-number series.
+3. Remove the prefix from the line rather than the line from the document.
+
+That last point is the whole difficulty. Every existing furniture rule marks a
+line for deletion; this one must edit a line in place, which is a different
+operation with a different failure mode. **Deleting a whole line when the rule
+is wrong loses a page; deleting a prefix when the rule is wrong loses the first
+few words of a page**, which is quieter and therefore worse.
+
+So it needs the same treatment as de-hyphenation: decide where the evidence is
+strong, leave the line untouched where it is not, and report the count.
+
+### Why this is not being built today
+
+It changes what "furniture" means, from a set of line numbers to a set of
+edits. That touches `Document`, both engines, the parity harness and the log.
+It is a week's work rather than an afternoon's, and starting it at the end of a
+long session is how the careful parts get skipped.
+
+Recorded with the measurement attached so it can be picked up cold.
+
+### Consequence for the chapter problem
+
+The chapters cannot be found until this is done. The chapter headings in this
+scan are also line prefixes, sitting where the running head would be at the
+start of a chapter. Splitting the prefix off is what makes them visible, so one
+change answers both.
