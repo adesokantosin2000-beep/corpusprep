@@ -1355,12 +1355,58 @@ def test_reflow_round_trip_baseline():
     got = {norm(l) for l in res.lines if l.strip()}
 
     recovered = len(want & got) / len(want)
-    check("reflow recovers at least the Week 9 baseline", recovered >= 0.95,
-          f"{recovered:.1%}, baseline was 96.2%")
-    # F1: known over-splitting. Pinned so hardening can show it shrinking.
+    # Week 9 baseline was 96.2% with 22 spurious paragraphs. Week 10 removed
+    # split_turns, which was built on a false premise, and stopped reflow
+    # inserting a space at a word-hyphen.
+    check("reflow holds the Week 10 baseline", recovered >= 0.99,
+          f"{recovered:.1%}, Week 10 baseline is 99.5%")
     spurious = len(got - want)
-    check("over-splitting has not got worse", spurious <= 25,
-          f"{spurious} spurious paragraphs, was 22")
+    # Measured across wrap widths 60, 66 and 72: 2, 5 and 1. The bound is set
+    # from the worst of the three rather than from the width this test happens
+    # to use, so a change in the fixture cannot quietly relax it.
+    check("almost nothing spurious remains", spurious <= 6,
+          f"{spurious} spurious paragraphs, was 22 in Week 9")
+
+
+def test_reflow_does_not_break_compounds():
+    """Wrapping breaks on hyphens; rejoining must not insert a space.
+
+    `white-washed` wraps to `white-` and `washed`. Joining with a space gives
+    `white- washed`, a space that was never in the book, splitting a compound
+    in two. 46 lines of the Week 9 fixture ended in a hyphen and every one was
+    damaged.
+    """
+    from corpusprep.reflow import join
+
+    check("a word-hyphen joins tight",
+          join(["it was a white-", "washed wall"]) == "it was a white-washed wall",
+          join(["it was a white-", "washed wall"]))
+    # A dash is preceded by a space and keeps it.
+    check("a dash keeps its space",
+          join(["in a sprightly manner --", "something lighter"])
+          == "in a sprightly manner -- something lighter",
+          join(["in a sprightly manner --", "something lighter"]))
+    check("ordinary lines still get a space",
+          join(["the first part", "and the second"])
+          == "the first part and the second")
+
+
+def test_reflow_does_not_split_at_quotation_marks():
+    """585 of Jane Eyre's paragraphs hold two or more speeches, each as one.
+
+    A quotation mark at the start of a wrapped line means only that the wrap
+    fell there.
+    """
+    from corpusprep.reflow import split_turns, reflow
+
+    lines = ['"If you don\'t sit still, you must be tied down," said',
+             'Bessie. "Miss Abbot, lend me your garters; she would',
+             'break mine directly."', '']
+    check("a block with an interior quotation stays one paragraph",
+          len(split_turns(lines[:3])) == 1)
+    out = [l for l in reflow(lines * 30).lines if l.strip()]
+    check("and reflow produces one paragraph per block", len(out) == 30,
+          f"{len(out)} paragraphs from 30 blocks")
 
 
 def test_reflow_never_merges_paragraphs():

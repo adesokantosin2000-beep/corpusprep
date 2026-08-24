@@ -98,27 +98,56 @@ def looks_like_heading(block: Block) -> bool:
 
 
 def split_turns(block_lines: list[str]) -> list[list[str]]:
-    """Split a block at speaker turns.
+    """Kept as the identity function, and deliberately.
 
-    A typesetter often runs two speeches together with no blank line between
-    them. Joining those produces one paragraph containing two speakers, which
-    is wrong for any analysis that counts turns.
+    This used to start a new paragraph at any line beginning with a quotation
+    mark, reasoning that a typesetter often runs two speeches together.
+
+    **The reasoning was wrong twice over.** In wrapped text a line begins with
+    a quotation mark whenever the wrap happens to fall there, so the evidence
+    was the very artefact reflow exists to remove. And the premise itself does
+    not hold: 585 of *Jane Eyre*'s 4,082 paragraphs contain two or more quoted
+    speeches, every one of them printed as a single paragraph. Typesetters mark
+    a new speech with a paragraph break, which is a blank line, which reflow
+    already respects.
+
+    It cost 22 spurious paragraphs and bought nothing. Left as a named
+    no-operation so the mistake stays legible rather than being quietly
+    deleted from history.
     """
-    groups: list[list[str]] = []
-    cur: list[str] = []
-    for i, line in enumerate(block_lines):
-        if i and _TURN.match(line) and cur:
-            groups.append(cur)
-            cur = []
-        cur.append(line)
-    if cur:
-        groups.append(cur)
-    return groups
+    return [block_lines]
+
+
+#: A hyphen ATTACHED to a word carries no space when the lines are rejoined.
+#: A hyphen preceded by whitespace is a dash and keeps its space, the same
+#: distinction de-hyphenation makes.
+_HYPHEN_TAIL = re.compile(r"[^\W\d_][\w'’]*-$", re.UNICODE)
 
 
 def join(lines: list[str]) -> str:
-    """Join wrapped lines into one, collapsing the whitespace at the seams."""
-    return _WS.sub(" ", " ".join(l.strip() for l in lines)).strip()
+    """Join wrapped lines into one, collapsing the whitespace at the seams.
+
+    **A line ending in a word-hyphen is joined without a space.** Wrapping
+    breaks on hyphens, so `white-washed` becomes `white-` and `washed`, and
+    inserting a space at the seam produces `white- washed`: a space that was
+    never in the book, splitting a compound in two.
+
+    Reflow does not decide the hyphen's fate, only that no space belongs there.
+    Whether `white-washed` should become `whitewashed` is de-hyphenation's
+    question, and it is asked separately.
+    """
+    out = ""
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if not s:
+            continue
+        if not out:
+            out = s
+        elif _HYPHEN_TAIL.search(out):
+            out += s
+        else:
+            out += " " + s
+    return _WS.sub(" ", out).strip()
 
 
 def reflow(lines: list[str], protected: set[int] | None = None,

@@ -136,9 +136,17 @@ one stage the original assessment said could not be solved completely, and it
 is off by default in every variant.
 
 Measured by wrapping *Jane Eyre* and reflowing it, so ground truth needs no
-judgement: **96.2% of paragraphs recovered exactly**. The remaining error is a
-single fault, over-splitting at false speaker turns, and every known limitation
-is enumerated in [`design/reflow-failures.md`](design/reflow-failures.md).
+judgement: **99.5% of paragraphs recovered exactly**, from 96.2% before
+hardening. Every known limitation is enumerated in
+[`design/reflow-failures.md`](design/reflow-failures.md).
+
+The two faults that mattered were found by checking premises rather than tuning
+thresholds. One rule split paragraphs at quotation marks, on the reasoning that
+typesetters run two speeches together — but 585 of *Jane Eyre*'s paragraphs
+contain two or more speeches, each printed as one, so the rule was deleted. The
+other was that wrapping breaks on hyphens, so rejoining `white-` and `washed`
+with a space produced `white- washed`, damaging every one of the 46 hyphenated
+line-ends in the fixture.
 
 No two paragraphs are ever merged. Every error is in the direction of splitting
 too much, which is the safer one: a wrongly split paragraph is visible in the
