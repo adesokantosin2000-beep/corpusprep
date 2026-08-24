@@ -427,6 +427,12 @@ function furnitureNotice(){
   </div>`;
 }
 
+// Stamp the build version into the header on load.
+(function(){
+  const el=document.getElementById("hdr-ver");
+  if(el&&typeof CORPUSPREP_VERSION!=="undefined") el.textContent="v"+CORPUSPREP_VERSION;
+})();
+
 document.addEventListener("click",e=>{
   if(!e.target) return;
   if(e.target.id==="rv-start"){ reviewOpen() }

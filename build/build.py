@@ -56,12 +56,18 @@ def assemble() -> str:
     # The version is injected rather than written into the sources, so the
     # package and the page cannot drift apart. They already had.
     version = _package_version()
-    pieces = [f'const CORPUSPREP_VERSION="{version}";\n']
+    pieces = []
     for name in PARTS:
         p = BUILD / name
         if not p.exists():
             raise SystemExit(f"missing source: {p}")
         pieces.append(p.read_text(encoding="utf-8"))
+        # The shell ends at the opening <script>, so the version constant goes
+        # immediately after it. An earlier version prepended it to the whole
+        # file, which put a bare `const` in front of <!DOCTYPE html> where the
+        # browser rendered it as text and every reference to it threw.
+        if name == "_shell.html":
+            pieces.append(f'const CORPUSPREP_VERSION="{version}";\n')
     return "".join(pieces) + TAIL
 
 

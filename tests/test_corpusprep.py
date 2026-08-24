@@ -1125,6 +1125,17 @@ def test_version_is_single_sourced():
         check("the built page agrees",
               f'CORPUSPREP_VERSION="{__version__}"' in html,
               "built page carries a different version")
+        # Present is not the same as usable. The constant was once emitted
+        # before <!DOCTYPE html>, outside the script tag, where the browser
+        # rendered it as text and every reference to it threw. This test
+        # passed throughout, because it only asked whether the string existed.
+        check("the page still starts with its doctype",
+              html.lstrip().lower().startswith("<!doctype html>"),
+              html[:40])
+        script = html.find("<script>")
+        check("and the version constant sits inside the script",
+              script != -1 and html.find("CORPUSPREP_VERSION") > script,
+              "constant appears before the opening script tag")
         check("no version literal was left behind in the page",
               'version:"0.' not in html.replace(f'"{__version__}"', ""))
 

@@ -377,6 +377,8 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
   border-bottom-width:2px;border-radius:3px;padding:1px 5px;background:var(--paper);
   color:var(--muted)}
+.ver{font-size:11px;color:var(--faint);font-family:var(--mono);
+  margin-left:10px;letter-spacing:.02em}
 </style>
 </head>
 <body>
@@ -432,6 +434,10 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
     Processed locally
   </span>
+  <!-- Displayed so that "which version am I running?" is answerable. A stale
+       cached page is otherwise indistinguishable from a broken one, which cost
+       a real debugging session. -->
+  <span class="ver" id="hdr-ver" title="Version of this page"></span>
   <div class="who" id="who"></div>
 </header>
 

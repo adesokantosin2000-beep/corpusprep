@@ -192,6 +192,25 @@ which was quietly splitting words such as *æsthetic* and *naïve*.
 
 **Run it after changing either implementation.**
 
+### Testing the interface
+
+`tools/ui_test.js` loads `docs/index.html` into a real DOM and drives it:
+fixtures are loaded, panels are checked for, and the review queue is answered by
+keyboard.
+
+It exists because the unit tests and the parity check never open the page. That
+gap let through a real bug: the version constant was emitted before
+`<!DOCTYPE html>`, outside the script tag, where the browser rendered it as text
+and every reference to it threw. The unit test asked whether the string was
+present in the file and never asked where.
+
+**A test that asks "is it in the file?" is not a test that asks "does it run?"**
+
+```bash
+npm install jsdom
+node tools/ui_test.js
+```
+
 ---
 
 ## Tests
@@ -201,6 +220,7 @@ python tests/test_corpusprep.py     # 274 checks, no pytest required
 python tools/check_parity.py        # Python and JavaScript must agree
 python tools/measure.py             # accuracy against hand-marked keys
 python tools/stress_test.py corpora # traffic-light report over a folder
+node   tools/ui_test.js            # drives the built page in a real DOM
 ```
 
 ### Measured accuracy
