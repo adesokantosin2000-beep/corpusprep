@@ -95,6 +95,37 @@ async function run(name, fn) {
           !fs.readFileSync(PAGE, 'utf8').startsWith('const '));
   });
 
+  await run('the capability list is not stale', dom => {
+    const d = dom.window.document;
+    dom.window.eval('drawCapabilities()');
+    const cap = t => [...d.querySelectorAll('#caps .cap')]
+      .find(e => e.textContent.toLowerCase().includes(t));
+    const planned = e => !!e && e.classList.contains('soon');
+
+    // This list carried page furniture, de-hyphenation and reflow as PLANNED
+    // for three releases after all three had shipped, and described
+    // de-hyphenation as "wordlist-validated" — the approach that was tried,
+    // measured and rejected. It went stale in the direction that flatters.
+    //
+    // Reported by a user, not by a test. So: a test. Each of these is proven
+    // to work by the checks above and elsewhere in this file.
+    for (const feature of ['hyphenated line breaks', 'hard-wrapped paragraphs',
+                           'page numbers, headers', 'footnotes',
+                           'digitisation apparatus', 'running heads']) {
+      const e = cap(feature);
+      check(`"${feature}" is not still marked planned`, !!e && !planned(e),
+            e ? 'marked planned' : 'missing from the list entirely');
+    }
+
+    // And the other direction, which is the one that misleads a researcher
+    // into starting work the tool cannot finish.
+    for (const feature of ['reads pdf', 'repairs ocr characters']) {
+      const e = cap(feature);
+      check(`"${feature}" is honestly marked planned`, planned(e),
+            e ? 'claimed as available' : 'missing');
+    }
+  });
+
   await run('hyphenated.txt: the review queue', async dom => {
     await load(dom, 'hyphenated.txt');
     const w = dom.window, d = w.document;

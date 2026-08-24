@@ -170,7 +170,9 @@ breaks. Run the other way round, de-hyphenation sees 0 of 180 breaks instead of
 
 ### Not yet implemented
 
-PDF import, and OCR repair beyond what the scan rules already handle. These are specified in
+PDF import; repair of OCR characters, as opposed to identifying and reporting
+the damaged pages, which is done; and structure for collections whose parts are
+titled but neither numbered nor introduced by a division word. These are specified in
 [`design/design-spec.md`](design/design-spec.md) and scheduled in
 [`design/schedule-phase2.md`](design/schedule-phase2.md). They are listed in
 the application under *What this version can and cannot do*, marked as planned,

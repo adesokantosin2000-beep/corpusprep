@@ -1799,3 +1799,48 @@ to use.**
 Dead CSS for the removed markup was deleted rather than left. In a single-file
 application every unused rule is weight on every load and a trap for whoever
 reads it next.
+
+
+---
+
+## 2026-08-24 — The capability list was three releases out of date
+
+Asked, on reading the list in the interface: *"have we not done all of them?"*
+
+Mostly yes. Of the four items marked **planned**:
+
+| Listed as planned | Actually |
+|---|---|
+| Identifies page numbers, headers and footers | shipped in v0.3.0 |
+| Rejoins hyphenated line breaks | shipped in v0.4.0 |
+| Reflows hard-wrapped paragraphs | shipped in v0.5.0 |
+| Cleans OCR artefacts | genuinely not implemented |
+
+And six capabilities built since were not listed at all: footnotes, catchwords,
+digitisation apparatus, protected spans, the review queue, chapter recovery
+from running heads.
+
+Worse than the count, the description was wrong in a way that mattered:
+
+> Rejoins hyphenated line breaks — **wordlist-validated** de-hyphenation
+
+A bundled wordlist is precisely the approach that was tried, measured and
+rejected: 234,000 words of modern English recognise only 65% of the word types
+in *Jane Eyre*, so requiring dictionary confirmation refuses a third of the
+legitimate joins and fails worst on exactly the historical material this tool
+is for. The interface was advertising the discarded design.
+
+### The point
+
+**This list exists to be honest about limits, and it went stale in the
+direction that flatters.** Under-claiming is the safer direction and it is
+still a false statement about the present, and it was found by a user reading
+the screen rather than by anything in the repository.
+
+So it is checked now. `tools/ui_test.js` asserts that each shipped capability
+is not still marked planned, and that PDF and OCR repair still are. Both
+directions, because both mislead: one hides work, the other invites a
+researcher to start something the tool cannot finish.
+
+**A capability list that is not maintained is worse than none**, because it is
+read as a claim about the present rather than a note about the past.
