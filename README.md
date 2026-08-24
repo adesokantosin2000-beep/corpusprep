@@ -80,10 +80,17 @@ can leave the corpus only because you chose to remove it.
   the scanner itself reports as unreadable
 - Preprocessing log in Markdown and JSON
 
-Page furniture is detected but never removed unless asked. The detector has so
-far been measured against a synthetic fixture only, and a rule that has not met
-a real scan should not delete prose on its own authority. What it found and why
-is printed for review before any removal.
+Page furniture is detected but never removed unless asked, and the reason is
+worth stating rather than assuming. It has now met two genuine library scans —
+*Treasure Island* and *The New Wizard of Oz*, both Internet Archive — and works
+on them. **Two books is not a sample.** No precision or recall figure is quoted
+for these rules, because two texts cannot support one. What was found and why
+is printed for review before anything is removed.
+
+Those scans also settled a question a synthetic fixture could not have raised.
+In a page-imaged file a line is a whole *page*, so the running head is not a
+line at all but the first few words of one — and so, often, is the chapter
+heading. Three separate rules had assumed one line, one thing.
 
 Footnotes are the one rule here built and measured entirely against real books,
 because Gutenberg keeps footnotes where it strips page furniture. A marker
@@ -161,7 +168,7 @@ breaks. Run the other way round, de-hyphenation sees 0 of 180 breaks instead of
 
 ### Not yet implemented
 
-OCR repair, PDF import. These are specified in
+PDF import, and OCR repair beyond what the scan rules already handle. These are specified in
 [`design/design-spec.md`](design/design-spec.md) and scheduled in
 [`design/schedule-phase2.md`](design/schedule-phase2.md). They are listed in
 the application interface, marked as planned, so that current limitations are
@@ -237,9 +244,10 @@ node tools/ui_test.js
 ## Tests
 
 ```bash
-python tests/test_corpusprep.py     # 274 checks, no pytest required
+python tests/test_corpusprep.py     # 441 checks, no pytest required
 python tools/check_parity.py        # Python and JavaScript must agree
 python tools/measure.py             # accuracy against hand-marked keys
+python tools/integration.py         # the whole pipeline over every real book
 python tools/stress_test.py corpora # traffic-light report over a folder
 node   tools/ui_test.js            # drives the built page in a real DOM
 ```
@@ -251,9 +259,23 @@ node   tools/ui_test.js            # drives the built page in a real DOM
 placed ten lines wrong silently moves ten lines of prose into or out of the
 corpus.
 
-Current baseline, recorded before Phase 2: **99.98% across 6,228 content lines,
-1 misclassified.** The single error and why it is left unfixed are recorded in
+Current figure: **99.99% across 7,654 content lines, 1 misclassified.** The
+single error and why it is left unfixed are recorded in
 [`tests/keys/BASELINE.md`](tests/keys/BASELINE.md).
+
+Structural segmentation is measured separately and against whole books rather
+than answer keys, since a book's chapter count is a fact about the book:
+
+| Text | Divisions found |
+|---|---|
+| *Jane Eyre*, *Emma*, *King Solomon's Mines* | **38/38, 55/55, 20/20** |
+| *Frankenstein*, *The Prince* | **28/28, 12/12** |
+| *Treasure Island* (Internet Archive scan) | 33 / 34 |
+| *The New Wizard of Oz* (Internet Archive scan) | 18 / 24 |
+
+Run it with `python tools/integration.py`. Every failure it found, including
+the ones still unfixed, is in
+[`design/integration-failures.md`](design/integration-failures.md).
 
 The keys are read from the sources, never copied from the tool's output. A key
 derived from what the tool already produces measures only consistency with
