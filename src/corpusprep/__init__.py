@@ -1,7 +1,7 @@
 """
 CorpusPrep — corpus preparation for linguists.
 
-Prototype v0.1.0. Stdlib only; no installation required.
+Stdlib only; no installation required.
 
 Quick use::
 
@@ -33,7 +33,7 @@ from .report import write as write_log
 from .segment import segment
 from .variants import BUILTIN, DEFAULT_SET, Variant, VariantResult, custom_variant, render, render_all
 
-__version__ = "0.1.0"
+from ._version import __version__
 
 __all__ = [
     "load", "segment", "render", "render_all", "prepare",

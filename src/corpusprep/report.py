@@ -20,6 +20,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from ._version import __version__
 from .document import Document
 from .variants import VariantResult
 
@@ -116,7 +117,9 @@ def build_markdown(doc: Document, results: list[VariantResult]) -> str:
         a("")
         a("**Detected, not removed.** Furniture is stripped only by a variant "
           "with `drop_furniture` enabled, and no built-in variant enables it. "
-          "The detector has so far been measured against synthetic text only.")
+          "The rule requires an ascending page-number sequence before it will "
+          "claim a text is page-imaged at all, so a text without page numbers "
+          "yields nothing.")
         a("")
 
     a("## 3. Variants produced")
@@ -176,7 +179,7 @@ def build_markdown(doc: Document, results: list[VariantResult]) -> str:
 def build_json(doc: Document, results: list[VariantResult]) -> dict:
     return {
         "tool": "corpusprep",
-        "version": "0.1.0",
+        "version": __version__,
         "generated": datetime.now().isoformat(timespec="seconds"),
         "source": {
             "path": str(doc.source_path),

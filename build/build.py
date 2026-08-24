@@ -26,6 +26,7 @@ source, because what deserves testing is what is actually deployed.
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 
 BUILD = pathlib.Path(__file__).resolve().parent
@@ -36,6 +37,15 @@ PARTS = ["_shell.html", "_engine.js", "_app.js"]
 TAIL = "\n</script>\n</body>\n</html>\n"
 
 
+def _package_version() -> str:
+    """Read `__version__` without importing the package."""
+    src = (ROOT / "src" / "corpusprep" / "_version.py").read_text(encoding="utf-8")
+    m = re.search(r'__version__\s*=\s*"([^"]+)"', src)
+    if not m:
+        raise SystemExit("could not find __version__ in src/corpusprep/_version.py")
+    return m.group(1)
+
+
 def assemble() -> str:
     """Plain concatenation. No trimming, no reformatting.
 
@@ -43,7 +53,10 @@ def assemble() -> str:
     a rebuild reproduces the page byte for byte. Anything cleverer here would
     make `--check` report spurious differences.
     """
-    pieces = []
+    # The version is injected rather than written into the sources, so the
+    # package and the page cannot drift apart. They already had.
+    version = _package_version()
+    pieces = [f'const CORPUSPREP_VERSION="{version}";\n']
     for name in PARTS:
         p = BUILD / name
         if not p.exists():

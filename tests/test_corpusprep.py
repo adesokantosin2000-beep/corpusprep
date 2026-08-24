@@ -1098,6 +1098,45 @@ def test_prepare_writes_the_queue():
     check("every row is tab-separated", all("\t" in l for l in body))
 
 
+def test_version_is_single_sourced():
+    """The package, the built page and the citation file must agree.
+
+    They did not. The preprocessing log reported 0.1.0 while the web
+    application reported 0.2.0, so two runs of the same tool produced logs
+    claiming different provenance. In software whose entire proposition is that
+    its output can be audited, that is a defect and not an untidiness.
+    """
+    import re as _re
+    from corpusprep import __version__
+
+    root = Path(__file__).resolve().parent.parent
+
+    check("version looks like a version",
+          _re.fullmatch(r"\d+\.\d+\.\d+", __version__), __version__)
+
+    cff = (root / "CITATION.cff").read_text(encoding="utf-8")
+    m = _re.search(r"^version:\s*(\S+)", cff, _re.M)
+    check("CITATION.cff agrees", m and m.group(1) == __version__,
+          f"cff says {m.group(1) if m else 'nothing'}, package says {__version__}")
+
+    page = root / "docs" / "index.html"
+    if page.exists():
+        html = page.read_text(encoding="utf-8")
+        check("the built page agrees",
+              f'CORPUSPREP_VERSION="{__version__}"' in html,
+              "built page carries a different version")
+        check("no version literal was left behind in the page",
+              'version:"0.' not in html.replace(f'"{__version__}"', ""))
+
+    # Exactly one file may carry the literal.
+    carriers = []
+    for f in (root / "src" / "corpusprep").glob("*.py"):
+        if _re.search(r'__version__\s*=\s*"', f.read_text(encoding="utf-8")):
+            carriers.append(f.name)
+    check("exactly one file defines the version", carriers == ["_version.py"],
+          str(carriers))
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [

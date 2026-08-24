@@ -757,7 +757,7 @@ function dl(kind){
   if(kind==="txt"){data=RESULT.text;name=`${stem}__${CFG.name||"custom"}.txt`}
   else if(kind==="md"){data=logMarkdown();name=`${stem}_log.md`;type="text/markdown"}
   else{
-    data=JSON.stringify({tool:"corpusprep-web",version:"0.2.0",
+    data=JSON.stringify({tool:"corpusprep-web",version:CORPUSPREP_VERSION,
       generated:new Date().toISOString(), prepared_by:USER||null,
       source:{name:DOC.name,encoding:DOC.enc,had_bom:DOC.hadBom,stats:DOC.stats,notes:DOC.notes},
       regions:DOC.regions.map(r=>({label:r.label,kind:r.kind,title:r.title,
