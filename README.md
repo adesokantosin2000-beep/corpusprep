@@ -328,7 +328,17 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Citation
 
-See [`CITATION.cff`](CITATION.cff), or use the "Cite this repository" button.
+Use the "Cite this repository" button, or [`CITATION.cff`](CITATION.cff)
+directly. Cite a **version**, not the repository: the tool's behaviour changes
+between releases, and an analysis is only reproducible against the version that
+produced it.
+
+> Adesokan, T. (2026). *CorpusPrep: corpus preparation for linguists*
+> (version 0.6.0) [Computer software].
+> https://github.com/adesokantosin2000-beep/corpusprep
+
+Once a Zenodo DOI is minted for a release, cite the DOI in preference to the
+URL. See [`docs/CITING.md`](docs/CITING.md).
 
 ## Support
 
