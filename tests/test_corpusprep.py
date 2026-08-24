@@ -1750,15 +1750,22 @@ def test_running_heads_as_line_prefixes():
     check("the scan is recognised as page-per-line", is_page_per_line(lines))
 
     edits = find_prefix_furniture(lines)
-    check("the running heads are found", len(edits) >= 60, f"{len(edits)}")
+    # 155: both the recto form, where the chapter title comes first, and the
+    # verso form, where the page number does. Requiring a capital at the start
+    # caught 74 and missed 88, so the invisible half was the larger one.
+    check("the running heads are found", len(edits) >= 140, f"{len(edits)}")
 
     out = apply_prefix_edits(lines, edits)
     touched = {e.line for e in edits}
     check("every untouched line is byte-identical",
           all(a == b for i, (a, b) in enumerate(zip(lines, out), 1)
               if i not in touched))
-    check("the running head is gone",
-          not any("WONDERFUL EMERALD CITY" in l for l in out))
+    check("the recto running head is gone",
+          not any("EMERALD CITY OF OZ" in l for l in out))
+    # The verso head is the book title, and it recurs 67 times.
+    check("the verso running head is essentially gone",
+          sum(1 for l in out if "WONDERFUL WIZARD OF OZ" in l) <= 2,
+          f"{sum(1 for l in out if 'WONDERFUL WIZARD OF OZ' in l)} left")
     check("the book is not", any("Kansas prairies" in l for l in out))
 
 

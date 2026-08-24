@@ -1467,3 +1467,55 @@ The chapters are still not found. Stripping the running heads makes the chapter
 titles visible in principle, but the segmenter still looks for a heading as a
 whole line and these sit at the front of one. That is the next piece, and it is
 now a smaller one.
+
+
+---
+
+## 2026-08-23 — Verso and recto: the half that was invisible
+
+Chasing the missing chapters found the missing half of the running heads.
+
+The chapter openings could not be located, so the question became where each
+running-head series *begins*. Printing the line before each one showed this:
+
+```
+46 THE WONDERFUL WIZARD OF OZ  from some wild animal hidden among the trees...
+54 THE WONDERFUL WIZARD OF OZ  lonely. She and Toto ate the last of their...
+6o THE WONDERFUL WIZARD OF OZ  his axe at once, and, just as the two Kalidahs...
+```
+
+**The page number comes first.** Books set the book title on the verso and the
+chapter title on the recto, and the page number sits on the outer edge — which
+puts it *before* the title on a left-hand page and *after* it on a right-hand
+one. The original Week 2 design anticipated the alternation and looked for it in
+the interval between occurrences; in prefix form it changes the shape of the
+line itself.
+
+Requiring a capital at the start caught **74 and missed 88**. The invisible half
+was the larger half.
+
+### And the same OCR fault as the very first measurement
+
+Allowing a leading number took the count to 149, leaving seven pages behind.
+The cause was familiar: `normalise` removes digits so that `JANE EYRE 42` and
+`JANE EYRE 43` group as one head, but OCR leaves residue a digit-strip cannot
+reach. `6o` for 60 keeps its `o`; `io6` for 106 keeps `io`. Folded into the
+group key, one running head becomes several, each too rare to reach the
+threshold.
+
+The page number is now captured separately and the grouping is on the title
+alone. **155 heads, 895 words, and one stray occurrence of the book title left
+in the whole file.**
+
+This is the third time OCR damage has split a series that the rule was right
+about. The lesson has been the same each time: **when a detector finds most of
+something and misses a handful, suspect the key before the threshold.**
+
+### Result
+
+| | |
+|---|---|
+| Running heads removed | **155** |
+| Words removed | 895 |
+| Untouched lines altered | **0** |
+| Both engines agree | line and cut position, all 155 |

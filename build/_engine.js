@@ -948,8 +948,22 @@ function furnJudge(cands,pageLength){
 
 const PAGE_PER_LINE_MIN_MEDIAN=200;
 const PREFIX_MIN_OCCURRENCES=3;
+/* The page number is captured separately from the title, and the leading
+   number matters more than it looks. Books set the book title on the verso and
+   the chapter title on the recto, and the page number sits on the outer edge,
+   which puts it BEFORE the title on a left-hand page:
+
+       46 THE WONDERFUL WIZARD OF OZ  from some wild animal hidden...
+       WONDERFUL EMERALD CITY OF OZ  loi  fore I have no brains...
+
+   Requiring a capital first caught only the recto pages: 74 found, 88 missed.
+
+   Grouping is on the TITLE alone. `furnNormalise` removes digits so that
+   JANE EYRE 42 and 43 count as one head, but OCR leaves residue a digit-strip
+   cannot reach — `6o` keeps its `o`, `io6` keeps `io` — and folding that into
+   the key splits one head into several too rare to count.                   */
 const PREFIX_RE=
-  /^\s*((?:[A-Z][A-Z0-9.,'’\-]*\s+){1,9}[A-Z][A-Z0-9.,'’\-]*)\s/;
+  /^\s*(?:([0-9IVXLilo|\/S]{1,4})\s+)?((?:[A-Z][A-Z0-9.,'’\-]*\s+){1,9}[A-Z][A-Z0-9.,'’\-]*)\s/;
 const TRAILING_PAGE_NO=/^\s*([0-9IVXLCilvx|\/l]{1,6})\s+(?=[A-Za-z"'])/;
 
 function isPagePerLine(lines){
@@ -968,9 +982,9 @@ function findPrefixFurniture(lines,skip){
     if(skip.has(n)) continue;
     const m=PREFIX_RE.exec(lines[i]);
     if(!m) continue;
-    const key=furnNormalise(m[1]);
+    const key=furnNormalise(m[2]);
     if(!groups.has(key)) groups.set(key,[]);
-    groups.get(key).push([n,m[1],m.index+m[0].indexOf(m[1])+m[1].length]);
+    groups.get(key).push([n,m[0].trim(),m[0].lastIndexOf(m[2])+m[2].length]);
   }
 
   const out=[];

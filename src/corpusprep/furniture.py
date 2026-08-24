@@ -511,9 +511,31 @@ PAGE_PER_LINE_MIN_MEDIAN = 200
 #: once, which is precisely what keeps it safe from this rule.
 PREFIX_MIN_OCCURRENCES = 3
 
-#: Two or more words in capitals at the start of a line.
+#: Two or more words in capitals at the start of a line, optionally preceded
+#: by a page number.
+#:
+#: The leading number matters more than it looks. Books set the book title on
+#: the verso and the chapter title on the recto, and the page number sits on
+#: the outer edge — which puts it BEFORE the title on a left-hand page:
+#:
+#:     46 THE WONDERFUL WIZARD OF OZ  from some wild animal hidden...
+#:     WONDERFUL EMERALD CITY OF OZ  loi  fore I have no brains...
+#:
+#: Requiring a capital first caught only the recto pages. On the first real
+#: scan that was 74 heads found and **88 missed**, so the half that was
+#: invisible was the larger half.
+#:
+#: The number is written loosely because OCR mangles it: `6o` for 60, `l` for
+#: 1. It is safe here only because two or more capitalised words must follow.
+#: The page number is captured separately from the title, because the two must
+#: be grouped differently. `normalise` removes digits so that `JANE EYRE 42`
+#: and `JANE EYRE 43` count as one head, but OCR leaves residue a digit-strip
+#: cannot reach: `6o` for 60 keeps its `o`, and `io6` for 106 keeps `io`. Fold
+#: those into the key and one running head becomes several, each too rare to
+#: reach the threshold. Seven pages escaped that way before this split.
 PREFIX = re.compile(
-    r"^\s*((?:[A-Z][A-Z0-9.,'\u2019\-]*\s+){1,9}[A-Z][A-Z0-9.,'\u2019\-]*)\s")
+    r"^\s*(?:([0-9IVXLilo|/S]{1,4})\s+)?"
+    r"((?:[A-Z][A-Z0-9.,'\u2019\-]*\s+){1,9}[A-Z][A-Z0-9.,'\u2019\-]*)\s")
 
 #: A page number may follow the head. `loi` for 101 and `iii` for 111 are
 #: routine, so this is deliberately loose: it is only stripped when it sits
@@ -563,8 +585,9 @@ def find_prefix_furniture(lines: list[str], skip: set[int] | None = None
         m = PREFIX.match(line)
         if not m:
             continue
-        groups.setdefault(normalise(m.group(1)), []).append(
-            (i, m.group(1), m.end(1)))
+        # Grouped on the TITLE only; the page number varies by definition.
+        groups.setdefault(normalise(m.group(2)), []).append(
+            (i, m.group(0).strip(), m.end(2)))
 
     out: list[PrefixEdit] = []
     for key, hits in groups.items():
