@@ -133,6 +133,9 @@ class Document:
     footnotes: list = field(default_factory=list)
     #: Words broken across a line break, with the decision taken for each.
     hyphen_breaks: list = field(default_factory=list)
+    #: Review decisions, keyed by (kind, content). Never by line number: see
+    #: corpusprep.review for why position is the wrong identity.
+    decisions: dict = field(default_factory=dict)
     meta: dict = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
@@ -149,6 +152,9 @@ class Document:
 
     def with_hyphen_breaks(self, breaks: list) -> "Document":
         return replace(self, hyphen_breaks=list(breaks))
+
+    def with_decisions(self, decisions: dict) -> "Document":
+        return replace(self, decisions=dict(decisions))
 
     def with_note(self, note: str) -> "Document":
         return replace(self, notes=[*self.notes, note])

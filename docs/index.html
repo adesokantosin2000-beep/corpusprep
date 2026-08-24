@@ -343,6 +343,40 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .fn-opt input{margin:0}
 .fn-opt .fn-t{font-weight:600;color:var(--ink);white-space:nowrap}
 .fn-opt .fn-d{color:var(--faint);font-size:12px}
+/* ---- review queue ---- */
+.rv-bar{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.btn-sm{font:inherit;font-size:12.5px;font-weight:600;padding:6px 12px;
+  border:1px solid var(--accent);background:var(--accent);color:#fff;
+  border-radius:4px;cursor:pointer}
+.btn-sm:hover{background:var(--accent-dk)}
+.btn-sm.ghost{background:transparent;color:var(--accent);border-color:var(--rule)}
+.btn-sm.ghost:hover{background:var(--accent-soft)}
+.btn-sm.file{display:inline-flex;align-items:center}
+#rv-modal{position:fixed;inset:0;background:rgba(28,26,23,.42);z-index:60;
+  align-items:center;justify-content:center;padding:24px}
+.rv-card{background:var(--card);border:1px solid var(--rule);border-radius:8px;
+  max-width:560px;width:100%;box-shadow:0 18px 48px rgba(28,26,23,.22)}
+.rv-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px;border-bottom:1px solid var(--hair)}
+.rv-title{font-weight:600;font-size:14px}
+.rv-x{font:inherit;font-size:12.5px;border:1px solid var(--rule);
+  background:transparent;border-radius:4px;padding:4px 12px;cursor:pointer;
+  color:var(--muted)}
+#rv-body{padding:18px}
+.rv-count{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.rv-why{margin:6px 0 16px;font-size:13px;color:var(--muted);line-height:1.5}
+.rv-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rv-pick{font:inherit;text-align:left;padding:14px;border:1px solid var(--rule);
+  background:var(--paper);border-radius:6px;cursor:pointer;display:flex;
+  flex-direction:column;gap:4px}
+.rv-pick:hover{border-color:var(--accent);background:var(--accent-soft)}
+.rv-word{font-family:var(--mono);font-size:15px;color:var(--ink);
+  word-break:break-all}
+.rv-lab{font-size:11.5px;color:var(--faint)}
+.rv-help{margin-top:14px;font-size:11.5px;color:var(--faint)}
+kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
+  border-bottom-width:2px;border-radius:3px;padding:1px 5px;background:var(--paper);
+  color:var(--muted)}
 </style>
 </head>
 <body>
@@ -417,6 +451,16 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
   </div>
   <input type="file" id="file" accept=".txt,.md,.docx,.epub,.html,.htm,.xhtml">
   <div id="err" class="err" style="display:none"></div>
+
+  <div id="rv-modal" style="display:none">
+    <div class="rv-card">
+      <div class="rv-top">
+        <span class="rv-title">Is this one word, or two joined by a hyphen?</span>
+        <button class="rv-x" id="rv-close">Done</button>
+      </div>
+      <div id="rv-body"></div>
+    </div>
+  </div>
 
   <div id="run-wrap" style="display:none">
     <button class="btn-run" id="run-clean">Clean text</button>
@@ -1734,6 +1778,115 @@ function applyHyphenBreaks(lines,breaks){
   return out;
 }
 
+/* ---- review queue ------------------------------------------------------
+   Where every uncertain rule defers to the researcher.
+
+   Items are identified BY CONTENT, never by line number. Remove a Gutenberg
+   header and every line below it shifts, so a decision keyed on position would
+   silently reattach to the wrong word. Keying on `def-inite` survives that, and
+   lets one decision serve every volume of an edition.
+
+   The queue supplies missing confidence. It never invents behaviour: an answer
+   of `join` produces exactly what the tool would have produced had it been
+   sure.
+
+   Mirrors src/corpusprep/review.py.                                         */
+
+const RV_UNDECIDED="?";
+
+const RV_HEADER=
+"# CorpusPrep review queue\n"+
+"#\n"+
+"# One decision per line, tab-separated. Edit the first column and re-import.\n"+
+"# Lines beginning with # are ignored, as are blank lines.\n"+
+"#\n"+
+"# DECISION is one of:\n"+
+"#\n"+
+"#   ?        undecided. The tool will ask again and change nothing meanwhile.\n"+
+"#   join     write the two fragments as one word, without the hyphen\n"+
+"#   keep     keep the hyphen\n"+
+"#   <text>   use exactly this instead, for anything the options above miss\n"+
+"#\n"+
+"# Items are identified by the ITEM column, not by line number, so a decision\n"+
+"# survives editing the source and applies to every occurrence.\n"+
+"#\n"+
+"# DECISION\tTYPE\tITEM\tWHY\n";
+
+// The same broken word usually occurs several times. It is one question, so it
+// appears once and is answered once.
+function reviewItems(breaks,footnotes){
+  const byKey=new Map();
+  for(const b of (breaks||[])){
+    if(!dhNeedsReview(b)) continue;
+    const k="hyphen "+b.hyphenated;
+    if(!byKey.has(k))
+      byKey.set(k,{kind:"hyphen",key:b.hyphenated,why:b.reason,
+                   decision:RV_UNDECIDED,lines:[]});
+    byKey.get(k).lines.push(b.line);
+  }
+  for(const f of (footnotes||[])){
+    if(f.paired) continue;
+    const key="["+f.label+"]", k="footnote "+key;
+    if(!byKey.has(k))
+      byKey.set(k,{kind:"footnote",key,why:f.reason,
+                   decision:RV_UNDECIDED,lines:[]});
+    const ln=f.markerLine||f.bodyStart;
+    if(ln) byKey.get(k).lines.push(ln);
+  }
+  return [...byKey.values()].sort((a,b)=>
+    a.kind.localeCompare(b.kind)||a.key.localeCompare(b.key));
+}
+
+function reviewWrite(items){
+  const rows=items.map(it=>{
+    const d=(it.decision&&it.decision!=="")?it.decision:RV_UNDECIDED;
+    const where=it.lines.length
+      ? "  (lines "+it.lines.slice(0,4).join(", ")
+        +(it.lines.length>4?"...":"")+")"
+      : "";
+    return d+"\t"+it.kind+"\t"+it.key+"\t"+it.why+where;
+  });
+  return RV_HEADER+rows.join("\n")+"\n";
+}
+
+// Undecided rows are omitted, so an untouched queue yields nothing and
+// therefore changes nothing. That is what makes the file safe to experiment
+// with.
+function reviewParse(text){
+  const out=new Map();
+  for(const raw of String(text).split("\n")){
+    const line=raw.replace(/\s+$/,"");
+    if(!line.trim()||line.trimStart().startsWith("#")) continue;
+    const parts=line.split("\t");
+    if(parts.length<3) continue;
+    const d=parts[0].trim(), kind=parts[1].trim(), key=parts[2].trim();
+    if(kind&&key&&d&&d!==RV_UNDECIDED) out.set(kind+" "+key,d);
+  }
+  return out;
+}
+
+function reviewApply(breaks,decisions){
+  let n=0;
+  for(const b of breaks){
+    if(!dhNeedsReview(b)) continue;
+    const d=decisions.get("hyphen "+b.hyphenated);
+    if(!d) continue;
+    const low=d.trim().toLowerCase();
+    if(low==="join"){
+      b.decision=DH_JOIN; b.reason="joined by your decision";
+    } else if(low==="keep"){
+      b.decision=DH_KEEP; b.reason="hyphen kept by your decision";
+    } else {
+      // An exact replacement, recorded on the break so that the resolved form
+      // returns it without adding a third code path downstream.
+      b.decision=DH_JOIN; b.joined=d.trim();
+      b.reason="replaced with '"+d.trim()+"' by your decision";
+    }
+    n++;
+  }
+  return n;
+}
+
 /* ---- variants ---- */
 const PRESETS={
   "verbatim":       {keep:{pg_header:1,pg_licence:1,front_matter:1,body:1,back_matter:1,unknown:1},dropHeadings:0,collapse:0,
@@ -1782,6 +1935,7 @@ function render(lines,regions,cfg,furniture,footnotes){
   if(cfg.dehyphenate){
     // Evidence is drawn from the WHOLE document, not just the kept regions.
     const br=findHyphenBreaks(out,null,dhVocabulary(lines));
+    if(cfg.decisions&&cfg.decisions.size) reviewApply(br,cfg.decisions);
     for(const b of br) dhNeedsReview(b)?hyphensFlagged++:hyphensJoined++;
     out=applyHyphenBreaks(out,br);
   }
@@ -2155,6 +2309,7 @@ async function loadText(name,buf){
        furnSeries:fu.candidates.filter(c=>c.accepted),
        catchwords:fu.catchwords,catchwordMatches:fu.catchwordMatches,
        footnotes:findFootnotesIn(d.lines,seg.regions),
+       breaks:findHyphenBreaksIn(d.lines,seg.regions),
        pageLength:fu.pageLength,
        stats:{chars:d.lines.join("\n").length,lines:d.lines.length,
               tokens:tt.tokens,types:tt.types},
@@ -2169,6 +2324,11 @@ async function loadText(name,buf){
   CFG.dropFurniture=0;
   // Footnotes are content, not printing debris. The default keeps them.
   CFG.footnotes="retain";
+  CFG.dehyphenate=0;
+  // Decisions are per-document and start empty. Carrying them between texts
+  // would apply one book's judgements to another without asking.
+  CFG.decisions=new Map();
+  QUEUE=null; QPOS=0;
   $("#preset").value=start;
 
   $("#err").style.display="none";
@@ -2222,7 +2382,117 @@ function drawSummary(){
       ${cell(back,"Back-matter blocks")}
       ${cell(apparatus,"Apparatus blocks")}
       ${cell(plannedDrops().length,CLEANED?"Removed":"To be removed")}
-    </div>${furnitureNotice()}${footnoteNotice()}</div>`;
+    </div>${furnitureNotice()}${footnoteNotice()}${hyphenNotice()}</div>`;
+}
+
+/* Words broken across a line break, and the queue for the ones the text
+   cannot answer itself. */
+function hyphenNotice(){
+  if(!DOC.breaks||!DOC.breaks.length) return "";
+  const flagged=DOC.breaks.filter(dhNeedsReview);
+  const on=!!CFG.dehyphenate;
+  const items=reviewItems(DOC.breaks,[]);
+  const left=items.filter(i=>!CFG.decisions.has(i.kind+" "+i.key)).length;
+  return `<div class="furn-notice ${on?"on":""}">
+    <div class="furn-head">
+      <span class="t">Words broken across lines</span>
+      <span class="s">${DOC.breaks.length} found ·
+        ${DOC.breaks.length-flagged.length} resolved from this text's own
+        vocabulary${left?` · ${left} need your decision`:" · all resolved"}</span>
+    </div>
+    <p class="furn-lead">A line break inside a word is always an artefact, but
+      the hyphen may be real: <b>to-morrow</b> is a word and <b>tomorrow</b> is a
+      different one. Where this text does not settle it, the hyphen is kept and
+      the case is listed rather than guessed.</p>
+    <div class="fn-opts">
+      <label class="fn-opt ${on?"on":""}">
+        <input type="checkbox" id="dh-on" ${on?"checked":""}>
+        <span class="fn-t">Rejoin broken words</span>
+        <span class="fn-d">Repairs the line break. The hyphen is decided
+          separately.</span></label>
+    </div>
+    ${left?`<div class="rv-bar">
+      <button class="btn-sm" id="rv-start">Review ${left} item${left===1?"":"s"}</button>
+      <button class="btn-sm ghost" id="rv-save">Download queue</button>
+      <label class="btn-sm ghost file">Load queue
+        <input type="file" id="rv-load" accept=".tsv,.txt" hidden></label>
+    </div>`:`<div class="rv-bar">
+      <button class="btn-sm ghost" id="rv-save">Download decisions</button></div>`}
+  </div>`;
+}
+
+/* The reviewer. Keyboard-driven, because two hundred items answered by mouse
+   is a job nobody finishes. */
+let QUEUE=null, QPOS=0;
+
+function reviewOpen(){
+  QUEUE=reviewItems(DOC.breaks,[]).filter(i=>!CFG.decisions.has(i.kind+" "+i.key));
+  QPOS=0;
+  if(!QUEUE.length) return;
+  $("#rv-modal").style.display="flex";
+  reviewDraw();
+  document.addEventListener("keydown",reviewKeys);
+}
+
+function reviewClose(){
+  $("#rv-modal").style.display="none";
+  document.removeEventListener("keydown",reviewKeys);
+  QUEUE=null;
+  drawToggles(); refreshPreview();
+}
+
+function reviewDecide(value){
+  if(!QUEUE||QPOS>=QUEUE.length) return;
+  const it=QUEUE[QPOS];
+  if(value===null) CFG.decisions.delete(it.kind+" "+it.key);
+  else CFG.decisions.set(it.kind+" "+it.key,value);
+  QPOS++;
+  if(QPOS>=QUEUE.length) reviewClose(); else reviewDraw();
+}
+
+function reviewKeys(e){
+  if(e.key==="Escape"){ reviewClose(); return }
+  const k=e.key.toLowerCase();
+  if(k==="j"){ e.preventDefault(); reviewDecide("join") }
+  else if(k==="k"){ e.preventDefault(); reviewDecide("keep") }
+  else if(k==="s"||e.key==="ArrowRight"){ e.preventDefault(); QPOS++;
+    if(QPOS>=QUEUE.length) reviewClose(); else reviewDraw() }
+  else if(e.key==="ArrowLeft"){ e.preventDefault(); if(QPOS>0){QPOS--;reviewDraw()} }
+}
+
+function reviewDraw(){
+  const it=QUEUE[QPOS];
+  if(!it) return;
+  const parts=it.key.split("-");
+  const joined=parts.join("");
+  $("#rv-body").innerHTML=`
+    <div class="rv-count">${QPOS+1} of ${QUEUE.length}</div>
+    <div class="rv-why">${esc(it.why)}</div>
+    <div class="rv-choices">
+      <button class="rv-pick" data-v="join">
+        <kbd>J</kbd><span class="rv-word">${esc(joined)}</span>
+        <span class="rv-lab">one word</span></button>
+      <button class="rv-pick" data-v="keep">
+        <kbd>K</kbd><span class="rv-word">${esc(it.key)}</span>
+        <span class="rv-lab">keep the hyphen</span></button>
+    </div>
+    <div class="rv-help"><kbd>J</kbd> join · <kbd>K</kbd> keep ·
+      <kbd>S</kbd> skip · <kbd>&larr;</kbd> back · <kbd>Esc</kbd> finish</div>`;
+  $$("#rv-body .rv-pick").forEach(b=>
+    b.addEventListener("click",()=>reviewDecide(b.dataset.v)));
+}
+
+function reviewSave(){
+  const items=reviewItems(DOC.breaks,[]);
+  for(const it of items){
+    const d=CFG.decisions.get(it.kind+" "+it.key);
+    if(d) it.decision=d;
+  }
+  const blob=new Blob([reviewWrite(items)],{type:"text/tab-separated-values"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=(DOC.name.replace(/\.[^.]+$/,""))+"__review.tsv";
+  a.click(); URL.revokeObjectURL(a.href);
 }
 
 /* What the footnote rule found, and the three things that can be done with it.
@@ -2300,7 +2570,29 @@ function furnitureNotice(){
   </div>`;
 }
 
+document.addEventListener("click",e=>{
+  if(!e.target) return;
+  if(e.target.id==="rv-start"){ reviewOpen() }
+  else if(e.target.id==="rv-save"){ reviewSave() }
+  else if(e.target.id==="rv-close"){ reviewClose() }
+});
+
 document.addEventListener("change",e=>{
+  if(e.target&&e.target.id==="dh-on"){
+    CFG.dehyphenate=e.target.checked?1:0;
+    CFG.name=matchPreset()||"custom";
+    $("#preset").value=CFG.name;
+    refreshPreview();
+    return;
+  }
+  if(e.target&&e.target.id==="rv-load"&&e.target.files&&e.target.files[0]){
+    e.target.files[0].text().then(txt=>{
+      const parsed=reviewParse(txt);
+      for(const [k,v] of parsed) CFG.decisions.set(k,v);
+      drawToggles(); refreshPreview();
+    });
+    return;
+  }
   if(e.target&&e.target.name==="fn-route"){
     CFG.footnotes=e.target.value;
     CFG.name=matchPreset()||"custom";
@@ -2376,6 +2668,7 @@ function matchPreset(){
   // definition. Reporting a preset name here would mislabel the log.
   if(CFG.dropFurniture) return null;
   if(CFG.footnotes&&CFG.footnotes!=="retain") return null;
+  if(CFG.dehyphenate) return null;
   for(const [n,p] of Object.entries(PRESETS)){
     if(p.dropHeadings!==CFG.dropHeadings) continue;
     if(LABELS.every(l=>!!p.keep[l.id]===!!CFG.keep[l.id])) return n;

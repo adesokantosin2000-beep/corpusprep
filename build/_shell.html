@@ -343,6 +343,40 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .fn-opt input{margin:0}
 .fn-opt .fn-t{font-weight:600;color:var(--ink);white-space:nowrap}
 .fn-opt .fn-d{color:var(--faint);font-size:12px}
+/* ---- review queue ---- */
+.rv-bar{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.btn-sm{font:inherit;font-size:12.5px;font-weight:600;padding:6px 12px;
+  border:1px solid var(--accent);background:var(--accent);color:#fff;
+  border-radius:4px;cursor:pointer}
+.btn-sm:hover{background:var(--accent-dk)}
+.btn-sm.ghost{background:transparent;color:var(--accent);border-color:var(--rule)}
+.btn-sm.ghost:hover{background:var(--accent-soft)}
+.btn-sm.file{display:inline-flex;align-items:center}
+#rv-modal{position:fixed;inset:0;background:rgba(28,26,23,.42);z-index:60;
+  align-items:center;justify-content:center;padding:24px}
+.rv-card{background:var(--card);border:1px solid var(--rule);border-radius:8px;
+  max-width:560px;width:100%;box-shadow:0 18px 48px rgba(28,26,23,.22)}
+.rv-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px;border-bottom:1px solid var(--hair)}
+.rv-title{font-weight:600;font-size:14px}
+.rv-x{font:inherit;font-size:12.5px;border:1px solid var(--rule);
+  background:transparent;border-radius:4px;padding:4px 12px;cursor:pointer;
+  color:var(--muted)}
+#rv-body{padding:18px}
+.rv-count{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.rv-why{margin:6px 0 16px;font-size:13px;color:var(--muted);line-height:1.5}
+.rv-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rv-pick{font:inherit;text-align:left;padding:14px;border:1px solid var(--rule);
+  background:var(--paper);border-radius:6px;cursor:pointer;display:flex;
+  flex-direction:column;gap:4px}
+.rv-pick:hover{border-color:var(--accent);background:var(--accent-soft)}
+.rv-word{font-family:var(--mono);font-size:15px;color:var(--ink);
+  word-break:break-all}
+.rv-lab{font-size:11.5px;color:var(--faint)}
+.rv-help{margin-top:14px;font-size:11.5px;color:var(--faint)}
+kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
+  border-bottom-width:2px;border-radius:3px;padding:1px 5px;background:var(--paper);
+  color:var(--muted)}
 </style>
 </head>
 <body>
@@ -417,6 +451,16 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
   </div>
   <input type="file" id="file" accept=".txt,.md,.docx,.epub,.html,.htm,.xhtml">
   <div id="err" class="err" style="display:none"></div>
+
+  <div id="rv-modal" style="display:none">
+    <div class="rv-card">
+      <div class="rv-top">
+        <span class="rv-title">Is this one word, or two joined by a hyphen?</span>
+        <button class="rv-x" id="rv-close">Done</button>
+      </div>
+      <div id="rv-body"></div>
+    </div>
+  </div>
 
   <div id="run-wrap" style="display:none">
     <button class="btn-run" id="run-clean">Clean text</button>

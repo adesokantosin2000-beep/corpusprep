@@ -974,6 +974,130 @@ def test_dehyphenation_is_off_by_default():
         check(f"{name} does not dehyphenate by default", not v.dehyphenate)
 
 
+def test_review_queue_round_trip():
+    """Write a queue, read it back, get the same items."""
+    import tempfile
+    from corpusprep import analyse, review
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    doc = analyse(fx)
+    items = review.from_document(doc)
+    check("the queue has items to review", len(items) > 10, f"{len(items)}")
+
+    tmp = Path(tempfile.mkdtemp()) / "q.tsv"
+    review.write(items, tmp)
+    check("an untouched queue yields no decisions", not review.read(tmp))
+
+    text = tmp.read_text(encoding="utf-8")
+    answered = "\n".join(("join" + l[1:]) if l.startswith("?") else l
+                          for l in text.splitlines())
+    tmp.write_text(answered, encoding="utf-8")
+    back = review.read(tmp)
+    check("every answer reads back", len(back) == len(items),
+          f"{len(back)} of {len(items)}")
+    check("nothing outstanding on a second run",
+          not review.outstanding(items, back))
+
+
+def test_empty_queue_changes_nothing():
+    """The property that makes the file safe to generate and experiment with."""
+    from dataclasses import replace as _replace
+    from corpusprep import analyse
+    from corpusprep.variants import BUILTIN, render
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    v = _replace(BUILTIN["verbatim"], dehyphenate=True)
+    plain = render(analyse(fx), v)
+    with_empty = render(analyse(fx, {}), v)
+    check("an empty decision set leaves output byte-identical",
+          plain.text == with_empty.text)
+
+
+def test_review_decisions_resolve_everything():
+    """Answered on its merits, the queue takes the rule to complete accuracy."""
+    from corpusprep import dehyphenate as D, review
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    truth = _hyphen_key()
+    lines = load(fx).lines
+    breaks = D.find(lines)
+
+    decisions = {}
+    for b in breaks:
+        if b.needs_review and b.line in truth:
+            decisions[("hyphen", b.hyphenated)] = (
+                "keep" if "-" in truth[b.line] else "join")
+
+    review.apply_to_breaks(breaks, decisions)
+    wrong = [b for b in breaks
+             if truth.get(b.line, "").lower() != b.resolved.lower()]
+    check("all breaks correct after review", not wrong,
+          f"{len(wrong)} wrong")
+    check("nothing left flagged",
+          not [b for b in breaks if b.needs_review])
+
+
+def test_review_identity_is_content_not_line_number():
+    """A decision must survive the lines moving underneath it."""
+    from corpusprep import dehyphenate as D, review
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    lines = load(fx).lines
+    first = next(b for b in D.find(lines) if b.needs_review)
+    decisions = {("hyphen", first.hyphenated): "join"}
+
+    # Shift every line down by inserting a header, as removing apparatus would.
+    shifted = ["A NEW TITLE", "", ""] + lines
+    breaks = D.find(shifted)
+    moved = next(b for b in breaks if b.hyphenated == first.hyphenated)
+    check("the item genuinely moved", moved.line != first.line,
+          f"both at {moved.line}")
+    review.apply_to_breaks(breaks, decisions)
+    check("but the decision still applies", not moved.needs_review,
+          "decision lost when lines shifted")
+
+
+def test_review_exact_replacement():
+    """The escape hatch for cases neither option covers."""
+    from corpusprep import dehyphenate as D, review
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    breaks = D.find(load(fx).lines)
+    one = next(b for b in breaks if b.needs_review)
+    review.apply_to_breaks(breaks, {("hyphen", one.hyphenated): "Rimoth-Gilead"})
+    check("an exact replacement is used verbatim",
+          one.resolved == "Rimoth-Gilead", one.resolved)
+    check("and the reason records that it was your choice",
+          "your decision" in one.reason)
+
+
+def test_prepare_writes_the_queue():
+    import tempfile
+    from corpusprep import prepare
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    out = Path(tempfile.mkdtemp())
+    prepare(fx, out, ["verbatim"])
+    q = out / "hyphenated__review.tsv"
+    check("a review queue is written beside the output", q.exists())
+    body = [l for l in q.read_text(encoding="utf-8").splitlines()
+            if l.strip() and not l.startswith("#")]
+    check("and it has rows", len(body) > 10, f"{len(body)}")
+    check("every row is tab-separated", all("\t" in l for l in body))
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [

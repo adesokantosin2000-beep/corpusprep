@@ -737,3 +737,107 @@ The repair now keeps absorbing while the line it has just built still ends in a
 break. It was visible only because the test asked whether *any* word remained
 split, rather than whether the joins performed were correct. **The first
 question is the useful one**, and it is easy to write the second by accident.
+
+---
+
+## 2026-08-23 — The review queue: design
+
+Week 6. The schedule calls this "not a side feature", and it is right: every
+uncertain rule in this phase defers to the researcher, and until now there has
+been nowhere for those deferrals to go. De-hyphenation currently flags 96 cases
+on one short fixture and there is no way to answer them.
+
+### Identity is the hard part, and line numbers are the wrong answer
+
+The obvious key for a queue item is its line number. That breaks immediately.
+Remove the Gutenberg header and every line number below it shifts, so a saved
+decision would silently attach to the wrong word. Re-import a corrected source
+and the same thing happens.
+
+**The key must be the content, not the position.** A flagged break is
+identified by the thing actually in question: `def-inite`. That key is stable
+under every transformation that moves lines around, and it has a second
+property worth more than stability.
+
+**Decisions become reusable across documents.** A researcher preparing forty
+volumes of the same edition answers `to-morrow` once. The same key appears in
+volume two and is already answered. A line-number key could never do that.
+
+The cost is that a genuinely ambiguous form must be decided the same way
+everywhere in a corpus, which for a hyphen is almost always what is wanted.
+
+### The format has to be hand-editable
+
+A queue nobody opens is a queue nobody uses. So: tab-separated, one decision per
+line, comments with `#`, and a header explaining the choices. It opens in a text
+editor, in Excel, and in `awk`. It is the same reasoning as the answer keys, and
+those have already proved they get read.
+
+```
+# DECISION   TYPE     ITEM           WHY
+?            hyphen   def-inite      neither form occurs elsewhere in this text
+join         hyphen   sug-gest       (answered: write "suggest")
+keep         hyphen   half-broken    (answered: keep the hyphen)
+```
+
+`?` means undecided, and the tool keeps asking. Anything else is an answer.
+A bare word in the decision column means "use exactly this", which is the escape
+hatch for cases the tool's two options do not cover.
+
+### What must be true afterwards
+
+1. **Round trip.** Write a queue, read it back, get the same items.
+2. **A second run asks nothing.** Once answered, an item never returns.
+3. **An unanswered queue changes nothing.** Importing a file of `?` must leave
+   output byte-identical, or the queue is not safe to experiment with.
+4. **Decisions never invent behaviour.** An answer of `join` produces exactly
+   what the tool would have produced had it been confident. The queue supplies
+   the missing confidence; it does not add a new transformation.
+
+### Why not make the tool guess and let the user correct afterwards
+
+Because the errors would be invisible. A silently joined `half-comprehended`
+looks like a word, and nobody proofreads a 200,000-word corpus. The whole value
+of this tool is that its uncertainty is legible, and a review queue is what
+uncertainty looks like when it is written down.
+
+---
+
+## 2026-08-23 — The review queue: built and measured
+
+All four required properties hold, and each is a test rather than a claim.
+
+| Property | Result |
+|---|---|
+| Round trip: write, read, same items | 95 items out, 95 back |
+| A second run asks nothing | 0 outstanding once answered |
+| An unanswered queue changes nothing | output byte-identical |
+| Decisions survive lines moving | key is content, verified by shifting the file |
+
+96 flagged breaks collapse to **95 queue items**, because the same broken word
+recurs and is one question, not several.
+
+### The number that closes the loop
+
+Answered on its merits, the queue takes de-hyphenation from **84 of 180 to 180
+of 180**, with the 9 real compounds keeping their hyphens. The rule alone is
+never wrong but often silent; the rule plus a reviewer is complete. That is the
+division of labour the whole phase was designed around, and this is the first
+point at which it actually works end to end.
+
+### Keyboard, not mouse
+
+The interface answers one item at a time: `J` joins, `K` keeps the hyphen, `S`
+skips, `←` goes back, `Esc` finishes. Two hundred items answered by mouse is a
+job nobody completes, and an unfinished review is the same as no review.
+
+Decisions are per-document and start empty. Carrying them between texts would
+apply one book's judgements to another without asking, which is exactly the
+kind of silent action this tool exists to avoid. The queue file is how they
+travel deliberately.
+
+### The queue is written even when nothing is outstanding
+
+`prepare()` always writes it. A file that appears only sometimes is a file
+nobody learns to look for, and the record of what *was* decided is worth as
+much as the list of what remains.

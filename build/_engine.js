@@ -1141,6 +1141,115 @@ function applyHyphenBreaks(lines,breaks){
   return out;
 }
 
+/* ---- review queue ------------------------------------------------------
+   Where every uncertain rule defers to the researcher.
+
+   Items are identified BY CONTENT, never by line number. Remove a Gutenberg
+   header and every line below it shifts, so a decision keyed on position would
+   silently reattach to the wrong word. Keying on `def-inite` survives that, and
+   lets one decision serve every volume of an edition.
+
+   The queue supplies missing confidence. It never invents behaviour: an answer
+   of `join` produces exactly what the tool would have produced had it been
+   sure.
+
+   Mirrors src/corpusprep/review.py.                                         */
+
+const RV_UNDECIDED="?";
+
+const RV_HEADER=
+"# CorpusPrep review queue\n"+
+"#\n"+
+"# One decision per line, tab-separated. Edit the first column and re-import.\n"+
+"# Lines beginning with # are ignored, as are blank lines.\n"+
+"#\n"+
+"# DECISION is one of:\n"+
+"#\n"+
+"#   ?        undecided. The tool will ask again and change nothing meanwhile.\n"+
+"#   join     write the two fragments as one word, without the hyphen\n"+
+"#   keep     keep the hyphen\n"+
+"#   <text>   use exactly this instead, for anything the options above miss\n"+
+"#\n"+
+"# Items are identified by the ITEM column, not by line number, so a decision\n"+
+"# survives editing the source and applies to every occurrence.\n"+
+"#\n"+
+"# DECISION\tTYPE\tITEM\tWHY\n";
+
+// The same broken word usually occurs several times. It is one question, so it
+// appears once and is answered once.
+function reviewItems(breaks,footnotes){
+  const byKey=new Map();
+  for(const b of (breaks||[])){
+    if(!dhNeedsReview(b)) continue;
+    const k="hyphen "+b.hyphenated;
+    if(!byKey.has(k))
+      byKey.set(k,{kind:"hyphen",key:b.hyphenated,why:b.reason,
+                   decision:RV_UNDECIDED,lines:[]});
+    byKey.get(k).lines.push(b.line);
+  }
+  for(const f of (footnotes||[])){
+    if(f.paired) continue;
+    const key="["+f.label+"]", k="footnote "+key;
+    if(!byKey.has(k))
+      byKey.set(k,{kind:"footnote",key,why:f.reason,
+                   decision:RV_UNDECIDED,lines:[]});
+    const ln=f.markerLine||f.bodyStart;
+    if(ln) byKey.get(k).lines.push(ln);
+  }
+  return [...byKey.values()].sort((a,b)=>
+    a.kind.localeCompare(b.kind)||a.key.localeCompare(b.key));
+}
+
+function reviewWrite(items){
+  const rows=items.map(it=>{
+    const d=(it.decision&&it.decision!=="")?it.decision:RV_UNDECIDED;
+    const where=it.lines.length
+      ? "  (lines "+it.lines.slice(0,4).join(", ")
+        +(it.lines.length>4?"...":"")+")"
+      : "";
+    return d+"\t"+it.kind+"\t"+it.key+"\t"+it.why+where;
+  });
+  return RV_HEADER+rows.join("\n")+"\n";
+}
+
+// Undecided rows are omitted, so an untouched queue yields nothing and
+// therefore changes nothing. That is what makes the file safe to experiment
+// with.
+function reviewParse(text){
+  const out=new Map();
+  for(const raw of String(text).split("\n")){
+    const line=raw.replace(/\s+$/,"");
+    if(!line.trim()||line.trimStart().startsWith("#")) continue;
+    const parts=line.split("\t");
+    if(parts.length<3) continue;
+    const d=parts[0].trim(), kind=parts[1].trim(), key=parts[2].trim();
+    if(kind&&key&&d&&d!==RV_UNDECIDED) out.set(kind+" "+key,d);
+  }
+  return out;
+}
+
+function reviewApply(breaks,decisions){
+  let n=0;
+  for(const b of breaks){
+    if(!dhNeedsReview(b)) continue;
+    const d=decisions.get("hyphen "+b.hyphenated);
+    if(!d) continue;
+    const low=d.trim().toLowerCase();
+    if(low==="join"){
+      b.decision=DH_JOIN; b.reason="joined by your decision";
+    } else if(low==="keep"){
+      b.decision=DH_KEEP; b.reason="hyphen kept by your decision";
+    } else {
+      // An exact replacement, recorded on the break so that the resolved form
+      // returns it without adding a third code path downstream.
+      b.decision=DH_JOIN; b.joined=d.trim();
+      b.reason="replaced with '"+d.trim()+"' by your decision";
+    }
+    n++;
+  }
+  return n;
+}
+
 /* ---- variants ---- */
 const PRESETS={
   "verbatim":       {keep:{pg_header:1,pg_licence:1,front_matter:1,body:1,back_matter:1,unknown:1},dropHeadings:0,collapse:0,
@@ -1189,6 +1298,7 @@ function render(lines,regions,cfg,furniture,footnotes){
   if(cfg.dehyphenate){
     // Evidence is drawn from the WHOLE document, not just the kept regions.
     const br=findHyphenBreaks(out,null,dhVocabulary(lines));
+    if(cfg.decisions&&cfg.decisions.size) reviewApply(br,cfg.decisions);
     for(const b of br) dhNeedsReview(b)?hyphensFlagged++:hyphensJoined++;
     out=applyHyphenBreaks(out,br);
   }

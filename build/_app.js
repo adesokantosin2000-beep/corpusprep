@@ -166,6 +166,7 @@ async function loadText(name,buf){
        furnSeries:fu.candidates.filter(c=>c.accepted),
        catchwords:fu.catchwords,catchwordMatches:fu.catchwordMatches,
        footnotes:findFootnotesIn(d.lines,seg.regions),
+       breaks:findHyphenBreaksIn(d.lines,seg.regions),
        pageLength:fu.pageLength,
        stats:{chars:d.lines.join("\n").length,lines:d.lines.length,
               tokens:tt.tokens,types:tt.types},
@@ -180,6 +181,11 @@ async function loadText(name,buf){
   CFG.dropFurniture=0;
   // Footnotes are content, not printing debris. The default keeps them.
   CFG.footnotes="retain";
+  CFG.dehyphenate=0;
+  // Decisions are per-document and start empty. Carrying them between texts
+  // would apply one book's judgements to another without asking.
+  CFG.decisions=new Map();
+  QUEUE=null; QPOS=0;
   $("#preset").value=start;
 
   $("#err").style.display="none";
@@ -233,7 +239,117 @@ function drawSummary(){
       ${cell(back,"Back-matter blocks")}
       ${cell(apparatus,"Apparatus blocks")}
       ${cell(plannedDrops().length,CLEANED?"Removed":"To be removed")}
-    </div>${furnitureNotice()}${footnoteNotice()}</div>`;
+    </div>${furnitureNotice()}${footnoteNotice()}${hyphenNotice()}</div>`;
+}
+
+/* Words broken across a line break, and the queue for the ones the text
+   cannot answer itself. */
+function hyphenNotice(){
+  if(!DOC.breaks||!DOC.breaks.length) return "";
+  const flagged=DOC.breaks.filter(dhNeedsReview);
+  const on=!!CFG.dehyphenate;
+  const items=reviewItems(DOC.breaks,[]);
+  const left=items.filter(i=>!CFG.decisions.has(i.kind+" "+i.key)).length;
+  return `<div class="furn-notice ${on?"on":""}">
+    <div class="furn-head">
+      <span class="t">Words broken across lines</span>
+      <span class="s">${DOC.breaks.length} found ·
+        ${DOC.breaks.length-flagged.length} resolved from this text's own
+        vocabulary${left?` · ${left} need your decision`:" · all resolved"}</span>
+    </div>
+    <p class="furn-lead">A line break inside a word is always an artefact, but
+      the hyphen may be real: <b>to-morrow</b> is a word and <b>tomorrow</b> is a
+      different one. Where this text does not settle it, the hyphen is kept and
+      the case is listed rather than guessed.</p>
+    <div class="fn-opts">
+      <label class="fn-opt ${on?"on":""}">
+        <input type="checkbox" id="dh-on" ${on?"checked":""}>
+        <span class="fn-t">Rejoin broken words</span>
+        <span class="fn-d">Repairs the line break. The hyphen is decided
+          separately.</span></label>
+    </div>
+    ${left?`<div class="rv-bar">
+      <button class="btn-sm" id="rv-start">Review ${left} item${left===1?"":"s"}</button>
+      <button class="btn-sm ghost" id="rv-save">Download queue</button>
+      <label class="btn-sm ghost file">Load queue
+        <input type="file" id="rv-load" accept=".tsv,.txt" hidden></label>
+    </div>`:`<div class="rv-bar">
+      <button class="btn-sm ghost" id="rv-save">Download decisions</button></div>`}
+  </div>`;
+}
+
+/* The reviewer. Keyboard-driven, because two hundred items answered by mouse
+   is a job nobody finishes. */
+let QUEUE=null, QPOS=0;
+
+function reviewOpen(){
+  QUEUE=reviewItems(DOC.breaks,[]).filter(i=>!CFG.decisions.has(i.kind+" "+i.key));
+  QPOS=0;
+  if(!QUEUE.length) return;
+  $("#rv-modal").style.display="flex";
+  reviewDraw();
+  document.addEventListener("keydown",reviewKeys);
+}
+
+function reviewClose(){
+  $("#rv-modal").style.display="none";
+  document.removeEventListener("keydown",reviewKeys);
+  QUEUE=null;
+  drawToggles(); refreshPreview();
+}
+
+function reviewDecide(value){
+  if(!QUEUE||QPOS>=QUEUE.length) return;
+  const it=QUEUE[QPOS];
+  if(value===null) CFG.decisions.delete(it.kind+" "+it.key);
+  else CFG.decisions.set(it.kind+" "+it.key,value);
+  QPOS++;
+  if(QPOS>=QUEUE.length) reviewClose(); else reviewDraw();
+}
+
+function reviewKeys(e){
+  if(e.key==="Escape"){ reviewClose(); return }
+  const k=e.key.toLowerCase();
+  if(k==="j"){ e.preventDefault(); reviewDecide("join") }
+  else if(k==="k"){ e.preventDefault(); reviewDecide("keep") }
+  else if(k==="s"||e.key==="ArrowRight"){ e.preventDefault(); QPOS++;
+    if(QPOS>=QUEUE.length) reviewClose(); else reviewDraw() }
+  else if(e.key==="ArrowLeft"){ e.preventDefault(); if(QPOS>0){QPOS--;reviewDraw()} }
+}
+
+function reviewDraw(){
+  const it=QUEUE[QPOS];
+  if(!it) return;
+  const parts=it.key.split("-");
+  const joined=parts.join("");
+  $("#rv-body").innerHTML=`
+    <div class="rv-count">${QPOS+1} of ${QUEUE.length}</div>
+    <div class="rv-why">${esc(it.why)}</div>
+    <div class="rv-choices">
+      <button class="rv-pick" data-v="join">
+        <kbd>J</kbd><span class="rv-word">${esc(joined)}</span>
+        <span class="rv-lab">one word</span></button>
+      <button class="rv-pick" data-v="keep">
+        <kbd>K</kbd><span class="rv-word">${esc(it.key)}</span>
+        <span class="rv-lab">keep the hyphen</span></button>
+    </div>
+    <div class="rv-help"><kbd>J</kbd> join · <kbd>K</kbd> keep ·
+      <kbd>S</kbd> skip · <kbd>&larr;</kbd> back · <kbd>Esc</kbd> finish</div>`;
+  $$("#rv-body .rv-pick").forEach(b=>
+    b.addEventListener("click",()=>reviewDecide(b.dataset.v)));
+}
+
+function reviewSave(){
+  const items=reviewItems(DOC.breaks,[]);
+  for(const it of items){
+    const d=CFG.decisions.get(it.kind+" "+it.key);
+    if(d) it.decision=d;
+  }
+  const blob=new Blob([reviewWrite(items)],{type:"text/tab-separated-values"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=(DOC.name.replace(/\.[^.]+$/,""))+"__review.tsv";
+  a.click(); URL.revokeObjectURL(a.href);
 }
 
 /* What the footnote rule found, and the three things that can be done with it.
@@ -311,7 +427,29 @@ function furnitureNotice(){
   </div>`;
 }
 
+document.addEventListener("click",e=>{
+  if(!e.target) return;
+  if(e.target.id==="rv-start"){ reviewOpen() }
+  else if(e.target.id==="rv-save"){ reviewSave() }
+  else if(e.target.id==="rv-close"){ reviewClose() }
+});
+
 document.addEventListener("change",e=>{
+  if(e.target&&e.target.id==="dh-on"){
+    CFG.dehyphenate=e.target.checked?1:0;
+    CFG.name=matchPreset()||"custom";
+    $("#preset").value=CFG.name;
+    refreshPreview();
+    return;
+  }
+  if(e.target&&e.target.id==="rv-load"&&e.target.files&&e.target.files[0]){
+    e.target.files[0].text().then(txt=>{
+      const parsed=reviewParse(txt);
+      for(const [k,v] of parsed) CFG.decisions.set(k,v);
+      drawToggles(); refreshPreview();
+    });
+    return;
+  }
   if(e.target&&e.target.name==="fn-route"){
     CFG.footnotes=e.target.value;
     CFG.name=matchPreset()||"custom";
@@ -387,6 +525,7 @@ function matchPreset(){
   // definition. Reporting a preset name here would mislabel the log.
   if(CFG.dropFurniture) return null;
   if(CFG.footnotes&&CFG.footnotes!=="retain") return null;
+  if(CFG.dehyphenate) return null;
   for(const [n,p] of Object.entries(PRESETS)){
     if(p.dropHeadings!==CFG.dropHeadings) continue;
     if(LABELS.every(l=>!!p.keep[l.id]===!!CFG.keep[l.id])) return n;

@@ -72,6 +72,8 @@ can leave the corpus only because you chose to remove it.
   parallel file
 - De-hyphenation of words broken across a line break, with undecidable cases
   flagged rather than guessed
+- A review queue: a hand-editable file, and a keyboard-driven reviewer in the
+  web application, for every case the rules decline to decide
 - Preprocessing log in Markdown and JSON
 
 Page furniture is detected but never removed unless asked. The detector has so
@@ -84,6 +86,30 @@ because Gutenberg keeps footnotes where it strips page furniture. A marker
 counts as a footnote only when a note elsewhere carries the same label, so
 stage directions and other bracketed material are never touched. Anything that
 cannot be paired is reported and left alone by every route.
+
+### The review queue
+
+Every rule here refuses to guess, which is only useful if the refusals have
+somewhere to go. `prepare()` writes `<name>__review.tsv` beside the output: one
+tab-separated line per undecided case, hand-editable, re-importable.
+
+```
+# DECISION   TYPE     ITEM           WHY
+?            hyphen   def-inite      neither form occurs elsewhere in this text
+join         hyphen   sug-gest
+keep         hyphen   half-broken
+```
+
+**Items are keyed by content, never by line number.** Remove a Gutenberg header
+and every line below shifts, so a decision keyed on position would reattach to
+the wrong word. Keying on `def-inite` survives that, and lets one decision serve
+every volume of an edition.
+
+An untouched queue changes nothing, so it is safe to generate and experiment
+with. Answered, it takes de-hyphenation from 84 of 180 cases to all 180.
+
+In the web application the same queue is keyboard-driven: `J` join, `K` keep,
+`S` skip, `Esc` finish.
 
 **No wordlist is bundled, deliberately.** De-hyphenation takes its evidence from
 the document's own vocabulary: if `example` occurs elsewhere in this text, the
@@ -153,7 +179,7 @@ which was quietly splitting words such as *æsthetic* and *naïve*.
 ## Tests
 
 ```bash
-python tests/test_corpusprep.py     # 260 checks, no pytest required
+python tests/test_corpusprep.py     # 274 checks, no pytest required
 python tools/check_parity.py        # Python and JavaScript must agree
 python tools/measure.py             # accuracy against hand-marked keys
 python tools/stress_test.py corpora # traffic-light report over a folder

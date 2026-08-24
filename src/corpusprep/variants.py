@@ -229,6 +229,9 @@ def render(doc: Document, variant: Variant) -> VariantResult:
         # this text's own orthography, and discarding that evidence would
         # flag cases the document could have answered.
         breaks = _dh.find(out, extra_vocab=_dh.vocabulary(doc.lines))
+        if doc.decisions:
+            from . import review as _rv
+            _rv.apply_to_breaks(breaks, doc.decisions)
         hyphen_joined = sum(1 for b in breaks if not b.needs_review)
         hyphen_flagged = sum(1 for b in breaks if b.needs_review)
         out = _dh.apply(out, breaks)

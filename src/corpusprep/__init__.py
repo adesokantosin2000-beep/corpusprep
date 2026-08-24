@@ -39,11 +39,13 @@ __all__ = [
     "load", "segment", "render", "render_all", "prepare",
     "Document", "Region", "Variant", "VariantResult",
     "BUILTIN", "DEFAULT_SET", "custom_variant", "write_log", "analyse",
+    "review",
     "PG_HEADER", "PG_LICENCE", "FRONT_MATTER", "BODY", "BACK_MATTER", "UNKNOWN",
 ]
 
 
-def analyse(path: str | Path) -> Document:
+def analyse(path: str | Path,
+            decisions: dict | str | Path | None = None) -> Document:
     """Import a file, segment it, and detect page furniture.
 
     The single place where the two detection stages are combined, so that
@@ -52,6 +54,10 @@ def analyse(path: str | Path) -> Document:
     """
     from .footnotes import find_in_document as find_footnotes
     from .furniture import find_in_document
+    from . import review as _review
+
+    if decisions is not None and not isinstance(decisions, dict):
+        decisions = _review.read(decisions)
 
     doc = segment(load(path))
     marked, candidates, page_length, catchwords = find_in_document(doc)
@@ -78,6 +84,9 @@ def analyse(path: str | Path) -> Document:
 
     from .dehyphenate import find_in_document as find_breaks
     breaks = find_breaks(doc)
+    if decisions:
+        doc = doc.with_decisions(decisions)
+        _review.apply_to_breaks(breaks, decisions)
     doc = doc.with_hyphen_breaks(breaks)
     if breaks:
         undecided = [b for b in breaks if b.needs_review]
@@ -113,13 +122,14 @@ def prepare(
     path: str | Path,
     out_dir: str | Path | None = None,
     variants: list[str] | None = None,
+    decisions: dict | str | Path | None = None,
 ) -> tuple[Document, list[VariantResult]]:
     """Import, segment, and render variants in one call.
 
     If ``out_dir`` is given, cleaned files and the preprocessing log are
     written there. The source file is never modified.
     """
-    doc = analyse(path)
+    doc = analyse(path, decisions)
     results = render_all(doc, variants or DEFAULT_SET)
 
     if out_dir is not None:
@@ -131,5 +141,13 @@ def prepare(
                 r.text, encoding="utf-8"
             )
         write_log(doc, results, out_dir, stem)
+
+        # The queue is written whether or not anything is outstanding. A file
+        # that appears only sometimes is a file nobody learns to look for.
+        from . import review as _rv
+        items = _rv.from_document(doc)
+        if items:
+            _rv.write(items, out_dir / f"{stem}__review.tsv",
+                      existing=doc.decisions)
 
     return doc, results
