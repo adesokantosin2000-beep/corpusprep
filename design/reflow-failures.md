@@ -209,3 +209,49 @@ the difference is an improvement.
 **F2** whitespace normalisation — no double spaces exist in this text, so it
 remains undecided rather than resolved. **F3** headings wrapped onto two lines,
 still untested. **F4** first-line indentation, still an undecided default.
+
+
+---
+
+## Week 11 — ordering, and two more faults
+
+### The stage order is a dependency, not a preference
+
+De-hyphenation **must** run before reflow. It repairs words broken across a
+line break, and reflow removes exactly those breaks.
+
+The pipeline had them the wrong way round, shipped in the Week 9 commit:
+
+| Order | Breaks de-hyphenation could see | Words recovered |
+|---|---|---|
+| reflow, then de-hyphenate | **0 of 180** | 81 of 166 |
+| de-hyphenate, then reflow | 180 of 180 | **162 of 166** |
+
+Reflow consumed the evidence entirely. The order is now fixed in the renderer
+in both implementations, with the reason written beside it rather than in
+documentation a later edit can quietly contradict.
+
+### More evidence is not always more evidence
+
+Fixing the order alone changed nothing: still 81 of 166. A second fault sat
+underneath.
+
+`render()` was passing the whole document's vocabulary to de-hyphenation as
+"extra evidence". **The document contains the broken fragments.** Each fragment
+was therefore counted twice while the fragment discount subtracts it once, so
+`inite` was promoted to a real word and the break read as a compound.
+
+It turned **171 joins into 84**, and 6 kept hyphens into 96.
+
+`extra_vocab` is for a wordlist from *outside* the document, and the parameter
+now says so. A word attested only in a region the reader chose to delete is not
+part of the corpus being produced anyway.
+
+### A test that passed for the wrong reason
+
+`test_real_compounds_keep_their_hyphen` had been passing throughout. The
+poisoned vocabulary made the rule keep *everything*, so the compounds survived
+by accident — and so did the test. Removing the fault broke it.
+
+**A test can be green because the code is right or because two faults cancel.**
+Only changing something tells you which.

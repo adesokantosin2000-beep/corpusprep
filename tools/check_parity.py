@@ -53,7 +53,7 @@ if(eng<0||engEnd<0||fmt<0||fmtEnd<0){
 const M=new Function(html.slice(eng,engEnd)+html.slice(fmt,fmtEnd)+
   '; return {segment,render,PRESETS,coverageGaps,countTT,extractFile,'+
   'findFurnitureIn,looksLikePageNumber,findCatchwords,findFootnotesIn,'+
-  'findHyphenBreaksIn,findProtectedIn};')();
+  'findHyphenBreaksIn,findProtectedIn,reflowLines,protectedLines};')();
 
 const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
 
@@ -85,6 +85,9 @@ const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
     out[path.basename(f)]={
       furniture:[...fu.furniture].sort((a,b)=>a-b).join(","),
       catchwords:[...fu.catchwords].sort((a,b)=>a-b).join(","),
+      reflowed:(()=>{const r=M.reflowLines(lines,
+        M.protectedLines(M.findProtectedIn(lines,seg.regions)));
+        return r.blocksJoined+"/"+r.blocksKept+"/"+M.countTT(r.lines.join("\n")).tokens})(),
       protected:M.findProtectedIn(lines,seg.regions)
         .map(s=>s.start+"-"+s.end).sort().join(","),
       hyphens:M.findHyphenBreaksIn(lines,seg.regions)
@@ -112,6 +115,8 @@ def run_python(files: list[Path]) -> dict:
     from corpusprep.document import count_tokens_types
     from corpusprep.dehyphenate import find_in_document as find_breaks
     from corpusprep.protect import find_in_document as find_protected
+    from corpusprep.protect import protected_lines
+    from corpusprep.reflow import reflow as reflow_lines
     from corpusprep.footnotes import find_in_document as find_footnotes
     from corpusprep.furniture import find_in_document
 
@@ -125,6 +130,9 @@ def run_python(files: list[Path]) -> dict:
         hy = sorted(f"{b.line}:{b.decision}:{b.resolved}"
                     for b in find_breaks(doc))
         pr = sorted(f"{s.start}-{s.end}" for s in find_protected(doc))
+        _r = reflow_lines(doc.lines, protected_lines(find_protected(doc)))
+        rf = (f"{_r.blocks_joined}/{_r.blocks_kept}/"
+              f"{count_tokens_types(chr(10).join(_r.lines))[0]}")
         res = {}
         for v in VARIANTS:
             r = render(doc, BUILTIN[v])
@@ -136,6 +144,7 @@ def run_python(files: list[Path]) -> dict:
             "footnotes": ",".join(fn),
             "hyphens": ",".join(hy),
             "protected": ",".join(pr),
+            "reflowed": rf,
             "furniture_page": round(page, 1),
             "regions": len(doc.regions),
             "chapters": len([r for r in doc.regions if r.kind == "chapter"]),
@@ -216,7 +225,8 @@ def main(argv: list[str]) -> int:
         print(f"    {', '.join(skipped)}")
 
     ok = True
-    scalar = ["regions", "chapters", "gaps", "source_tokens", "furniture_page"]
+    scalar = ["regions", "chapters", "gaps", "source_tokens", "furniture_page",
+              "reflowed"]
 
     for name in py:
         print(f"\n{name}")

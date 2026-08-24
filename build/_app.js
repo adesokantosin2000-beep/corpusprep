@@ -182,6 +182,7 @@ async function loadText(name,buf){
   // Footnotes are content, not printing debris. The default keeps them.
   CFG.footnotes="retain";
   CFG.dehyphenate=0;
+  CFG.reflow=0;
   // Decisions are per-document and start empty. Carrying them between texts
   // would apply one book's judgements to another without asking.
   CFG.decisions=new Map();
@@ -272,6 +273,11 @@ function hyphenNotice(){
         <span class="fn-t">Rejoin broken words</span>
         <span class="fn-d">Repairs the line break. The hyphen is decided
           separately.</span></label>
+      <label class="fn-opt ${CFG.reflow?"on":""}">
+        <input type="checkbox" id="rf-on" ${CFG.reflow?"checked":""}>
+        <span class="fn-t">Rejoin paragraphs</span>
+        <span class="fn-d">Undoes fixed-width line wrapping. Verse, drama and
+          tables are left alone. 99.5% accurate; see the log.</span></label>
     </div>
     ${left?`<div class="rv-bar">
       <button class="btn-sm ghost" id="rv-start">Look at the ${left} kept
@@ -447,6 +453,13 @@ document.addEventListener("click",e=>{
 });
 
 document.addEventListener("change",e=>{
+  if(e.target&&e.target.id==="rf-on"){
+    CFG.reflow=e.target.checked?1:0;
+    CFG.name=matchPreset()||"custom";
+    $("#preset").value=CFG.name;
+    refreshPreview();
+    return;
+  }
   if(e.target&&e.target.id==="dh-on"){
     CFG.dehyphenate=e.target.checked?1:0;
     CFG.name=matchPreset()||"custom";
@@ -537,7 +550,7 @@ function matchPreset(){
   // definition. Reporting a preset name here would mislabel the log.
   if(CFG.dropFurniture) return null;
   if(CFG.footnotes&&CFG.footnotes!=="retain") return null;
-  if(CFG.dehyphenate) return null;
+  if(CFG.dehyphenate||CFG.reflow) return null;
   for(const [n,p] of Object.entries(PRESETS)){
     if(p.dropHeadings!==CFG.dropHeadings) continue;
     if(LABELS.every(l=>!!p.keep[l.id]===!!CFG.keep[l.id])) return n;

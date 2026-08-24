@@ -152,10 +152,14 @@ No two paragraphs are ever merged. Every error is in the direction of splitting
 too much, which is the safer one: a wrongly split paragraph is visible in the
 output, whereas a merged boundary is lost.
 
+**Stage order is enforced in code.** De-hyphenation runs before reflow, because
+it repairs words broken across a line break and reflow removes exactly those
+breaks. Run the other way round, de-hyphenation sees 0 of 180 breaks instead of
+180.
+
 ### Not yet implemented
 
-OCR repair, PDF import. Reflow is not yet mirrored in the web application; that
-is scheduled for Week 11 with the parity check. These are specified in
+OCR repair, PDF import. These are specified in
 [`design/design-spec.md`](design/design-spec.md) and scheduled in
 [`design/schedule-phase2.md`](design/schedule-phase2.md). They are listed in
 the application interface, marked as planned, so that current limitations are

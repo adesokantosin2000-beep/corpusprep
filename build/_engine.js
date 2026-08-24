@@ -1489,6 +1489,84 @@ function protectedLines(spans){
   return out;
 }
 
+/* ---- paragraph reflow --------------------------------------------------
+   Rejoining paragraphs a typesetter broke into fixed-width lines.
+
+   The one stage the original assessment said could not be solved completely.
+   Measured at 99.5% of paragraphs recovered, with the remainder recorded in
+   design/reflow-failures.md rather than hidden.
+
+   Mirrors src/corpusprep/reflow.py.                                        */
+
+const RF_HEADING_MAX_LEN = 60;
+
+//: A hyphen ATTACHED to a word carries no space when lines are rejoined.
+//  Wrapping breaks on hyphens, so `white-washed` arrives as `white-` and
+//  `washed`, and a space at the seam gives `white- washed`: a space that was
+//  never in the book, splitting a compound in two.
+const RF_HYPHEN_TAIL = /[^\W\d_][\w'’]*-$/u;
+
+function reflowBlocks(lines){
+  const out=[]; let cur=[], start=1;
+  for(let i=0;i<lines.length;i++){
+    if(lines[i].trim()){ if(!cur.length) start=i+1; cur.push(lines[i]); }
+    else if(cur.length){ out.push({start,lines:cur}); cur=[]; }
+  }
+  if(cur.length) out.push({start,lines:cur});
+  return out;
+}
+
+function looksLikeHeading(block){
+  if(block.lines.length!==1) return false;
+  const s=block.lines[0].trim();
+  if(!s||s.length>RF_HEADING_MAX_LEN) return false;
+  // A line ending in a comma is mid-sentence and was probably wrapped.
+  return !(s.endsWith(",")||s.endsWith(";")||s.endsWith("-"));
+}
+
+/* Reflow does not decide the hyphen's fate, only that no space belongs at the
+   seam. Whether `white-washed` becomes `whitewashed` is de-hyphenation's
+   separate question, and it must be asked FIRST: reflow removes exactly the
+   line breaks de-hyphenation works on.                                     */
+function reflowJoin(lines){
+  let out="";
+  for(const line of lines){
+    const s=line.trim();
+    if(!s) continue;
+    if(!out) out=s;
+    else if(RF_HYPHEN_TAIL.test(out)) out+=s;
+    else out+=" "+s;
+  }
+  return out.replace(/[ \t]+/g," ").trim();
+}
+
+function reflowLines(lines,protectedSet,skip){
+  protectedSet=protectedSet||new Set();
+  skip=skip||new Set();
+  if(!isWrapped(lines))
+    return {lines:lines.slice(),blocksJoined:0,blocksKept:0,
+            notes:["text is not hard-wrapped; nothing to rejoin"]};
+
+  const out=[]; let joined=0, kept=0;
+  for(const b of reflowBlocks(lines)){
+    const end=b.start+b.lines.length-1;
+    let touched=false;
+    for(let n=b.start;n<=end;n++)
+      if(protectedSet.has(n)||skip.has(n)){touched=true;break}
+
+    if(touched||looksLikeHeading(b)||b.lines.length===1){
+      for(const l of b.lines) out.push(l);
+      out.push(""); kept++;
+      continue;
+    }
+    const indent=(/^[ \t]*/.exec(b.lines[0])||[""])[0];
+    out.push(indent+reflowJoin(b.lines));
+    out.push(""); joined++;
+  }
+  while(out.length&&!out[out.length-1].trim()) out.pop();
+  return {lines:out,blocksJoined:joined,blocksKept:kept,notes:[]};
+}
+
 /* ---- variants ---- */
 const PRESETS={
   "verbatim":       {keep:{pg_header:1,pg_licence:1,front_matter:1,body:1,back_matter:1,unknown:1},dropHeadings:0,collapse:0,
@@ -1533,13 +1611,31 @@ function render(lines,regions,cfg,furniture,footnotes){
     }
     out.push("");
   }
+  /* ---- stage order is not arbitrary ---------------------------------
+     De-hyphenation MUST run before reflow. It works on words broken across a
+     line break, and reflow removes exactly those breaks. The other way round,
+     reflow joins the fragments first and de-hyphenation finds nothing: 0 of
+     180 breaks seen, 81 of 166 words recovered, against 162 in this order. */
   let hyphensJoined=0, hyphensFlagged=0;
   if(cfg.dehyphenate){
-    // Evidence is drawn from the WHOLE document, not just the kept regions.
-    const br=findHyphenBreaks(out,null,dhVocabulary(lines));
+    // Evidence comes from the text being produced, NOT from the whole
+    // document. The document contains the broken fragments, so feeding its
+    // own vocabulary back in counts each fragment twice while the discount
+    // subtracts it once, promoting every fragment to a real word. It turned
+    // 171 joins into 84.
+    const br=findHyphenBreaks(out);
     if(cfg.decisions&&cfg.decisions.size) reviewApply(br,cfg.decisions);
     for(const b of br) dhNeedsReview(b)?hyphensFlagged++:hyphensJoined++;
     out=applyHyphenBreaks(out,br);
+  }
+
+  let paragraphsJoined=0;
+  if(cfg.reflow){
+    // Protected spans are recomputed on the output: verse that survived
+    // region selection is still verse, and its line numbers have moved.
+    const r=reflowLines(out,protectedLines(findProtected(out)));
+    paragraphsJoined=r.blocksJoined;
+    out=r.lines;
   }
   let text=out.join("\n");
   if(cfg.collapse) text=text.replace(/\n{3,}/g,"\n\n");
@@ -1548,7 +1644,8 @@ function render(lines,regions,cfg,furniture,footnotes){
   return {text,kept,dropped,stats:{chars:text.length,lines:text.split("\n").length-1,
     tokens:tt.tokens,types:tt.types,kept:kept.length,dropped:dropped.length,
     furnitureRemoved,footnotesRemoved:paired.length,
-    footnoteLinesRemoved:noteLinesRemoved,hyphensJoined,hyphensFlagged},
+    footnoteLinesRemoved:noteLinesRemoved,hyphensJoined,hyphensFlagged,
+    paragraphsJoined},
     footnoteText:cfg.footnotes==="extract"&&paired.length
       ? paired.map(f=>"["+f.label+"]\t"+f.text).join("\n")+"\n" : null};
 }

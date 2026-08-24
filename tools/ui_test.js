@@ -118,6 +118,10 @@ async function run(name, fn) {
     const asked = btn ? parseInt(btn.textContent.match(/\d+/)[0], 10) : 999;
     check('and asks about only a handful', asked <= 6, asked + ' questions');
     check('dehyphenate toggle offered', !!d.querySelector('#dh-on'));
+    check('reflow toggle offered', !!d.querySelector('#rf-on'));
+    // Both off until asked, like every other transformation here.
+    check('reflow is off until asked',
+          !d.querySelector('#rf-on').checked && !w.eval('!!CFG.reflow'));
 
     // The keyboard path, which is the whole point of the reviewer.
     w.eval('reviewOpen()');

@@ -228,32 +228,53 @@ def render(doc: Document, variant: Variant) -> VariantResult:
 
         out.append("")  # Blank line between regions
 
-    paragraphs_joined = 0
-    if variant.reflow:
-        from . import protect as _pt, reflow as _rf
-        # Protected spans are computed on the ORIGINAL document, then mapped
-        # forward is not possible, so they are recomputed on the output. Verse
-        # that survived region selection is still verse.
-        prot = _pt.protected_lines(_pt.find(out))
-        r = _rf.reflow(out, prot)
-        paragraphs_joined = r.blocks_joined
-        out = r.lines
+    # ---- stage order is not arbitrary ----------------------------------
+    #
+    # De-hyphenation MUST run before reflow.
+    #
+    # De-hyphenation works on words broken across a line break, and reflow
+    # removes exactly those breaks. Run the other way round, reflow joins the
+    # fragments first and de-hyphenation finds nothing left to repair: on the
+    # hyphenated fixture it saw 0 of 180 breaks and recovered 81 of 166 words,
+    # against 162 in the right order.
+    #
+    # The dependency is enforced here, in the code, rather than described in
+    # documentation that a later edit can quietly contradict.
 
     hyphen_joined = 0
     hyphen_flagged = 0
     if variant.dehyphenate:
         from . import dehyphenate as _dh
-        # Evidence is drawn from the WHOLE document, not just the kept
-        # regions. A word attested only in the preface is still attested in
-        # this text's own orthography, and discarding that evidence would
-        # flag cases the document could have answered.
-        breaks = _dh.find(out, extra_vocab=_dh.vocabulary(doc.lines))
+        # Evidence comes from the text being produced, and NOT from
+        # `doc.lines`.
+        #
+        # Passing the document's own vocabulary here looks like it supplies
+        # more evidence and in fact destroys it. The document contains the
+        # broken fragments, so every fragment is counted twice while
+        # `attested()` discounts it once: `inite` becomes a real word and the
+        # break reads as a compound. It turned 171 joins into 84.
+        #
+        # `extra_vocab` is for a wordlist from OUTSIDE the document. A word
+        # attested only in a region the reader chose to delete is not part of
+        # the corpus being produced anyway.
+        breaks = _dh.find(out)
         if doc.decisions:
             from . import review as _rv
             _rv.apply_to_breaks(breaks, doc.decisions)
         hyphen_joined = sum(1 for b in breaks if not b.needs_review)
         hyphen_flagged = sum(1 for b in breaks if b.needs_review)
         out = _dh.apply(out, breaks)
+
+    paragraphs_joined = 0
+    if variant.reflow:
+        from . import protect as _pt, reflow as _rf
+        # Protected spans are recomputed on the output rather than mapped
+        # forward from the document: verse that survived region selection is
+        # still verse, and its line numbers have moved.
+        prot = _pt.protected_lines(_pt.find(out))
+        r = _rf.reflow(out, prot)
+        paragraphs_joined = r.blocks_joined
+        out = r.lines
 
     text = "\n".join(out)
 

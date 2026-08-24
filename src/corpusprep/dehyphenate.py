@@ -121,8 +121,14 @@ def find(lines: list[str], skip: set[int] | None = None,
          extra_vocab: set[str] | None = None) -> list[Break]:
     """Find every word broken across a line break, and decide each.
 
-    ``extra_vocab`` is an optional user-supplied wordlist. The default
-    behaviour deliberately does not depend on one.
+    ``extra_vocab`` is an optional wordlist **from outside this document**.
+    The default behaviour deliberately does not depend on one.
+
+    It must not be the vocabulary of the text being searched. The document
+    contains the broken fragments, so passing its own vocabulary counts each
+    fragment twice while the fragment discount subtracts it once, and every
+    fragment is promoted to a real word. Doing that here turned 171 joins into
+    84 and 6 kept hyphens into 96.
     """
     skip = skip or set()
     vocab = vocabulary(lines)

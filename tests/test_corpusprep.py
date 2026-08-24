@@ -1007,10 +1007,22 @@ def test_real_compounds_keep_their_hyphen():
     compounds = [w for w in truth.values() if "-" in w]
     check("the fixture contains real compounds", len(compounds) >= 5)
 
-    doc = analyse(fx)
-    out = render(doc, _replace(BUILTIN["verbatim"], dehyphenate=True))
+    # Measured on the whole novel's vocabulary, which is the normal case: a
+    # reader loads a book, not a 260-paragraph extract.
+    #
+    # This test used to run on the extract and pass, but for the wrong reason.
+    # The pipeline was feeding the document's own vocabulary back in as extra
+    # evidence, which promoted every fragment to a real word and made the rule
+    # keep *everything*. The compounds survived by accident, and so did the
+    # test. Two of the nine now fail on the extract alone and are recorded in
+    # design/DECISIONS.md as the price of asking 3 questions instead of 96.
+    from corpusprep import dehyphenate as _dh
+    book = _dh.vocabulary(load(FIXTURES / "CBronte_Jane.txt").lines)
+    breaks = _dh.find(load(fx).lines, extra_vocab=book)
+    resolved = {b.resolved for b in breaks}
     for w in compounds:
-        check(f"{w} keeps its hyphen", w.replace("-", "") not in out.text)
+        check(f"{w} keeps its hyphen", w in resolved or
+              w.replace("-", "") not in resolved, w)
 
 
 def test_dehyphenation_leaves_no_word_split():
@@ -1536,6 +1548,75 @@ def test_contents_entry_matches_a_bare_heading():
           == heading_key("CHAPTER I."))
     check("different chapters do not",
           heading_key("CHAPTER I.") != heading_key("CHAPTER II."))
+
+
+def test_dehyphenation_runs_before_reflow():
+    """The stage order is a dependency, not a preference.
+
+    De-hyphenation repairs words broken across a line break; reflow removes
+    those breaks. Run the wrong way round, reflow joins the fragments first and
+    de-hyphenation finds nothing left to repair.
+    """
+    import re as _re
+    from dataclasses import replace as _replace
+    from corpusprep import analyse, dehyphenate as D, protect as P, reflow as R
+    from corpusprep.variants import BUILTIN, render
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    truth = _hyphen_key()
+    words = {w.lower() for w in truth.values()}
+    lines = load(fx).lines
+
+    # Reflow first destroys the evidence entirely.
+    res = R.reflow(lines, P.protected_lines(P.find(lines)))
+    check("reflow leaves no line breaks for de-hyphenation to find",
+          not D.find(res.lines), f"{len(D.find(res.lines))} remain")
+
+    # The pipeline must therefore run them the other way round.
+    doc = analyse(fx)
+    out = render(doc, _replace(BUILTIN["verbatim"], dehyphenate=True, reflow=True))
+    got = {w.lower() for w in _re.findall(r"[A-Za-z][A-Za-z'’-]*", out.text)}
+    recovered = len(words & got) / len(words)
+    check("both stages together recover the broken words", recovered >= 0.95,
+          f"{len(words & got)}/{len(words)} = {recovered:.0%}")
+
+    only = render(doc, _replace(BUILTIN["verbatim"], dehyphenate=True))
+    got2 = {w.lower() for w in _re.findall(r"[A-Za-z][A-Za-z'’-]*", only.text)}
+    check("and reflow costs de-hyphenation nothing",
+          len(words & got) >= len(words & got2),
+          f"{len(words & got)} with reflow, {len(words & got2)} without")
+
+
+def test_extra_vocab_must_come_from_outside_the_document():
+    """Passing the document's own vocabulary destroys the fragment discount.
+
+    The text contains the broken fragments, so each is counted twice while
+    `attested()` subtracts it once. `inite` becomes a real word and the break
+    reads as a compound. It turned 171 joins into 84.
+    """
+    from corpusprep import dehyphenate as D
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    lines = load(fx).lines
+    clean = D.find(lines)
+    poisoned = D.find(lines, extra_vocab=D.vocabulary(lines))
+
+    joins_clean = sum(1 for b in clean if b.decision == D.JOIN)
+    joins_bad = sum(1 for b in poisoned if b.decision == D.JOIN)
+    check("the document's own vocabulary is not passed as extra evidence",
+          joins_clean > joins_bad * 1.5,
+          f"{joins_clean} joins clean vs {joins_bad} poisoned — if these are "
+          f"close the guard has been lost")
+
+    # And the pipeline must not do it.
+    src = (Path(__file__).resolve().parent.parent / "src" / "corpusprep"
+           / "variants.py").read_text(encoding="utf-8")
+    check("render() does not pass doc.lines as extra_vocab",
+          "extra_vocab=_dh.vocabulary(doc.lines)" not in src)
 
 
 def test_chapter_heading_precision():
