@@ -1234,6 +1234,101 @@ def test_authorial_break_needs_both_signals():
     check("blank lines carry no evidence", not ab("anything.", ""))
 
 
+def _wrap(paras, width):
+    import textwrap as _tw
+    out = []
+    for p in paras:
+        out.extend(_tw.wrap(p, width))
+        out.append("")
+    return out
+
+
+def test_reflow_round_trip_baseline():
+    """Wrap real prose, reflow it, and compare with what we started from.
+
+    Ground truth needs no judgement here, so the measurement cannot flatter
+    itself. This pins the Week 9 baseline of 96.2% so that Week 10's hardening
+    has something to be measured against.
+    """
+    import re as _re
+    from corpusprep import protect as P, reflow as R
+
+    fx = FIXTURES / "CBronte_Jane.txt"
+    if not fx.exists():
+        return
+    norm = lambda s: _re.sub(r"\s+", " ", s).strip()
+    paras = [p.strip() for p in fx.read_text(encoding="utf-8").split("\n")
+             if p.strip()][:400]
+    want = {norm(p) for p in paras}
+
+    wrapped = _wrap(paras, 66)
+    res = R.reflow(wrapped, P.protected_lines(P.find(wrapped)))
+    got = {norm(l) for l in res.lines if l.strip()}
+
+    recovered = len(want & got) / len(want)
+    check("reflow recovers at least the Week 9 baseline", recovered >= 0.95,
+          f"{recovered:.1%}, baseline was 96.2%")
+    # F1: known over-splitting. Pinned so hardening can show it shrinking.
+    spurious = len(got - want)
+    check("over-splitting has not got worse", spurious <= 25,
+          f"{spurious} spurious paragraphs, was 22")
+
+
+def test_reflow_never_merges_paragraphs():
+    """The unsafe direction. A merged boundary is lost for ever."""
+    import re as _re
+    from corpusprep import protect as P, reflow as R
+
+    fx = FIXTURES / "CBronte_Jane.txt"
+    if not fx.exists():
+        return
+    norm = lambda s: _re.sub(r"\s+", " ", s).strip()
+    paras = [p.strip() for p in fx.read_text(encoding="utf-8").split("\n")
+             if p.strip()][:400]
+    wrapped = _wrap(paras, 66)
+    res = R.reflow(wrapped, P.protected_lines(P.find(wrapped)))
+    got = [norm(l) for l in res.lines if l.strip()]
+
+    check("reflow produces at least as many paragraphs as it was given",
+          len(got) >= len(paras),
+          f"{len(got)} out of {len(paras)} — a merge would show up here")
+
+
+def test_reflow_leaves_verse_alone():
+    from corpusprep import protect as P, reflow as R
+
+    fx = FIXTURES / "mixed_verse.txt"
+    if not fx.exists():
+        return
+    doc = segment(load(fx))
+    prot = P.protected_lines(P.find_in_document(doc))
+    res = R.reflow_document(doc, prot)
+    text = "\n".join(res.lines)
+    for n in sorted(prot)[:40]:
+        line = doc.lines[n - 1].strip()
+        if len(line) > 12:
+            check(f"verse line {n} survives reflow intact", line in text,
+                  line[:40])
+
+
+def test_reflow_leaves_unwrapped_text_alone():
+    from corpusprep import reflow as R
+
+    fx = FIXTURES / "CBronte_Jane.txt"
+    if not fx.exists():
+        return
+    lines = load(fx).lines
+    res = R.reflow(lines)
+    check("an unwrapped file is returned unchanged", res.lines == list(lines))
+    check("and says so", any("not hard-wrapped" in n for n in res.notes))
+
+
+def test_reflow_is_off_by_default():
+    from corpusprep.variants import BUILTIN
+    for name, v in BUILTIN.items():
+        check(f"{name} does not reflow by default", not v.reflow)
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [

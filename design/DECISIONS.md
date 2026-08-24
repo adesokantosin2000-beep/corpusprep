@@ -968,3 +968,58 @@ Editions. Aldo, Venice, 1546; della Tertina, 1550; Cambiagi, Flore
 Not verse, but line-structured reference material that a reflow would also
 destroy. `design-spec.md` lists tabular material among the protected
 categories, so this is the rule working, not failing. Left as it is.
+
+---
+
+## 2026-08-23 — Reflow: baseline, and a measurement that lied
+
+Week 9. The schedule's instruction for Friday was to run reflow on the fixtures,
+expect poor results, and **log every failure without fixing any of them**. That
+discipline is followed: the faults are in `design/reflow-failures.md` and none
+is fixed. Fixing on the day you find them means fixing the easy ones and quietly
+losing the list.
+
+### The measurement lied before the rule did
+
+The first run reported **4.2% accuracy**. That number was wrong.
+
+Paragraphs were compared **positionally**, first against first and so on. A
+single spurious split early in the file shifts every paragraph after it, so one
+error made the whole remainder read as failure. Compared as sets, the same
+output scores **96.2%**.
+
+Both numbers measure something real, and position matters if you are aligning
+to a printed edition. But quoting 4.2% as an accuracy figure would have been
+badly misleading, and I nearly did. **A metric that collapses on a single
+insertion is measuring alignment, not accuracy**, and the difference is
+twenty-two fold here.
+
+### The one real fault is circular evidence
+
+All 22 spurious paragraphs come from `split_turns()`, which starts a new
+paragraph at any line beginning with a quotation mark.
+
+The reasoning is sound: typesetters do run two speeches together. The evidence
+is not. **In wrapped text a line begins with a quotation mark whenever the wrap
+happens to fall there.** Line position is an artefact, and it is precisely the
+artefact reflow exists to remove, so using it as evidence is circular.
+
+That makes it a category error rather than a threshold to tune, and the fix is
+genuinely unobvious: telling a new speech from a mid-sentence quotation needs
+evidence that survives wrapping. Left for Week 10, as scheduled.
+
+### Reflow is offered, not recommended
+
+Off by default, and more emphatically than the other stages. It is the one
+stage the original assessment said could not be solved completely, it measures
+96.2% rather than 100%, and its known faults are enumerated in a file the user
+can read. A tool that reports "these thirty joins are uncertain" is more useful
+than one that silently guesses, and that remains the target.
+
+### What did not go wrong
+
+Protected spans held: no verse passage was joined in any run. Unwrapped text
+was returned unchanged rather than mangled. And **no two paragraphs were ever
+merged** — every error is in the direction of splitting too much, which is the
+safer one, since a wrongly split paragraph is visible and repairable whereas a
+merged boundary is gone.

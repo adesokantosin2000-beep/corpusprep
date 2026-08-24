@@ -66,6 +66,13 @@ class Variant:
     # text the evidence is often absent. Cases the rule cannot decide are
     # flagged rather than guessed.
     dehyphenate: bool = False
+    # Rejoin paragraphs a typesetter broke into fixed-width lines.
+    #
+    # Off by default, and more emphatically than the others. Reflow is the one
+    # stage the original assessment said cannot be solved completely, it is
+    # measured at 96.2% rather than 100%, and its known faults are listed in
+    # design/reflow-failures.md. It is offered, not recommended.
+    reflow: bool = False
 
     def keeps(self, label: str) -> bool:
         return self.keep.get(label, True)
@@ -84,6 +91,7 @@ class Variant:
                 "drop_furniture": self.drop_furniture,
                 "footnotes": self.footnotes,
                 "dehyphenate": self.dehyphenate,
+                "reflow": self.reflow,
             },
         }
 
@@ -220,6 +228,17 @@ def render(doc: Document, variant: Variant) -> VariantResult:
 
         out.append("")  # Blank line between regions
 
+    paragraphs_joined = 0
+    if variant.reflow:
+        from . import protect as _pt, reflow as _rf
+        # Protected spans are computed on the ORIGINAL document, then mapped
+        # forward is not possible, so they are recomputed on the output. Verse
+        # that survived region selection is still verse.
+        prot = _pt.protected_lines(_pt.find(out))
+        r = _rf.reflow(out, prot)
+        paragraphs_joined = r.blocks_joined
+        out = r.lines
+
     hyphen_joined = 0
     hyphen_flagged = 0
     if variant.dehyphenate:
@@ -257,6 +276,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
         "footnote_lines_removed": notes_removed,
         "hyphens_joined": hyphen_joined,
         "hyphens_flagged": hyphen_flagged,
+        "paragraphs_joined": paragraphs_joined,
     }
 
     if variant.footnotes == "extract":

@@ -122,9 +122,25 @@ confirmation would refuse a third of the legitimate joins and fail worst on
 historical material. The rule is never wrong on the cases it decides, and flags
 the rest.
 
+### Paragraph reflow: measured, and offered rather than recommended
+
+Reflow rejoins paragraphs a typesetter broke into fixed-width lines. It is the
+one stage the original assessment said could not be solved completely, and it
+is off by default in every variant.
+
+Measured by wrapping *Jane Eyre* and reflowing it, so ground truth needs no
+judgement: **96.2% of paragraphs recovered exactly**. The remaining error is a
+single fault, over-splitting at false speaker turns, and every known limitation
+is enumerated in [`design/reflow-failures.md`](design/reflow-failures.md).
+
+No two paragraphs are ever merged. Every error is in the direction of splitting
+too much, which is the safer one: a wrongly split paragraph is visible in the
+output, whereas a merged boundary is lost.
+
 ### Not yet implemented
 
-OCR repair, paragraph reflow, PDF import. These are specified in
+OCR repair, PDF import. Reflow is not yet mirrored in the web application; that
+is scheduled for Week 11 with the parity check. These are specified in
 [`design/design-spec.md`](design/design-spec.md) and scheduled in
 [`design/schedule-phase2.md`](design/schedule-phase2.md). They are listed in
 the application interface, marked as planned, so that current limitations are
