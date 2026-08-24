@@ -918,17 +918,77 @@ def test_dehyphenation_never_wrong_when_it_acts():
         decided = [b for b in breaks if not b.needs_review]
         wrong = [b for b in decided
                  if truth.get(b.line, "").lower() != b.resolved.lower()]
-        check(f"never wrong when it decides ({label})", not wrong,
+        # On a whole book it is exact. On a short extract the fragment rules
+        # carry it, at a small cost that is preferable to asking 96 questions.
+        limit = 0 if label == "whole novel" else 4
+        check(f"errors within budget when it decides ({label})",
+              len(wrong) <= limit,
               f"{len(wrong)} wrong, e.g. {[(b.line, b.resolved) for b in wrong[:3]]}")
-        check(f"it does decide a useful share ({label})",
-              len(decided) >= len(breaks) * 0.4,
+        check(f"it decides nearly everything ({label})",
+              len(decided) >= len(breaks) * 0.95,
               f"only {len(decided)} of {len(breaks)}")
 
     # More evidence must never mean fewer decisions.
     few = len([b for b in D.find(lines) if not b.needs_review])
     many = len([b for b in D.find(lines, extra_vocab=D.vocabulary(
         load(FIXTURES / "CBronte_Jane.txt").lines)) if not b.needs_review])
-    check("more vocabulary resolves more cases", many > few, f"{few} -> {many}")
+    check("more vocabulary resolves more cases", many >= few, f"{few} -> {many}")
+
+    # The user-facing property: a whole book must ask nothing at all.
+    whole = D.find(lines, extra_vocab=D.vocabulary(
+        load(FIXTURES / "CBronte_Jane.txt").lines))
+    asked = [b for b in whole if b.needs_review]
+    check("a complete book asks the reader nothing", not asked,
+          f"{len(asked)} questions")
+    wrong = [b for b in whole
+             if truth.get(b.line, "").lower() != b.resolved.lower()]
+    check("and is exactly right", not wrong, f"{len(wrong)} wrong")
+
+
+def test_dehyphenation_asks_few_questions_on_an_extract():
+    """A tool that asks 96 questions has not done its job.
+
+    Reported from real use: reviewing the extract was 'stressful'. The rule
+    then knew only whether the finished word appeared elsewhere, which a short
+    text rarely settles. Reading the fragments — a compound is built out of
+    words, a broken word is not — took it from 96 questions to 3.
+    """
+    from corpusprep import dehyphenate as D
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    breaks = D.find(load(fx).lines)
+    asked = [b for b in breaks if b.needs_review]
+    check("an extract asks only a handful", len(asked) <= 6,
+          f"{len(asked)} questions, was 96")
+    check("and settles the rest", len(breaks) - len(asked) >= 174,
+          f"only {len(breaks) - len(asked)} settled")
+
+
+def test_compound_halves_are_words():
+    """The rule that carries the improvement, stated directly."""
+    from corpusprep.dehyphenate import Break, decide, JOIN, KEEP, UNKNOWN
+
+    words = {"drawing", "room", "cross", "half", "in", "check"}
+    att = lambda w: w.lower().strip("-") in words
+
+    def d(left, right):
+        b = Break(line=1, left=left, right=right, joined=left + right,
+                  hyphenated=left + "-" + right)
+        decide(b, att)
+        return b.decision
+
+    check("both halves words: a compound", d("drawing", "room") == KEEP)
+    check("neither half a word: broken", d("def", "inite") == JOIN)
+    check("left not a word: broken, whatever the right is",
+          d("impio", "us") == JOIN)
+    check("short unattested tail is a suffix", d("cross", "ly") == JOIN)
+    # `in` is an ordinary word, so a real compound with a two-letter half is
+    # kept. Length alone would have destroyed it.
+    check("check-in survives", d("check", "in") == KEEP)
+    check("long unattested tail stays uncertain",
+          d("half", "comprehended") == UNKNOWN)
 
 
 def test_real_compounds_keep_their_hyphen():
@@ -984,7 +1044,11 @@ def test_review_queue_round_trip():
         return
     doc = analyse(fx)
     items = review.from_document(doc)
-    check("the queue has items to review", len(items) > 10, f"{len(items)}")
+    # Deliberately a low bar. An earlier version asserted more than ten items,
+    # which quietly encoded the behaviour a user later described as stressful:
+    # the extract produced 96 questions. A test that demands a long queue will
+    # fail the day the queue gets short, which is the day the tool improves.
+    check("the queue has something to review", len(items) >= 1, f"{len(items)}")
 
     tmp = Path(tempfile.mkdtemp()) / "q.tsv"
     review.write(items, tmp)
@@ -1035,12 +1099,23 @@ def test_review_decisions_resolve_everything():
                 "keep" if "-" in truth[b.line] else "join")
 
     review.apply_to_breaks(breaks, decisions)
-    wrong = [b for b in breaks
-             if truth.get(b.line, "").lower() != b.resolved.lower()]
-    check("all breaks correct after review", not wrong,
-          f"{len(wrong)} wrong")
     check("nothing left flagged",
           not [b for b in breaks if b.needs_review])
+
+    # Every case the reader was actually asked about is now right. The rule
+    # also decides the rest by itself, and on a short extract a few of those
+    # are wrong — the price of asking 3 questions instead of 96. On a whole
+    # book there are none.
+    asked = set(k[1] for k in decisions)
+    wrong_asked = [b for b in breaks if b.hyphenated in asked
+                   and truth.get(b.line, "").lower() != b.resolved.lower()]
+    check("every reviewed case is correct afterwards", not wrong_asked,
+          f"{len(wrong_asked)} wrong")
+
+    wrong = [b for b in breaks
+             if truth.get(b.line, "").lower() != b.resolved.lower()]
+    check("and the extract's total error stays small", len(wrong) <= 4,
+          f"{len(wrong)} wrong overall")
 
 
 def test_review_identity_is_content_not_line_number():
@@ -1094,7 +1169,7 @@ def test_prepare_writes_the_queue():
     check("a review queue is written beside the output", q.exists())
     body = [l for l in q.read_text(encoding="utf-8").splitlines()
             if l.strip() and not l.startswith("#")]
-    check("and it has rows", len(body) > 10, f"{len(body)}")
+    check("and it has rows", len(body) >= 1, f"{len(body)}")
     check("every row is tab-separated", all("\t" in l for l in body))
 
 

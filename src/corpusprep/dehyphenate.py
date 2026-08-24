@@ -48,6 +48,10 @@ TAIL = re.compile(r"(?<=[^\W\d_])([\w'’]*)-\s*$", re.UNICODE)
 #: The next line must begin with a word for there to be anything to join to.
 HEAD = re.compile(r"^\s*([^\W\d_][\w'’]*)", re.UNICODE)
 
+#: Longest unattested tail still treated as a suffix rather than a word.
+#: See `decide()` for why length alone would be the wrong test.
+SUFFIX_MAX_LEN = 3
+
 #: Decisions a break can receive.
 JOIN = "join"            # attested joined: drop the hyphen
 KEEP = "keep"            # attested hyphenated: keep the hyphen
@@ -91,6 +95,22 @@ def vocabulary(lines: list[str]) -> set[str]:
     return vocab
 
 
+def word_counts(lines: list[str]) -> dict[str, int]:
+    """How often each word form occurs, so a fragment cannot vouch for itself.
+
+    `def-inite` puts `def` and `inite` into the text. Asking "is `inite` a
+    word here?" against a plain vocabulary answers yes, because the broken
+    fragment is sitting in the document being searched. Counting occurrences
+    lets a fragment be discounted against its own appearances.
+    """
+    counts: dict[str, int] = {}
+    for line in lines:
+        for m in _WORD.finditer(line):
+            w = m.group(0).lower().strip("-")
+            counts[w] = counts.get(w, 0) + 1
+    return counts
+
+
 def find(lines: list[str], skip: set[int] | None = None,
          extra_vocab: set[str] | None = None) -> list[Break]:
     """Find every word broken across a line break, and decide each.
@@ -123,32 +143,90 @@ def find(lines: list[str], skip: set[int] | None = None,
         if not left or not right:
             continue
 
-        b = Break(line=n, left=left, right=right,
-                  joined=left + right, hyphenated=left + "-" + right)
+        out.append(Break(line=n, left=left, right=right,
+                         joined=left + right, hyphenated=left + "-" + right))
 
-        j = b.joined.lower().strip("-")
-        h = b.hyphenated.lower().strip("-")
-        # The joined form must be attested somewhere OTHER than here, so a
-        # single occurrence cannot vouch for itself.
-        j_seen = j in vocab
-        h_seen = h in vocab
+    # Second pass. The decision needs to know every fragment in the document,
+    # so that a fragment cannot vouch for itself, which means it cannot be
+    # taken until all of them have been found.
+    counts = word_counts(lines)
+    if extra_vocab:
+        for w in extra_vocab:
+            w = w.lower().strip("-")
+            counts[w] = counts.get(w, 0) + 1
+    frag: dict[str, int] = {}
+    for b in out:
+        for f in (b.left.lower().strip("-"), b.right.lower()):
+            frag[f] = frag.get(f, 0) + 1
 
-        if j_seen and h_seen:
-            b.decision = AMBIGUOUS
-            b.reason = (f"both {b.joined!r} and {b.hyphenated!r} occur "
-                        f"elsewhere in this text")
-        elif j_seen:
-            b.decision = JOIN
-            b.reason = f"{b.joined!r} occurs elsewhere in this text"
-        elif h_seen:
-            b.decision = KEEP
-            b.reason = f"{b.hyphenated!r} occurs elsewhere in this text"
-        else:
-            b.decision = UNKNOWN
-            b.reason = (f"neither {b.joined!r} nor {b.hyphenated!r} occurs "
-                        f"elsewhere in this text")
-        out.append(b)
+    def attested(w: str) -> bool:
+        """A word occurring only as a broken fragment is not attested."""
+        w = w.lower().strip("-")
+        return counts.get(w, 0) > frag.get(w, 0)
+
+    for b in out:
+        decide(b, attested)
     return out
+
+
+def decide(b: "Break", attested) -> None:
+    """Settle one break from the evidence, strongest first.
+
+    The first two rules ask whether the finished word already exists in this
+    text. They are the strongest evidence available and were the whole rule
+    originally, which worked on a complete book and left a short extract almost
+    entirely unanswered: 96 of 180 breaks on a 260-paragraph sample.
+
+    The rules that follow use the fragments themselves, and the observation
+    that settles most of the rest is that **a compound is built out of words
+    and a broken word is not**. `drawing-room` is `drawing` plus `room`;
+    `def-inite` is `def` plus `inite`, and `inite` is not a word anywhere.
+
+    The asymmetry matters. A compound's LEFT half is always a real word, so a
+    left fragment that is not attested cannot be a compound and must be a
+    broken word. That single rule answers `impio-us`, `geni-us` and `fav-our`,
+    all of which have a real word on the right and would otherwise look like
+    compounds.
+    """
+    j, h = b.joined, b.hyphenated
+    left, right = b.left, b.right
+
+    if attested(j):
+        b.decision = JOIN
+        b.reason = f"{j!r} occurs elsewhere in this text"
+    elif attested(h):
+        b.decision = KEEP
+        b.reason = f"{h!r} occurs elsewhere in this text"
+    elif not attested(left):
+        # A compound's first half is a word. This one is not, so the hyphen is
+        # a typesetter's and the word is broken.
+        b.decision = JOIN
+        b.reason = (f"{left!r} is not a word in this text, so this is a broken "
+                    f"word rather than a compound")
+    elif attested(right):
+        b.decision = KEEP
+        b.reason = (f"{left!r} and {right!r} are both words here, so this reads "
+                    f"as a compound")
+    elif len(right) <= SUFFIX_MAX_LEN:
+        # A short unattested tail is a suffix, not a word: `-ed`, `-ly`, `-mit`.
+        #
+        # Length alone would be wrong, because `check-in` and `set-up` are real
+        # compounds with two-letter second halves. What separates them is that
+        # `in` and `up` are ordinary words and appear all over any English
+        # text, so they are attested and never reach this branch. Only a tail
+        # that is BOTH short AND absent from the document is a bound morpheme.
+        b.decision = JOIN
+        b.reason = (f"{right!r} is a suffix rather than a word, so this is a "
+                    f"broken word")
+    else:
+        # Left is a word, right is a substantial form that does not appear
+        # elsewhere. Either a compound whose second half is rare in this text,
+        # or a broken word that happened to split at a word boundary.
+        # Genuinely undecidable from this text alone.
+        b.decision = UNKNOWN
+        b.reason = (f"{left!r} is a word here but {right!r} is not, so this "
+                    f"could be either")
+
 
 
 def find_in_document(doc, extra_vocab: set[str] | None = None) -> list[Break]:

@@ -1063,11 +1063,66 @@ function dhNeedsReview(b){
   return b.decision===DH_AMBIGUOUS||b.decision===DH_UNKNOWN;
 }
 
+const DH_SUFFIX_MAX_LEN=3;
+
+function dhWordCounts(lines){
+  // Counted, not merely collected, so a broken fragment cannot vouch for
+  // itself: `def-inite` puts `inite` into the very text being searched.
+  const counts=new Map();
+  for(const line of lines){
+    DH_WORD.lastIndex=0;
+    let m;
+    while((m=DH_WORD.exec(line))!==null){
+      const w=m[0].toLowerCase().replace(/^-+|-+$/g,"");
+      counts.set(w,(counts.get(w)||0)+1);
+    }
+  }
+  return counts;
+}
+
+/* Settle one break from the evidence, strongest first.
+
+   The first two rules ask whether the finished word already exists in this
+   text. They were the whole rule originally, which worked on a complete book
+   and left a short extract almost entirely unanswered: 96 of 180 breaks.
+
+   What settles most of the rest is that A COMPOUND IS BUILT OUT OF WORDS AND A
+   BROKEN WORD IS NOT. `drawing-room` is `drawing` plus `room`; `def-inite` is
+   `def` plus `inite`, and `inite` is not a word anywhere.
+
+   The asymmetry matters: a compound's LEFT half is always a real word, so an
+   unattested left fragment cannot be a compound. That answers `impio-us`,
+   `geni-us` and `fav-our`, all of which have a real word on the right.        */
+function dhDecide(b,attested){
+  const j=b.joined, h=b.hyphenated, left=b.left, right=b.right;
+  if(attested(j)){
+    b.decision=DH_JOIN; b.reason="'"+j+"' occurs elsewhere in this text";
+  } else if(attested(h)){
+    b.decision=DH_KEEP; b.reason="'"+h+"' occurs elsewhere in this text";
+  } else if(!attested(left)){
+    b.decision=DH_JOIN;
+    b.reason="'"+left+"' is not a word in this text, so this is a broken word "
+            +"rather than a compound";
+  } else if(attested(right)){
+    b.decision=DH_KEEP;
+    b.reason="'"+left+"' and '"+right+"' are both words here, so this reads as "
+            +"a compound";
+  } else if(right.length<=DH_SUFFIX_MAX_LEN){
+    // Length alone would be wrong: `check-in` and `set-up` are real compounds
+    // with two-letter halves. But `in` and `up` are ordinary words, so they
+    // are attested and never reach here. Only a tail that is BOTH short AND
+    // absent from the document is a bound morpheme.
+    b.decision=DH_JOIN;
+    b.reason="'"+right+"' is a suffix rather than a word, so this is a broken word";
+  } else {
+    b.decision=DH_UNKNOWN;
+    b.reason="'"+left+"' is a word here but '"+right+"' is not, so this could "
+            +"be either";
+  }
+}
+
 function findHyphenBreaks(lines,skip,extraVocab){
   skip=skip||new Set();
-  const vocab=dhVocabulary(lines);
-  if(extraVocab) for(const w of extraVocab) vocab.add(w.toLowerCase());
-
   const out=[];
   for(let i=0;i<lines.length-1;i++){
     const n=i+1;
@@ -1075,35 +1130,31 @@ function findHyphenBreaks(lines,skip,extraVocab){
     if(!DH_TAIL.test(lines[i])) continue;
     const head=DH_HEAD.exec(lines[i+1]);
     if(!head) continue;
-
     const stripped=lines[i].replace(/\s+$/,"").slice(0,-1);
     const lm=/[^\W\d_][\w'’-]*$/u.exec(stripped);
     if(!lm) continue;
     const left=lm[0], right=head[1];
     if(!left||!right) continue;
-
-    const b={line:n,left,right,joined:left+right,
-             hyphenated:left+"-"+right,decision:DH_UNKNOWN,reason:""};
-    const j=b.joined.toLowerCase().replace(/^-+|-+$/g,"");
-    const h=b.hyphenated.toLowerCase().replace(/^-+|-+$/g,"");
-    const js=vocab.has(j), hs=vocab.has(h);
-
-    if(js&&hs){
-      b.decision=DH_AMBIGUOUS;
-      b.reason="both '"+b.joined+"' and '"+b.hyphenated+"' occur elsewhere in this text";
-    } else if(js){
-      b.decision=DH_JOIN;
-      b.reason="'"+b.joined+"' occurs elsewhere in this text";
-    } else if(hs){
-      b.decision=DH_KEEP;
-      b.reason="'"+b.hyphenated+"' occurs elsewhere in this text";
-    } else {
-      b.decision=DH_UNKNOWN;
-      b.reason="neither '"+b.joined+"' nor '"+b.hyphenated
-              +"' occurs elsewhere in this text";
-    }
-    out.push(b);
+    out.push({line:n,left,right,joined:left+right,
+              hyphenated:left+"-"+right,decision:DH_UNKNOWN,reason:""});
   }
+
+  // Second pass: the decision needs every fragment in the document, so it
+  // cannot be taken until all of them have been found.
+  const counts=dhWordCounts(lines);
+  if(extraVocab) for(const w of extraVocab){
+    const k=w.toLowerCase().replace(/^-+|-+$/g,"");
+    counts.set(k,(counts.get(k)||0)+1);
+  }
+  const frag=new Map();
+  for(const b of out) for(const f of [b.left.toLowerCase().replace(/^-+|-+$/g,""),
+                                      b.right.toLowerCase()])
+    frag.set(f,(frag.get(f)||0)+1);
+  const attested=w=>{
+    const k=w.toLowerCase().replace(/^-+|-+$/g,"");
+    return (counts.get(k)||0)>(frag.get(k)||0);
+  };
+  for(const b of out) dhDecide(b,attested);
   return out;
 }
 

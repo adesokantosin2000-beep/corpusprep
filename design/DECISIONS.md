@@ -1023,3 +1023,77 @@ was returned unchanged rather than mangled. And **no two paragraphs were ever
 merged** — every error is in the direction of splitting too much, which is the
 safer one, since a wrongly split paragraph is visible and repairable whereas a
 merged boundary is gone.
+
+---
+
+## 2026-08-23 — De-hyphenation: 96 questions was a failure, not a feature
+
+User feedback after the first hands-on test of the review queue: *"the aim of
+this software is to make things easy... the engine should have better logic to
+act on its own... read the sentence to know which one. the context will tell
+you."*
+
+Correct, and the criticism lands on a real defect. The extract produced **96
+questions**, and a tool that asks a linguist 96 questions about one short text
+has not done its job.
+
+### Two things were true at once
+
+Measured on a **whole book**, which is the normal case, the old rule already
+decided all 180 breaks correctly and asked nothing. The 96 questions came from
+a 260-paragraph extract, where a word's only occurrence often *is* the broken
+one, so "does the finished word appear elsewhere?" has no answer.
+
+That explains the number without excusing it. Researchers load chapters and
+extracts constantly.
+
+### The evidence that was going unused
+
+**A compound is built out of words. A broken word is not.**
+
+`drawing-room` is `drawing` plus `room`. `def-inite` is `def` plus `inite`, and
+`inite` is not a word in any text. The fragments themselves carry the answer,
+and the rule was ignoring them.
+
+The asymmetry is what makes it reliable: **a compound's left half is always a
+real word.** So an unattested left fragment cannot be a compound. That single
+observation settles `impio-us`, `geni-us` and `fav-our`, each of which has a
+perfectly good word on the right and would otherwise read as a compound.
+
+One more rule for short unattested tails, `-ed` and `-ly`. Length alone would
+be wrong, since `check-in` and `set-up` are real compounds with two-letter
+halves — but `in` and `up` are ordinary words, so they are attested and never
+reach that branch. **Only a tail that is both short and absent from the
+document is a bound morpheme.**
+
+### A circularity that had to be fixed first
+
+Asking "is `inite` a word here?" against the document's vocabulary answers
+*yes*, because the broken fragment is sitting in the text being searched. The
+vocabulary is now counted rather than collected, so a form is attested only if
+it occurs more often than it occurs as a fragment.
+
+### Result
+
+| | Questions asked | Correct |
+|---|---|---|
+| Whole book, before | 0 | 180/180 |
+| Whole book, now | **0** | **180/180** |
+| Extract, before | **96** | 84/84 decided |
+| Extract, now | **3** | 174/177 decided |
+
+The three remaining are `cross-legged`, `half-comprehended` and
+`object-ionable`, where the left half is a word and the right half is
+substantial but unattested. Two are compounds and one is a broken word, and a
+reader has to think about them too.
+
+The extract costs about three errors for the ninety-three questions it no
+longer asks. On a whole book it costs nothing, because there is nothing left to
+trade.
+
+### A test that was enforcing the bad behaviour
+
+Three tests failed on the improvement, all asserting the queue held *more than
+ten* items. They had quietly encoded the thing the user objected to. **A test
+that demands a long review queue fails on the day the tool gets better**, which
+is exactly what happened.

@@ -105,8 +105,12 @@ async function run(name, fn) {
     check('the hyphen panel is the one shown',
           heads.includes('Words broken across lines'), JSON.stringify(heads));
     const btn = d.querySelector('#rv-start');
-    check('review button offered', !!btn && /Review \d+ items/.test(btn.textContent),
+    check('review button offered', !!btn && /Review \d+ unclear case/.test(btn.textContent),
           btn ? btn.textContent : 'missing');
+    // The point of the whole rule: the reader is asked about a handful, not
+    // about most of the document.
+    const asked = btn ? parseInt(btn.textContent.match(/\d+/)[0], 10) : 999;
+    check('and asks about only a handful', asked <= 6, asked + ' questions');
     check('dehyphenate toggle offered', !!d.querySelector('#dh-on'));
 
     // The keyboard path, which is the whole point of the reviewer.

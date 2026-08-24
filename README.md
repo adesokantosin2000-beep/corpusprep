@@ -113,6 +113,13 @@ with. Answered, it takes de-hyphenation from 84 of 180 cases to all 180.
 In the web application the same queue is keyboard-driven: `J` join, `K` keep,
 `S` skip, `Esc` finish.
 
+De-hyphenation settles almost everything without asking. Beyond checking
+whether the finished word occurs elsewhere, it reads the fragments: **a compound
+is built out of words and a broken word is not.** `drawing-room` is `drawing`
+plus `room`; `def-inite` is `def` plus `inite`, and `inite` is not a word. A
+whole book is resolved completely with no questions at all; a short extract asks
+about three.
+
 **No wordlist is bundled, deliberately.** De-hyphenation takes its evidence from
 the document's own vocabulary: if `example` occurs elsewhere in this text, the
 joined form is attested in this text's own spelling. A 234,000-word list of
