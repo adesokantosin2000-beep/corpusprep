@@ -359,6 +359,8 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .rv-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:14px 18px;border-bottom:1px solid var(--hair)}
 .rv-title{font-weight:600;font-size:14px}
+.rv-title em{display:block;font-style:normal;font-weight:400;font-size:12px;
+  color:var(--faint);margin-top:2px}
 .rv-x{font:inherit;font-size:12.5px;border:1px solid var(--rule);
   background:transparent;border-radius:4px;padding:4px 12px;cursor:pointer;
   color:var(--muted)}
@@ -464,7 +466,8 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
   <div id="rv-modal" style="display:none">
     <div class="rv-card">
       <div class="rv-top">
-        <span class="rv-title">Is this one word, or two joined by a hyphen?</span>
+        <span class="rv-title">Is this one word, or two joined by a hyphen?
+          <em>The hyphen is kept unless you say otherwise.</em></span>
         <button class="rv-x" id="rv-close">Done</button>
       </div>
       <div id="rv-body"></div>

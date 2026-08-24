@@ -105,8 +105,14 @@ async function run(name, fn) {
     check('the hyphen panel is the one shown',
           heads.includes('Words broken across lines'), JSON.stringify(heads));
     const btn = d.querySelector('#rv-start');
-    check('review button offered', !!btn && /Review \d+ unclear case/.test(btn.textContent),
-          btn ? btn.textContent : 'missing');
+    check('review offered, not demanded',
+          !!btn && /Look at the \d+ kept hyphen/.test(btn.textContent.replace(/\s+/g, ' ')),
+          btn ? btn.textContent.replace(/\s+/g, ' ').trim() : 'missing');
+    // The unresolved cases keep the hyphen the source printed, so the reader
+    // is told what happened rather than handed a task.
+    const lead = [...d.querySelectorAll('.furn-lead')].map(e => e.textContent).join(' ');
+    check('and says nothing is required',
+          /Nothing is required of you/.test(lead.replace(/\s+/g, ' ')));
     // The point of the whole rule: the reader is asked about a handful, not
     // about most of the document.
     const asked = btn ? parseInt(btn.textContent.match(/\d+/)[0], 10) : 999;

@@ -255,16 +255,17 @@ function hyphenNotice(){
       <span class="t">Words broken across lines</span>
       <span class="s">${DOC.breaks.length} found ·
         <b>${DOC.breaks.length-flagged.length} settled from this text
-        itself</b>${left?` · ${left} still unclear`:" · nothing left to ask"}</span>
+        itself</b>${left?` · ${left} kept exactly as printed`:""}</span>
     </div>
     <p class="furn-lead">A line break inside a word is always an artefact, but
       the hyphen may be real: <b>to-morrow</b> is a word and <b>tomorrow</b> is a
       different one. Each case is settled from the surrounding text — whether
       the finished word appears elsewhere, and whether both halves are words in
       their own right, since a compound is built out of words and a broken word
-      is not.${left?` Only <b>${left}</b> could not be settled that way${
-      left<=5?", so they are worth a look":""}.`:` Every one was settled, so
-      there is nothing to review.`}</p>
+      is not.${left?` <b>${left}</b> could not be settled that way, so ${
+      left===1?"it is":"they are"} left with the hyphen exactly as the source
+      prints ${left===1?"it":"them"}. Nothing is required of you.`:` Every one
+      was settled.`}</p>
     <div class="fn-opts">
       <label class="fn-opt ${on?"on":""}">
         <input type="checkbox" id="dh-on" ${on?"checked":""}>
@@ -273,7 +274,8 @@ function hyphenNotice(){
           separately.</span></label>
     </div>
     ${left?`<div class="rv-bar">
-      <button class="btn-sm" id="rv-start">Review ${left} unclear case${left===1?"":"s"}</button>
+      <button class="btn-sm ghost" id="rv-start">Look at the ${left} kept
+        hyphen${left===1?"":"s"}</button>
       <button class="btn-sm ghost" id="rv-save">Download queue</button>
       <label class="btn-sm ghost file">Load queue
         <input type="file" id="rv-load" accept=".tsv,.txt" hidden></label>

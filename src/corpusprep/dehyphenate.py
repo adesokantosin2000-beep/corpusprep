@@ -27,8 +27,14 @@ If `example` occurs elsewhere in *this* text, the joined form is attested in
 this text's own orthography. Nothing is bundled and no licence question arises.
 See `design/DECISIONS.md`.
 
-Nothing here guesses silently. Where the evidence is absent or contradictory
-the hyphen is kept and the case is flagged for review.
+**When the evidence runs out, the hyphen the source printed is kept**, and that
+is the end of it. The reader is told, not asked.
+
+Keeping is right for two reasons. It preserves the source, which is this whole
+package's default posture. And the resulting error is the visible one:
+`object-ionable` is obviously wrong in a word list, whereas `crosslegged` looks
+like a real word and survives proofreading. **The safer mistake is the one that
+can be seen.**
 """
 
 from __future__ import annotations
