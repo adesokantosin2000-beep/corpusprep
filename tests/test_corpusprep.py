@@ -839,8 +839,11 @@ def test_footnote_routes():
     check("remove strips markers", "[1]" not in gone.text)
     check("remove drops note bodies",
           gone.stats["footnote_lines_removed"] > 0)
-    # The marker comes off the word; the word stays.
-    check("the annotated word survives", "intrattenere" in gone.text)
+    # The marker comes off the word; the word stays. Checked on a word inside
+    # the BODY: `intrattenere` was used here until the contents-list fix put
+    # the translator's introduction into front matter, where body-only rightly
+    # drops it.
+    check("the annotated word survives", "Lodovico" in gone.text)
     check("no parallel file from remove", gone.footnote_text is None)
 
     out = render(doc, _replace(v, footnotes="extract"))
@@ -1413,6 +1416,80 @@ def test_reflow_is_off_by_default():
     from corpusprep.variants import BUILTIN
     for name, v in BUILTIN.items():
         check(f"{name} does not reflow by default", not v.reflow)
+
+
+def test_contents_list_is_not_the_book():
+    """A contents list read as chapters is the worst kind of failure.
+
+    Reported from real use. *The Prince* opens with a 26-entry contents list.
+    Every entry was read as a one-line chapter, and the chapter after them
+    swallowed all 473 lines of the translator's biography, so `body-only` kept
+    a 1908 editorial essay and called it Machiavelli.
+
+    Two faults compounded, and neither was a threshold:
+
+    1. A heading longer than 80 characters was not recognised at all, so six
+       entries vanished and the list fragmented into short runs.
+    2. Contents entries were matched to headings by their printed text, but a
+       contents list prints `CHAPTER I. HOW MANY KINDS...` where the chapter
+       itself is headed `CHAPTER I.`
+    """
+    fx = FIXTURES / "pg1232_prince.txt"
+    if not fx.exists():
+        return
+    doc = segment(load(fx))
+
+    contents = [r for r in doc.regions if r.kind == "contents"
+                or (r.title or "").lower().startswith("contents")]
+    check("the contents list is found", contents, "none identified")
+    if contents:
+        check("and it is front matter", contents[0].label == "front_matter",
+              contents[0].label)
+
+    # The biography heading, 70 lines into the translator's introduction.
+    bio = next((i for i, l in enumerate(doc.lines, 1)
+                if l.strip().startswith("YOUTH")and "Æt" in l), None)
+    if bio:
+        holder = [r for r in doc.regions if r.start + 1 <= bio <= r.end]
+        check("the translator's biography is front matter",
+              holder and holder[0].label == "front_matter",
+              holder[0].label if holder else "uncovered")
+
+    # 26 one-line chapters is the shape of the bug.
+    tiny = [r for r in doc.regions if r.label == "body" and r.n_lines <= 1]
+    check("the body is not a run of one-line chapters", len(tiny) < 5,
+          f"{len(tiny)} single-line body regions")
+
+
+def test_long_chapter_headings_are_recognised():
+    """A limit of 80 characters was standing in for a real discriminator."""
+    from corpusprep.segment import is_chapter_heading as h
+
+    check("a 90-character all-capital title is a heading",
+          h("CHAPTER I. HOW MANY KINDS OF PRINCIPALITIES THERE ARE, "
+            "AND BY WHAT MEANS THEY ARE ACQUIRED"))
+    check("a 125-character one is too",
+          h("CHAPTER IV. WHY THE KINGDOM OF DARIUS, CONQUERED BY ALEXANDER, "
+            "DID NOT REBEL AGAINST THE SUCCESSORS OF ALEXANDER AT HIS DEATH"))
+    # The guard the length limit was doing badly.
+    check("but a long sentence opening with a division word is not",
+          not h("Chapter 5 was the morning everything changed for her, and she "
+                "never afterwards spoke of what she had seen in that room."))
+    check("nor is mixed-case prose of any length",
+          not h("Section 3 of the act states that any person so appointed "
+                "shall thereafter be liable for the costs arising."))
+    check("short headings still work", h("CHAPTER I."))
+    check("and titled short ones", h("Chapter 1. The Beginning"))
+
+
+def test_contents_entry_matches_a_bare_heading():
+    from corpusprep.segment import heading_key
+
+    check("a contents entry and its chapter share a key",
+          heading_key("CHAPTER I. HOW MANY KINDS OF PRINCIPALITIES THERE ARE")
+          == heading_key("CHAPTER I."))
+    check("different chapters do not",
+          heading_key("CHAPTER I.") != heading_key("CHAPTER II."))
 
 
 def test_chapter_heading_precision():

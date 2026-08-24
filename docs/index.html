@@ -709,7 +709,7 @@ const _ENUM=`(?:[IVXLCDM]+|\\d{1,4}|(?:THE\\s+)?(?:${_CARDINAL}|${_ORDINAL})`+
   `(?:[-\\s](?:${_CARDINAL}|${_ORDINAL}))?)`;
 
 const CHAPTER_HEADING=new RegExp(
-  `^\\s*(${DIVISION_WORDS})\\s*[:.—\\-]?\\s*(${_ENUM})\\b\\s*[.:;—–\\-]?\\s*(.{0,70})?$`,"i");
+  `^\\s*(${DIVISION_WORDS})\\s*[:.—\\-]?\\s*(${_ENUM})\\b\\s*[.:;—–\\-]?\\s*(.{0,200})?$`,"i");
 const NUMBERED_SECTION=/^\s*(\d{1,2}(?:\.\d{1,2}){0,3})\.?\s+([A-ZÀ-Þ][^\n]{1,60})$/;
 const BARE_NUMERAL=/^\s*([IVXLCDM]{1,7}|\d{1,3})\s*\.?\s*$/;
 const METADATA_LINE=/^\s*([A-Z][A-Za-z /&'-]{1,28})\s*:\s*\S.*$/;
@@ -722,6 +722,10 @@ const NAMED_FRONT_HEADING=/^\s*(?:THE\s+)?(PROLOGUE|CONTENTS|TABLE\s+OF\s+CONTEN
 const CONTENTS_HEADING=/^\s*(?:TABLE\s+OF\s+)?CONTENTS\s*[.:]?\s*$/i;
 const BACK_HEADING=/^\s*(APPENDIX|GLOSSARY|INDEX|BIBLIOGRAPHY|NOTES|ENDNOTES|POSTSCRIPT|AFTERWORD|COLOPHON|TRANSCRIBER'?S NOTES?|FOOTNOTES)\b.*$/;
 const MAX_HEADING_LEN=80;
+// A heading may run longer only if it reads as a title rather than as prose.
+// Machiavelli's chapters reach 125 characters, and six were invisible until
+// this existed, taking their whole contents list down with them.
+const MAX_TITLED_HEADING_LEN=200;
 
 /* Must match Python's [^\W\d_]+ under re.UNICODE, i.e. letters and combining
    marks but not digits or underscore.
@@ -736,9 +740,21 @@ function isUpper(s){const L=[...s].filter(c=>/\p{L}/u.test(c));return L.length>0
 
 /* The guard that matters: text after the enumerator must begin with a capital.
    That separates "Chapter 1. The Beginning" from "Section 3 of the act…". */
+/* Length was standing in for the real guard, which is that a heading's title
+   begins with a capital and does not read as prose. A limit of 80 characters
+   silently rejected six of Machiavelli's chapter headings, the longest running
+   to 125, and with them the contents list they belonged to: its entries were
+   then read as chapters and 473 lines of the translator's biography became
+   Chapter XXVI.
+
+   A longer line is admitted if its title is entirely upper case. Prose does
+   not sustain capitals for ninety characters, and the pattern already demands
+   a division word and an enumerator at the front.                          */
 function isChapterHeading(l){
   const s=l.trim();
-  if(!s||s.length>MAX_HEADING_LEN) return false;
+  if(!s) return false;
+  if(s.length>MAX_HEADING_LEN&&(s.length>MAX_TITLED_HEADING_LEN||!isUpper(s)))
+    return false;
   const m=CHAPTER_HEADING.exec(s);
   if(!m) return false;
   const trailing=(m[3]||"").trim();
@@ -821,9 +837,23 @@ const MAX_CONTENTS_GAP=4;        // lines between consecutive entries
 const MIN_CONTENTS_ENTRIES=3;
 const CONTENTS_MATCH_RATIO=0.6;  // share that must reappear later
 
+/* A heading reduced to its division word and number.
+
+   Used only to match a contents entry against the heading it points to. A
+   contents list prints `CHAPTER I. HOW MANY KINDS OF PRINCIPALITIES THERE ARE`
+   where the chapter itself is headed `CHAPTER I.`, so comparing the printed
+   strings finds nothing in common. The number is what they genuinely share. */
+function headingKey(line){
+  const m=CHAPTER_HEADING.exec(line.trim());
+  if(!m) return line.trim().toLowerCase();
+  return m[1].toLowerCase()+" "+m[2].toLowerCase();
+}
+
 function splitContentsList(lines,idx){
   if(idx.length<MIN_CONTENTS_ENTRIES+1) return [[],idx];
-  const titles=idx.map(i=>lines[i].trim().toLowerCase());
+  // Matched on division word and number, not on the printed line: a contents
+  // entry carries a title the heading itself usually omits.
+  const titles=idx.map(i=>headingKey(lines[i]));
 
   // 1. Opening run of headings packed close together. Contents entries sit a
   //    line or two apart; real headings are separated by whole chapters.
@@ -836,9 +866,26 @@ function splitContentsList(lines,idx){
   const rest=new Set(titles.slice(run));
   let hits=0;
   for(const t of titles.slice(0,run)) if(rest.has(t)) hits++;
-  if(hits/run<CONTENTS_MATCH_RATIO) return [[],idx];
+  if(hits/run>=CONTENTS_MATCH_RATIO) return [idx.slice(0,run),idx.slice(run)];
 
-  return [idx.slice(0,run),idx.slice(run)];
+  /* A weaker ratio is still a contents list if the headings leave no room for
+     a chapter between them. A REAL CHAPTER HEADING IS FOLLOWED BY PROSE, and
+     twenty-six headings inside twenty-six lines is a list of chapters rather
+     than a sequence of them.
+
+     The ratio alone is unreliable on a text that stops early: Machiavelli's
+     list names twenty-six chapters, and an extract holding the first twelve
+     matches only 46%.
+
+     Some duplication is still required, so that a document which is ONLY a
+     contents list keeps it rather than being emptied.                      */
+  let between=0;
+  for(let k=idx[0];k<idx[run-1];k++)
+    if(lines[k].trim()&&!isChapterHeading(lines[k])) between++;
+  if(between<=Math.floor(run/4)&&hits>=Math.max(2,Math.floor(run/4)))
+    return [idx.slice(0,run),idx.slice(run)];
+
+  return [[],idx];
 }
 
 /* Structural depth per division word. Only ranks actually present are used,

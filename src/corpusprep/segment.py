@@ -147,7 +147,7 @@ _ENUM = (
 )
 
 CHAPTER_HEADING = re.compile(
-    rf"^\s*({DIVISION_WORDS})\s*[:.—\-]?\s*({_ENUM})\b\s*[.:;—–\-]?\s*(.{{0,70}})?$",
+    rf"^\s*({DIVISION_WORDS})\s*[:.—\-]?\s*({_ENUM})\b\s*[.:;—–\-]?\s*(.{{0,200}})?$",
     re.IGNORECASE,
 )
 
@@ -211,6 +211,10 @@ BACK_HEADING = re.compile(
 )
 
 MAX_HEADING_LEN = 80
+#: A heading may run longer than `MAX_HEADING_LEN` only if it reads as a title
+#: rather than as prose. Machiavelli's chapters reach 125 characters, and six
+#: of them were invisible to the detector until this existed.
+MAX_TITLED_HEADING_LEN = 200
 
 
 def _is_upper(line: str) -> bool:
@@ -226,10 +230,26 @@ def is_chapter_heading(line: str) -> bool:
     from a sentence that happens to open with a division word ("Section 3 of
     the act states that…"), which the case-insensitive match would otherwise
     accept.
+
+    **Length is a poor stand-in for that guard, and it was doing the work.**
+    A limit of 80 characters silently rejected six of Machiavelli's chapter
+    headings, the longest running to 125 characters, and with them the whole
+    contents list they belonged to. The list then fragmented, so its entries
+    were read as real chapters and 473 lines of the translator's biography
+    were labelled as Chapter XXVI.
+
+    A longer line is now allowed, provided its title is **entirely upper
+    case**. Prose does not sustain capitals for ninety characters, and the
+    pattern already requires the line to open with a division word and an
+    enumerator, so `CHAPTER IV. WHY THE KINGDOM OF DARIUS...` is admitted while
+    `Chapter 5 was the morning everything changed for her, and she...` is not.
     """
     s = line.strip()
-    if not s or len(s) > MAX_HEADING_LEN:
+    if not s:
         return False
+    if len(s) > MAX_HEADING_LEN:
+        if len(s) > MAX_TITLED_HEADING_LEN or not _is_upper(s):
+            return False
     m = CHAPTER_HEADING.match(s)
     if not m:
         return False
@@ -337,6 +357,28 @@ def find_metadata_block(lines, start, end) -> tuple[int, int] | None:
     return None
 
 
+def heading_key(line: str) -> str:
+    """A heading reduced to its division word and number.
+
+    Used only to match a contents entry against the heading it points to. The
+    two rarely share a title: a contents list prints
+
+        CHAPTER I. HOW MANY KINDS OF PRINCIPALITIES THERE ARE
+
+    while the chapter itself is headed simply
+
+        CHAPTER I.
+
+    Comparing the printed strings finds nothing in common, which is how a
+    26-entry contents list came to be read as 26 chapters. The number is what
+    the two genuinely share.
+    """
+    m = CHAPTER_HEADING.match(line.strip())
+    if not m:
+        return line.strip().lower()
+    return f"{m.group(1).lower()} {m.group(2).lower()}"
+
+
 def split_contents_list(lines, idx: list[int]) -> tuple[list[int], list[int]]:
     """Separate a table-of-contents run from the real headings.
 
@@ -349,7 +391,9 @@ def split_contents_list(lines, idx: list[int]) -> tuple[list[int], list[int]]:
     if len(idx) < MIN_CONTENTS_ENTRIES + 1:
         return [], idx
 
-    titles = [lines[i].strip().lower() for i in idx]
+    # Matched on division word and number rather than on the printed line: a
+    # contents entry carries a title the heading itself usually omits.
+    titles = [heading_key(lines[i]) for i in idx]
 
     # 1. Take the opening run of headings packed close together. Contents
     #    entries sit a line or two apart; real headings are separated by whole
@@ -367,10 +411,32 @@ def split_contents_list(lines, idx: list[int]) -> tuple[list[int], list[int]]:
     #    how a play's contents ended up being treated as the play.
     rest = set(titles[run:])
     hits = sum(1 for t in titles[:run] if t in rest)
-    if hits / run < CONTENTS_MATCH_RATIO:
-        return [], idx
+    if hits / run >= CONTENTS_MATCH_RATIO:
+        return idx[:run], idx[run:]
 
-    return idx[:run], idx[run:]
+    # A weaker duplication ratio is still a contents list if the headings have
+    # no room for a chapter between them.
+    #
+    # **A real chapter heading is followed by prose.** Twenty-six headings
+    # inside twenty-six lines is a list of chapters, not a sequence of them,
+    # and nothing else in a book looks like that.
+    #
+    # The ratio alone is unreliable on a text that stops early. Machiavelli's
+    # contents list names twenty-six chapters; an extract holding the first
+    # twelve matches only 46% of them, and was read as twenty-six one-line
+    # chapters followed by a chapter containing the whole biography.
+    #
+    # Some duplication is still required. A document that is ONLY a contents
+    # list should keep it, since removing it would leave nothing at all.
+    body_between = sum(
+        1 for k in range(idx[0], idx[run - 1])
+        if lines[k].strip() and not is_chapter_heading(lines[k])
+    )
+    dense = body_between <= run // 4
+    if dense and hits >= max(2, run // 4):
+        return idx[:run], idx[run:]
+
+    return [], idx
 
 
 def find_body_headings(lines, start, end, skip=lambda i: False):
