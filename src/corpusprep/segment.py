@@ -476,20 +476,37 @@ def split_contents_list(lines, idx: list[int]) -> tuple[list[int], list[int]]:
 
 
 def find_body_headings(lines, start, end, skip=lambda i: False):
-    """Return (indices, kind, evidence) using the most reliable tier available."""
+    """Return (indices, kind, evidence, titles) from the most reliable tier.
+
+    The tiers are ordered by how directly they read the typesetter's intent.
+    The first three ask what the page *says*. The fourth asks what it repeats,
+    and exists because a scan can destroy every heading in a book while leaving
+    its running heads intact. See `furniture.find_head_chapters`.
+
+    ``titles`` is None except in that last tier, where the heading line is a
+    page of prose with the title welded to its front and so cannot be used as
+    the region's name.
+    """
     kw = [i for i in range(start, end) if not skip(i) and is_chapter_heading(lines[i])]
     if kw:
-        return kw, "chapter", "division heading"
+        return kw, "chapter", "division heading", None
 
     ns = find_numbered_sections(lines, start, end, skip)
     if ns:
-        return ns, "section", "numbered section heading"
+        return ns, "section", "numbered section heading", None
 
     seq = find_numeral_sequence(lines, start, end, skip)
     if seq:
-        return seq, "chapter", "bare numeral in ascending sequence"
+        return seq, "chapter", "bare numeral in ascending sequence", None
 
-    return [], None, None
+    from .furniture import find_head_chapters
+    heads = find_head_chapters(lines, start, end, skip)
+    if heads:
+        return ([i for i, _ in heads], "chapter",
+                "running head repeated on every page of the chapter",
+                {i: t for i, t in heads})
+
+    return [], None, None, None
 
 
 def is_front_heading(line: str) -> bool:
@@ -833,7 +850,7 @@ def segment(doc: Document) -> Document:
         ))
 
     # --- 4. Body start: first structural heading --------------------------
-    heading_idx, heading_kind, heading_evidence = find_body_headings(
+    heading_idx, heading_kind, heading_evidence, heading_titles = find_body_headings(
         lines, content_start, content_end, _in_licence
     )
 
@@ -866,6 +883,29 @@ def segment(doc: Document) -> Document:
         ))
 
     body_start = heading_idx[0] if heading_idx else None
+
+    # The running-head tier finds boundaries INSIDE the body. It cannot locate
+    # where the body begins, and must not be read as though it could.
+    #
+    # It missed this on the first run and the failure was the instructive kind.
+    # Chapter 1 of the Oz scan is headed THE CYCLONE on only two surviving
+    # pages, below the threshold, so the first series found was chapter 2 —
+    # and the whole of chapter 1, the Kansas prairies and the cyclone itself,
+    # was quietly relabelled front matter and dropped from the body. A test
+    # asking only whether the apparatus had gone would have passed.
+    #
+    # A tier whose known weakness is missing series cannot be trusted to say
+    # that nothing precedes the first series it found. So the text before it is
+    # kept as body under a title that admits what is not known. **Carrying a
+    # preface into the body is visible in the output; losing a chapter is
+    # not**, and this package prefers the mistake that can be seen.
+    if heading_titles and body_start is not None:
+        opening = meta_span[1] if meta_span else content_start
+        if opening < body_start:
+            heading_idx = [opening] + list(heading_idx)
+            heading_titles = {**heading_titles,
+                              opening: "(opening, chapter not identified)"}
+            body_start = opening
 
     if body_start is None:
         # No headings of any kind. Keep everything as body rather than
@@ -942,9 +982,11 @@ def segment(doc: Document) -> Document:
         ce = chapter_starts[idx + 1] if idx + 1 < len(chapter_starts) else body_end
         ce = min(ce, body_end)
         regions.append(Region(
-            label=BODY, kind=heading_kind or "chapter", title=lines[cs].strip(),
+            label=BODY, kind=heading_kind or "chapter",
+            title=(heading_titles or {}).get(cs) or lines[cs].strip(),
             start=cs, end=ce,
-            confidence=1.0 if heading_kind == "chapter" else 0.85,
+            confidence=(0.75 if heading_titles else
+                        1.0 if heading_kind == "chapter" else 0.85),
             evidence=heading_evidence or "chapter heading",
         ))
 

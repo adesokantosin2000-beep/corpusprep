@@ -211,6 +211,19 @@ def main(argv: list[str]) -> int:
                  fx / "hyphenated.txt",
                  # Verse embedded in wrapped prose: the boundary case.
                  fx / "mixed_verse.txt",
+                 # Page-per-line OCR: running heads welded to the front of a
+                 # line, and chapters that exist only as those heads.
+                 #
+                 # Its absence was a real hole. The prefix rule gained
+                 # near-duplicate merging in Python and the JS engine went
+                 # without it for a day, 162 heads against 155, while this
+                 # harness reported agreement throughout — because no fixture
+                 # here was page-per-line, so neither engine ran the rule.
+                 #
+                 # **A parity harness proves agreement only on what it feeds
+                 # both sides.** These are slow and are worth it.
+                 fx / "newwizardoz00densgoog.epub",
+                 fx / "mary-shelley_frankenstein.epub",
                  fx / "sample.docx", fx / "sample.epub", fx / "sample.html"]
 
     files = [f for f in files if f.exists()]

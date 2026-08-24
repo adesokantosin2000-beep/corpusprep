@@ -609,6 +609,122 @@ def find_prefix_furniture(lines: list[str], skip: set[int] | None = None
     #
     # Merging is one-directional, smallest into largest, so two genuinely
     # different running heads of similar frequency are never combined.
+    _merge_prefix_variants(groups)
+
+    out: list[PrefixEdit] = []
+    for key, hits in groups.items():
+        if len(hits) < PREFIX_MIN_OCCURRENCES:
+            continue
+        for line_no, text, end in hits:
+            rest = lines[line_no - 1][end:]
+            n = TRAILING_PAGE_NO.match(rest)
+            stop = end + (n.end(1) if n else 0)
+            out.append(PrefixEdit(
+                line=line_no, prefix=lines[line_no - 1][:stop].strip(), end=stop,
+                reason=f"this heading opens {len(hits)} pages, so it is a "
+                       f"running head rather than part of the text"))
+    out.sort(key=lambda e: e.line)
+    return out
+
+
+#: Fewest disjoint series before a document's chapters are read from its
+#: running heads. Two proves nothing: any book title plus any one repeated
+#: phrase makes two. Requiring several means the series have to *partition*
+#: the text, which is a property of chapters and of very little else.
+MIN_HEAD_CHAPTERS = 3
+
+
+def find_head_chapters(lines: list[str], start: int = 0, end: int | None = None,
+                       skip=lambda i: False) -> list[tuple[int, str]]:
+    """Recover chapter boundaries from the running heads themselves.
+
+    **The last resort, and on badly scanned books the only one that works.**
+
+    The Internet Archive scan of *The New Wizard of Oz* contains no chapter
+    headings whatever. Every chapter opens with a decorative drop-capital, and
+    OCR destroys the whole line trying to read it::
+
+        ^^^^ Dorothy awoke ^^^|[ %, the sun was shining through the trees
+        11 §W^^ little party of travel*^ ^ lers awakened the next morning
+
+    The title that belongs above those lines is simply gone. But the same title
+    is printed at the top of *every page* of its chapter, so it survives twenty
+    times over in the running heads. **A heading is set once; a running head is
+    repeated on every page, and in damaged material that redundancy is the
+    stronger evidence.**
+
+    So a new running-head series is a chapter boundary.
+
+    ### Telling a chapter title from the book title
+
+    Both are running heads, and the book title is also the more frequent, so
+    frequency is no help. The difference is structural: a chapter's series
+    occupies a contiguous stretch and **no two chapters overlap**, while the
+    book title runs the length of the whole volume and therefore overlaps every
+    chapter there is.
+
+    The book title is discarded by that property alone, with no threshold and
+    no list of stop-words: the most-overlapping series is dropped repeatedly
+    until the survivors are mutually disjoint. On the Oz scan this removes
+    `THE WONDERFUL WIZARD OF OZ`, which overlaps eighteen others, and then
+    `THE WONDERFUL`, a truncated variant of it that overlaps twelve. Neither is
+    special-cased; both fail the same test.
+
+    Returns (line index, title) pairs, 0-based, in order. The title reported is
+    the most frequent spelling in the series rather than the first, because the
+    first may be the one OCR mangled.
+    """
+    end = len(lines) if end is None else end
+    if not is_page_per_line(lines):
+        return []
+
+    groups: dict[str, list[tuple[int, str]]] = {}
+    for i in range(start, end):
+        if skip(i):
+            continue
+        m = PREFIX.match(lines[i])
+        if m:
+            groups.setdefault(normalise(m.group(2)), []).append((i, m.group(2)))
+
+    _merge_prefix_variants(groups)
+    series = {k: sorted(v) for k, v in groups.items()
+              if len(v) >= PREFIX_MIN_OCCURRENCES}
+    if len(series) <= MIN_HEAD_CHAPTERS:
+        return []
+
+    spans = {k: (v[0][0], v[-1][0]) for k, v in series.items()}
+
+    def clashes(k: str) -> int:
+        a = spans[k]
+        return sum(1 for o, b in spans.items()
+                   if o != k and a[0] <= b[1] and b[0] <= a[1])
+
+    # Drop the most-entangled series until nothing overlaps anything. The book
+    # title overlaps every chapter and so always goes first; a chapter overlaps
+    # only the book title and so always survives it.
+    while spans:
+        worst = max(spans, key=lambda k: (clashes(k), spans[k][1] - spans[k][0]))
+        if clashes(worst) == 0:
+            break
+        del spans[worst]
+
+    if len(spans) < MIN_HEAD_CHAPTERS:
+        return []
+
+    out = []
+    for k in spans:
+        forms = [t for _, t in series[k]]
+        title = max(set(forms), key=forms.count)
+        out.append((series[k][0][0], title))
+    return sorted(out)
+
+
+def _merge_prefix_variants(groups: dict) -> None:
+    """Fold OCR variants of a running head back into the series they belong to.
+
+    Shared by the furniture rule and the chapter rule so the two can never
+    disagree about what counts as one series.
+    """
     keys = sorted(groups, key=lambda k: -len(groups[k]))
     absorbed: set[str] = set()
     for i, big in enumerate(keys):
@@ -626,21 +742,6 @@ def find_prefix_furniture(lines: list[str], skip: set[int] | None = None
         del groups[k]
     for v in groups.values():
         v.sort()
-
-    out: list[PrefixEdit] = []
-    for key, hits in groups.items():
-        if len(hits) < PREFIX_MIN_OCCURRENCES:
-            continue
-        for line_no, text, end in hits:
-            rest = lines[line_no - 1][end:]
-            n = TRAILING_PAGE_NO.match(rest)
-            stop = end + (n.end(1) if n else 0)
-            out.append(PrefixEdit(
-                line=line_no, prefix=lines[line_no - 1][:stop].strip(), end=stop,
-                reason=f"this heading opens {len(hits)} pages, so it is a "
-                       f"running head rather than part of the text"))
-    out.sort(key=lambda e: e.line)
-    return out
 
 
 def apply_prefix_edits(lines: list[str], edits: list[PrefixEdit]) -> list[str]:

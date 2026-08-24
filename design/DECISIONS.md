@@ -1590,3 +1590,84 @@ something and misses a scattering, look at the key before the threshold.
 Deriving regions from head series would touch `Document`, both engines, the
 parity harness and the log, and this has been a long day. The measurement is
 recorded so it can be picked up cold.
+
+
+---
+
+## 2026-08-24 — Chapters from running heads: built
+
+Yesterday's finding turned into a fourth heading tier. Three faults came out of
+it, and as usual they are worth more than the feature.
+
+### Telling a chapter title from the book title
+
+Both are running heads. The book title is also the more frequent, so counting
+settles nothing. The difference is structural:
+
+> A chapter's series occupies a contiguous stretch and **no two chapters
+> overlap**. The book title runs the length of the volume and therefore
+> overlaps every chapter there is.
+
+So the most-entangled series is dropped repeatedly until the survivors are
+mutually disjoint. On the Oz scan that removes `THE WONDERFUL WIZARD OF OZ`,
+which overlaps eighteen others, and then `THE WONDERFUL`, a truncated variant
+overlapping twelve. **Neither is special-cased and no stop-word list exists;
+both fail the same test.** Seventeen disjoint series remain, in order.
+
+That is the whole discriminator. No threshold, no list of book titles, nothing
+to tune.
+
+### Fault 1 — the tier quietly deleted chapter one
+
+The first run passed every apparatus test and lost the opening of the book.
+
+`body_start` is the first heading found. Chapter 1 is headed `THE CYCLONE` on
+only two surviving pages, below the threshold, so the first series found was
+chapter 2 — and everything before it, including the Kansas prairies and the
+cyclone itself, was relabelled front matter and dropped from `body-only`.
+
+**A tier whose known weakness is missing series cannot be trusted to say that
+nothing precedes the first series it found.** The run-up is now kept as body
+under the title `(opening, chapter not identified)`, which states exactly what
+is and is not known. Carrying a preface into the body is visible in the output;
+losing a chapter is not.
+
+It was caught only because an existing test asserted `"Kansas prairies" in out`
+rather than merely asserting the boilerplate had gone. **A test that checks
+only that the bad thing left will pass when the good thing leaves with it.**
+
+### Fault 2 — the parity harness agreed about nothing
+
+The prefix rule gained near-duplicate merging in Python. The JS engine went a
+full day without it, 162 heads against 155, and `check_parity.py` reported
+agreement the whole time.
+
+Not a bug in the comparison this time. **No fixture in the harness was
+page-per-line, so neither engine ever ran the rule.** Agreement on code that
+does not execute is not agreement.
+
+Both scans are now in the harness. They are slow and they are worth it.
+
+### Fault 3 — three words that were not words
+
+Adding Frankenstein to the harness immediately produced a mismatch: 78,724
+tokens in Python, 78,727 in JavaScript.
+
+Its footnote backlinks are an arrow followed by a VARIATION SELECTOR. The JS
+pattern was `[\p{L}\p{M}]+`, which lets a token *begin* with a combining mark,
+so each selector counted as a word. A token must now begin with a letter.
+
+The mirror-image fault sat in Python, unnoticed because no fixture triggered
+it: `[^\W\d_]+` excludes combining marks entirely, so `café` written as `e`
+plus a combining acute tokenised as two words. Both engines now normalise to
+NFC before counting. **The text is not touched; only the counting is.**
+
+Two implementations of the same rule disagreeing in opposite directions is the
+argument for keeping both.
+
+### Where it does not fire
+
+Frankenstein is genuinely page-per-line — median line 396 characters — so the
+rule runs on it and returns nothing: no running heads, and the book segments on
+its own numerals as it always did, 24 chapters. Regression-tested explicitly,
+because a heading rule that invents chapters is worse than one that finds none.

@@ -82,8 +82,16 @@ const MAX_TITLED_HEADING_LEN=200;
    NOT [^\W\d_] here: JavaScript's \w is ASCII-only even with the /u flag, so
    that form splits "\u00e6sthetic" and "na\u00efve" into pieces while Python keeps them
    whole. The parity check caught this as a 9-token drift on a real text. */
-const WORD_RE=/[\p{L}\p{M}]+(?:['\u2019][\p{L}\p{M}]+)*/gu;
-function tokens(t){return t.match(WORD_RE)||[]}
+/* A word token must BEGIN with a letter. Without that, `[\p{L}\p{M}]+`
+   matches a lone combining mark: Frankenstein's footnote backlinks carry a
+   VARIATION SELECTOR after the arrow glyph, and each one was counted as a
+   word. Three phantom tokens, invisible until a fixture happened to contain
+   them.
+
+   NFC first, so that the same word counts the same however the file encodes
+   its accents. The text itself is untouched; only the counting normalises. */
+const WORD_RE=/\p{L}[\p{L}\p{M}]*(?:['\u2019]\p{L}[\p{L}\p{M}]*)*/gu;
+function tokens(t){return t.normalize("NFC").match(WORD_RE)||[]}
 function countTT(t){const w=tokens(t);return{tokens:w.length,types:new Set(w.map(x=>x.toLowerCase())).size}}
 
 function isUpper(s){const L=[...s].filter(c=>/\p{L}/u.test(c));return L.length>0&&L.every(c=>c===c.toUpperCase())}
@@ -295,12 +303,23 @@ function subtreeWords(lines,regions,i){
 function findBodyHeadings(lines,start,end,skip){
   const kw=[];
   for(let i=start;i<end;i++) if(!skip(i)&&isChapterHeading(lines[i])) kw.push(i);
-  if(kw.length) return [kw,"chapter","division heading"];
+  if(kw.length) return [kw,"chapter","division heading",null];
   const ns=findNumberedSections(lines,start,end,skip);
-  if(ns.length) return [ns,"section","numbered section heading"];
+  if(ns.length) return [ns,"section","numbered section heading",null];
   const seq=findNumeralSequence(lines,start,end,skip);
-  if(seq.length) return [seq,"chapter","bare numeral in ascending sequence"];
-  return [[],null,null];
+  if(seq.length) return [seq,"chapter","bare numeral in ascending sequence",null];
+  /* The first three tiers ask what the page says. This one asks what it
+     repeats, and exists because a scan can destroy every heading in a book
+     while leaving its running heads intact. The titles come back separately
+     because the "heading" line is a page of prose with the title welded to
+     its front, so it cannot be used as the region's name. */
+  const heads=findHeadChapters(lines,start,end,skip);
+  if(heads.length){
+    const titles=new Map(heads);
+    return [heads.map(h=>h[0]),"chapter",
+            "running head repeated on every page of the chapter",titles];
+  }
+  return [[],null,null,null];
 }
 /* Two routes: the generic list needs ALL CAPS (its patterns end in wildcards,
    so case-insensitivity would over-match); the named list allows title case
@@ -534,7 +553,7 @@ function segment(lines){
   if(metaSpan) regions.push(R(FRONT_MATTER,"metadata","Metadata header",
     metaSpan[0],metaSpan[1],.85,"consecutive 'Key: value' lines at head of document"));
 
-  let [headingIdx,headingKind,headingEvidence]=findBodyHeadings(lines,cStart,cEnd,inLic);
+  let [headingIdx,headingKind,headingEvidence,headingTitles]=findBodyHeadings(lines,cStart,cEnd,inLic);
 
   const [contentsIdx,realIdx]=splitContentsList(lines,headingIdx);
   headingIdx=realIdx;
@@ -554,6 +573,27 @@ function segment(lines){
   }
 
   let bodyStart=headingIdx.length?headingIdx[0]:null;
+
+  /* The running-head tier finds boundaries INSIDE the body. It cannot locate
+     where the body begins, and must not be read as though it could.
+
+     It missed this on the first run and the failure was the instructive kind.
+     Chapter 1 of the Oz scan is headed THE CYCLONE on only two surviving
+     pages, below the threshold, so the first series found was chapter 2 — and
+     the whole of chapter 1, the Kansas prairies and the cyclone itself, was
+     quietly relabelled front matter and dropped from the body.
+
+     Carrying a preface into the body is visible in the output; losing a
+     chapter is not, and this package prefers the mistake that can be seen. */
+  if(headingTitles&&bodyStart!==null){
+    const opening=metaSpan?metaSpan[1]:cStart;
+    if(opening<bodyStart){
+      headingIdx=[opening].concat(headingIdx);
+      headingTitles=new Map(headingTitles);
+      headingTitles.set(opening,"(opening, chapter not identified)");
+      bodyStart=opening;
+    }
+  }
 
   if(bodyStart===null){
     const restStart=metaSpan?metaSpan[1]:cStart;
@@ -606,8 +646,10 @@ function segment(lines){
     if(cs>=bodyEnd) return;
     let ce=ix+1<chapters.length?chapters[ix+1]:bodyEnd;
     ce=Math.min(ce,bodyEnd);
-    regions.push(R(BODY,headingKind||"chapter",lines[cs].trim(),cs,ce,
-      headingKind==="chapter"?1:.85,headingEvidence||"chapter heading"));
+    regions.push(R(BODY,headingKind||"chapter",
+      (headingTitles&&headingTitles.get(cs))||lines[cs].trim(),cs,ce,
+      headingTitles?.75:(headingKind==="chapter"?1:.85),
+      headingEvidence||"chapter heading"));
   });
 
   if(backStart!==null&&backStart<cEnd)
@@ -948,6 +990,7 @@ function furnJudge(cands,pageLength){
 
 const PAGE_PER_LINE_MIN_MEDIAN=200;
 const PREFIX_MIN_OCCURRENCES=3;
+const PREFIX_NEAR_DUPLICATE=0.80;
 /* The page number is captured separately from the title, and the leading
    number matters more than it looks. Books set the book title on the verso and
    the chapter title on the recto, and the page number sits on the outer edge,
@@ -962,6 +1005,11 @@ const PREFIX_MIN_OCCURRENCES=3;
    JANE EYRE 42 and 43 count as one head, but OCR leaves residue a digit-strip
    cannot reach — `6o` keeps its `o`, `io6` keeps `io` — and folding that into
    the key splits one head into several too rare to count.                   */
+/* Fewest disjoint series before a document's chapters are read from its
+   running heads. Two proves nothing: any book title plus any one repeated
+   phrase makes two. Requiring several means the series have to partition the
+   text, which is a property of chapters and of very little else.          */
+const MIN_HEAD_CHAPTERS=3;
 const PREFIX_RE=
   /^\s*(?:([0-9IVXLilo|\/S]{1,4})\s+)?((?:[A-Z][A-Z0-9.,'’\-]*\s+){1,9}[A-Z][A-Z0-9.,'’\-]*)\s/;
 const TRAILING_PAGE_NO=/^\s*([0-9IVXLCilvx|\/l]{1,6})\s+(?=[A-Za-z"'])/;
@@ -970,6 +1018,36 @@ function isPagePerLine(lines){
   const lens=lines.filter(l=>l.trim()).map(l=>l.trim().length);
   if(lens.length<20) return false;
   return furnMedian(lens)>=PAGE_PER_LINE_MIN_MEDIAN;
+}
+
+/* Fold OCR variants of a running head back into their series.
+
+   Shared by the furniture rule and the chapter rule so the two can never
+   disagree about what counts as one series. This scan mangles a head about
+   one page in six: WIZARB> for WIZARD, W0NBERFUL for WONDERFUL, QZ for OZ,
+   DOROXrHY for DOROTHY. Each damaged copy forms its own group, too rare to
+   reach the threshold, and survives into the corpus.
+
+   Merging is one-directional, smallest into largest, so two genuinely
+   different running heads of similar frequency are never combined.        */
+function mergePrefixVariants(groups){
+  const keys=[...groups.keys()].sort((a,b)=>groups.get(b).length-groups.get(a).length);
+  const absorbed=new Set();
+  for(let i=0;i<keys.length;i++){
+    const big=keys[i];
+    if(absorbed.has(big)) continue;
+    for(let j=i+1;j<keys.length;j++){
+      const small=keys[j];
+      if(absorbed.has(small)) continue;
+      if(groups.get(small).length*2>groups.get(big).length) continue;
+      if(seqRatio(big,small)>=PREFIX_NEAR_DUPLICATE){
+        groups.set(big,groups.get(big).concat(groups.get(small)));
+        absorbed.add(small);
+      }
+    }
+  }
+  for(const k of absorbed) groups.delete(k);
+  for(const v of groups.values()) v.sort((a,b)=>a[0]-b[0]);
 }
 
 function findPrefixFurniture(lines,skip){
@@ -986,6 +1064,7 @@ function findPrefixFurniture(lines,skip){
     if(!groups.has(key)) groups.set(key,[]);
     groups.get(key).push([n,m[0].trim(),m[0].lastIndexOf(m[2])+m[2].length]);
   }
+  mergePrefixVariants(groups);
 
   const out=[];
   for(const [key,hits] of groups){
@@ -1002,6 +1081,72 @@ function findPrefixFurniture(lines,skip){
   }
   out.sort((a,b)=>a.line-b.line);
   return out;
+}
+
+/* Recover chapter boundaries from the running heads themselves.
+
+   The last resort, and on badly scanned books the only one that works. The
+   Internet Archive scan of The New Wizard of Oz has no chapter headings at
+   all: every chapter opens on a decorative drop-capital and OCR wrecks the
+   line trying to read it. The title is gone from where it was set once, and
+   survives twenty times over at the top of every page of its chapter.
+
+   Telling a chapter title from the book title is structural, not statistical.
+   Both are running heads and the book title is the more frequent, so counting
+   is no help. But a chapter's series occupies a contiguous stretch and no two
+   chapters overlap, while the book title runs the length of the volume and so
+   overlaps every chapter there is. Drop the most-entangled series repeatedly
+   until the survivors are mutually disjoint, and the book title goes first
+   with no threshold and no stop-word list.                                 */
+function findHeadChapters(lines,start,end,skip){
+  end=end===undefined?lines.length:end;
+  if(!isPagePerLine(lines)) return [];
+
+  const groups=new Map();
+  for(let i=start;i<end;i++){
+    if(skip&&skip(i)) continue;
+    const m=PREFIX_RE.exec(lines[i]);
+    if(!m) continue;
+    const key=furnNormalise(m[2]);
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push([i,m[2]]);
+  }
+  mergePrefixVariants(groups);
+
+  const series=new Map();
+  for(const [k,v] of groups) if(v.length>=PREFIX_MIN_OCCURRENCES) series.set(k,v);
+  if(series.size<=MIN_HEAD_CHAPTERS) return [];
+
+  const spans=new Map();
+  for(const [k,v] of series) spans.set(k,[v[0][0],v[v.length-1][0]]);
+
+  const clashes=k=>{
+    const a=spans.get(k);
+    let n=0;
+    for(const [o,b] of spans) if(o!==k&&a[0]<=b[1]&&b[0]<=a[1]) n++;
+    return n;
+  };
+  while(spans.size){
+    let worst=null,wc=-1,wl=-1;
+    for(const k of spans.keys()){
+      const c=clashes(k),l=spans.get(k)[1]-spans.get(k)[0];
+      if(c>wc||(c===wc&&l>wl)){worst=k;wc=c;wl=l}
+    }
+    if(wc===0) break;
+    spans.delete(worst);
+  }
+  if(spans.size<MIN_HEAD_CHAPTERS) return [];
+
+  const out=[];
+  for(const k of spans.keys()){
+    const forms=series.get(k).map(x=>x[1]);
+    const tally=new Map();
+    for(const f of forms) tally.set(f,(tally.get(f)||0)+1);
+    let title=forms[0],best=0;
+    for(const [f,n] of tally) if(n>best){best=n;title=f}
+    out.push([series.get(k)[0][0],title]);
+  }
+  return out.sort((a,b)=>a[0]-b[0]);
 }
 
 function applyPrefixEdits(lines,edits){

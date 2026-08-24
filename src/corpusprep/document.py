@@ -19,6 +19,7 @@ cannot be confused because they are different steps.
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Iterable
@@ -53,8 +54,14 @@ def word_tokens(text: str) -> list[str]:
 
     Not a linguistic tokeniser — its job is to give comparable counts before
     and after cleaning so we can detect accidental prose loss.
+
+    **Normalised to NFC first**, because otherwise the same word counts
+    differently depending on how the file happens to encode its accents.
+    `café` written as `e` plus a combining acute is one token to a reader and
+    was two here, since a combining mark is not a word character in Python.
+    The text itself is not touched; only the counting is.
     """
-    return _WORD_RE.findall(text)
+    return _WORD_RE.findall(unicodedata.normalize("NFC", text))
 
 
 def count_tokens_types(text: str) -> tuple[int, int]:

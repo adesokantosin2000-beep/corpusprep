@@ -1693,6 +1693,82 @@ def test_real_scan_from_internet_archive():
     check("but the book itself survives", "Kansas prairies" in out)
 
 
+def test_a_combining_mark_is_not_a_word():
+    """Three phantom tokens, found by widening the parity harness.
+
+    Frankenstein's footnote backlinks are an arrow followed by a VARIATION
+    SELECTOR. The JS token pattern allowed a token to *begin* with a combining
+    mark, so each selector counted as a word and the two engines reported
+    different totals for the same file.
+    """
+    from corpusprep.document import count_tokens_types
+    check("a lone variation selector is not a token",
+          count_tokens_types("see the note \u21a9\ufe0e here") == (4, 4))
+    check("and NFC decides it, not the encoding",
+          count_tokens_types("caf\u00e9") == count_tokens_types("cafe\u0301"))
+
+
+def test_chapters_recovered_from_running_heads():
+    """A book whose chapter headings OCR destroyed, read from its page heads.
+
+    The Oz scan contains no chapter headings at all: every chapter opens on a
+    decorative drop-capital and OCR wrecks the line trying to read it. The
+    titles survive only because they are reprinted at the top of every page.
+    """
+    fx = FIXTURES / "newwizardoz00densgoog.epub"
+    if not fx.exists():
+        print("  SKIP  real scan not present")
+        return
+
+    from corpusprep import analyse
+    doc = analyse(fx)
+    body = [r for r in doc.regions if r.label == "body"]
+    titles = [r.title for r in body if "continued" not in r.title]
+
+    check("chapters found where no heading exists", len(titles) >= 15,
+          f"{len(titles)} chapters")
+    check("and they are Baum's own titles",
+          any("MUNCHKINS" in t for t in titles)
+          and any("POPPY" in t for t in titles)
+          and any("MONKEYS" in t for t in titles), str(titles[:4]))
+    check("the evidence says so plainly",
+          any("running head" in (r.evidence or "") for r in body))
+
+    # The failure this rule made on its first run, and the one it is most
+    # prone to: a chapter whose head series is too short to find is not
+    # missing from the book, and must not be relabelled out of the body.
+    check("the first chapter is not lost to front matter",
+          "Kansas prairies" in "\n".join(
+              l for r in body for l in doc.lines[r.start:r.end]))
+    check("and the unidentified opening says it is unidentified",
+          any("not identified" in r.title for r in body))
+
+
+def test_running_heads_do_not_invent_chapters():
+    """The negative control, on a real page-per-line file with no heads.
+
+    Frankenstein is stored one page per line exactly like the Oz scan, so the
+    rule runs on it. It has no running heads, and it already segments by its
+    own numerals — the head tier must never be reached, let alone fire.
+    """
+    fx = FIXTURES / "mary-shelley_frankenstein.epub"
+    if not fx.exists():
+        print("  SKIP  Frankenstein not present")
+        return
+
+    from corpusprep import analyse
+    from corpusprep.furniture import find_head_chapters
+    doc = analyse(fx)
+
+    check("no chapters invented from running heads",
+          find_head_chapters(doc.lines) == [])
+    body = [r for r in doc.regions if r.label == "body"]
+    check("and the book still segments by its own numerals", len(body) == 24,
+          f"{len(body)} chapters")
+    check("on other evidence entirely",
+          all("running head" not in (r.evidence or "") for r in body))
+
+
 def test_scanner_reported_accuracy_is_believed():
     """The one rule here that infers nothing.
 
