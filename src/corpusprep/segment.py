@@ -27,6 +27,7 @@ that invariant is checked. Removal is a separate, explicit step.
 from __future__ import annotations
 
 import re
+import statistics
 from dataclasses import replace
 
 from .document import (
@@ -186,6 +187,31 @@ CHAPTER_HEADING = re.compile(
     rf"^\s*({DIVISION_WORDS})\s*[:.—\-]?\s*({_ENUM})\b\s*[.:;—–\-]?\s*(.{{0,200}})?$",
     re.IGNORECASE,
 )
+
+#: The same heading welded to the front of a page of prose.
+#:
+#: In a page-per-line file the chapter heading is printed at the top of the
+#: chapter's first page, so it is not a line — it is the first few words of
+#: one:
+#:
+#:     CHAPTER II. BLACK DOG APPEARS AND DISAPPEARS. When I got back with...
+#:
+#: `CHAPTER_HEADING` is anchored to the whole line and cannot see this. On the
+#: Treasure Island scan that discarded 24 numbered headings, in order, and fell
+#: back to the weaker running-head tier for 25 of 34 chapters.
+#:
+#: **This is the third rule that assumed one line, one thing**, after page
+#: furniture and running heads. It is a property of the format, not of any one
+#: book, and is now handled as such.
+#:
+#: The terminator after the numeral is what keeps this safe. `PART II.` is a
+#: heading; `Part of the reason` is not, and never reaches the numeral. The
+#: title is then the run of capitals that follows, which is how these headings
+#: are set and what makes the end of one findable.
+CHAPTER_HEADING_PREFIX = re.compile(
+    rf"^\s*({DIVISION_WORDS})\s*[:.\u2014-]?\s*({_ENUM})\b\s*[.:;\u2014\u2013]\s+"
+    rf"((?:[A-Z][A-Z0-9'\u2019\u201c\u201d\"\-]*[ .,]{{1,2}}){{0,11}})",
+    re.IGNORECASE)
 
 #: "1. Introduction", "2.1 Method" — academic and report structure.
 NUMBERED_SECTION = re.compile(
@@ -487,9 +513,69 @@ def find_body_headings(lines, start, end, skip=lambda i: False):
     page of prose with the title welded to its front and so cannot be used as
     the region's name.
     """
-    kw = [i for i in range(start, end) if not skip(i) and is_chapter_heading(lines[i])]
+    kw, kw_titles = [], {}
+    for i in range(start, end):
+        if skip(i):
+            continue
+        if is_chapter_heading(lines[i]):
+            kw.append(i)
+            continue
+        # A heading the typesetter set on one line and the file stores on two.
+        two = _two_line_heading(lines, i, end)
+        if two:
+            kw.append(i)
+            kw_titles[i] = two
     if kw:
-        return kw, "chapter", "division heading", None
+        return kw, "chapter", "division heading", (kw_titles or None)
+
+    # Page-per-line files carry the same evidence in two damaged forms, and
+    # neither is reliably the better one.
+    #
+    #   - the chapter heading welded to the front of the page it opens
+    #   - the running head repeated on every page of the chapter
+    #
+    # Treasure Island yields 22 headings and 25 head series; Oz yields 0 and
+    # 18, because its drop-capitals destroyed every heading. **Choosing one
+    # tier throws away whatever the other saw**, so both are used and merged.
+    #
+    # A heading wins where the two coincide: it carries an explicit number,
+    # which a running head does not, and it is the typesetter's own words for
+    # where the chapter begins.
+    from .furniture import is_page_per_line, find_head_chapters, PAGE_GAP
+    if is_page_per_line(lines):
+        pf, titles = [], {}
+        for i in range(start, end):
+            if skip(i):
+                continue
+            m = CHAPTER_HEADING_PREFIX.match(lines[i])
+            if m:
+                pf.append(i)
+                titles[i] = m.group(0).strip()
+
+        # How near counts as "the same chapter". Not a constant: this file is
+        # two lines to the page, so a heading and its first running head sit
+        # four lines apart, and a two-line window merged nothing. Half the
+        # median spacing between headings is the right scale by construction —
+        # comfortably wider than the offset, comfortably narrower than a
+        # chapter.
+        gaps = [b - a for a, b in zip(pf, pf[1:])]
+        window = max(PAGE_GAP, int(statistics.median(gaps)) // 2) if gaps else PAGE_GAP
+
+        for i, title in find_head_chapters(lines, start, end, skip):
+            # Directional on purpose. A heading precedes its own running heads
+            # and never follows them, so looking backwards only stops a series
+            # being swallowed by the heading of the chapter after it.
+            if any(0 <= i - j <= window for j in pf):
+                continue
+            pf.append(i)
+            titles[i] = title
+
+        if len(pf) >= 3:
+            pf.sort()
+            ev = ("division heading at the head of the page"
+                  if any(CHAPTER_HEADING_PREFIX.match(lines[i]) for i in pf)
+                  else "running head repeated on every page of the chapter")
+            return pf, "chapter", ev, titles
 
     ns = find_numbered_sections(lines, start, end, skip)
     if ns:
@@ -499,14 +585,42 @@ def find_body_headings(lines, start, end, skip=lambda i: False):
     if seq:
         return seq, "chapter", "bare numeral in ascending sequence", None
 
-    from .furniture import find_head_chapters
-    heads = find_head_chapters(lines, start, end, skip)
-    if heads:
-        return ([i for i, _ in heads], "chapter",
-                "running head repeated on every page of the chapter",
-                {i: t for i, t in heads})
-
     return [], None, None, None
+
+
+def _two_line_heading(lines, i: int, end: int) -> str | None:
+    """A division heading whose word and numeral are on separate lines.
+
+    Standard Ebooks and several EPUB converters emit headings this way::
+
+        55: 'Letter'      143: 'Chapter'
+        56: 'I'           144: ' I'
+
+    `is_chapter_heading` wants both on one line, so a book stored like this has
+    **no division headings at all** as far as tier 1 is concerned.
+
+    That is not cosmetic. In Frankenstein it sent the search down to the bare
+    numeral tier, which found the 24 chapters, silently discarded the 4 letters
+    numbered `I`–`IV` before them, and left Walton's entire frame narrative —
+    5,500 words, the opening of the novel — inside a region labelled Preface
+    and dropped from the body.
+    """
+    head = lines[i].strip()
+    if not head or not _DIVISION_FIRST_WORD.match(head):
+        return None
+    # The division word must be the whole line; "Chapter of accidents" is not
+    # a heading waiting for its numeral.
+    if head.lower() not in DIVISION_WORDS.lower().split("|"):
+        return None
+    j = i + 1
+    while j < end and not lines[j].strip():
+        j += 1
+    if j >= end or j > i + 2:
+        return None
+    nxt = lines[j].strip()
+    if not BARE_NUMERAL.match(nxt):
+        return None
+    return f"{head} {nxt.rstrip('.')}"
 
 
 def is_front_heading(line: str) -> bool:
@@ -899,7 +1013,8 @@ def segment(doc: Document) -> Document:
     # kept as body under a title that admits what is not known. **Carrying a
     # preface into the body is visible in the output; losing a chapter is
     # not**, and this package prefers the mistake that can be seen.
-    if heading_titles and body_start is not None:
+    if (heading_evidence or "").startswith(("running head", "division heading at")) \
+            and body_start is not None:
         opening = meta_span[1] if meta_span else content_start
         if opening < body_start:
             heading_idx = [opening] + list(heading_idx)
@@ -985,8 +1100,8 @@ def segment(doc: Document) -> Document:
             label=BODY, kind=heading_kind or "chapter",
             title=(heading_titles or {}).get(cs) or lines[cs].strip(),
             start=cs, end=ce,
-            confidence=(0.75 if heading_titles else
-                        1.0 if heading_kind == "chapter" else 0.85),
+            confidence=(0.75 if (heading_evidence or "").startswith("running head")
+                        else 1.0 if heading_kind == "chapter" else 0.85),
             evidence=heading_evidence or "chapter heading",
         ))
 

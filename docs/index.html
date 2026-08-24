@@ -647,7 +647,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
 <script>
 "use strict";
 
-const CORPUSPREP_VERSION="0.5.0";
+const CORPUSPREP_VERSION="0.6.0";
 const PG_HEADER="pg_header", PG_LICENCE="pg_licence", FRONT_MATTER="front_matter",
       BODY="body", BACK_MATTER="back_matter", UNKNOWN="unknown";
 
@@ -710,6 +710,22 @@ const _ENUM=`(?:[IVXLCDM]+|\\d{1,4}|(?:THE\\s+)?(?:${_CARDINAL}|${_ORDINAL})`+
 
 const CHAPTER_HEADING=new RegExp(
   `^\\s*(${DIVISION_WORDS})\\s*[:.—\\-]?\\s*(${_ENUM})\\b\\s*[.:;—–\\-]?\\s*(.{0,200})?$`,"i");
+/* The same heading welded to the front of a page of prose.
+
+   In a page-per-line file the chapter heading is printed at the top of the
+   chapter's first page, so it is not a line - it is the first few words of one:
+
+       CHAPTER II. BLACK DOG APPEARS AND DISAPPEARS. When I got back with...
+
+   CHAPTER_HEADING is anchored to the whole line and cannot see this. On the
+   Treasure Island scan that discarded 24 numbered headings, in order.
+
+   The terminator after the numeral keeps it safe: PART II. is a heading,
+   "Part of the reason" never reaches the numeral. */
+const CHAPTER_HEADING_PREFIX=new RegExp(
+  "^\\s*("+DIVISION_WORDS+")\\s*[:.\u2014-]?\\s*("+_ENUM+")\\b\\s*[.:;\u2014\u2013]\\s+"+
+  "((?:[A-Z][A-Z0-9'\u2019\u201c\u201d\"\\-]*[ .,]{1,2}){0,11})","i");
+
 const NUMBERED_SECTION=/^\s*(\d{1,2}(?:\.\d{1,2}){0,3})\.?\s+([A-ZÀ-Þ][^\n]{1,60})$/;
 const BARE_NUMERAL=/^\s*([IVXLCDM]{1,7}|\d{1,3})\s*\.?\s*$/;
 const METADATA_LINE=/^\s*([A-Z][A-Za-z /&'-]{1,28})\s*:\s*\S.*$/;
@@ -950,25 +966,82 @@ function subtreeWords(lines,regions,i){
   return total;
 }
 
+/* A division heading whose word and numeral are on separate lines.
+
+   Standard Ebooks and several EPUB converters emit headings this way:
+
+       55: 'Letter'      143: 'Chapter'
+       56: 'I'           144: ' I'
+
+   isChapterHeading wants both on one line, so a book stored like this has no
+   division headings at all as far as tier 1 is concerned. In Frankenstein that
+   sent the search down to the bare numeral tier, which found the 24 chapters,
+   discarded the 4 letters numbered I-IV before them, and left Walton's frame
+   narrative - 5,500 words - inside a region labelled Preface and dropped from
+   the body. */
+const _DIVISION_LIST=DIVISION_WORDS.toLowerCase().split("|");
+function twoLineHeading(lines,i,end){
+  const head=lines[i].trim();
+  if(!head||_DIVISION_LIST.indexOf(head.toLowerCase())<0) return null;
+  let j=i+1;
+  while(j<end&&!lines[j].trim()) j++;
+  if(j>=end||j>i+2) return null;
+  const nxt=lines[j].trim();
+  if(!BARE_NUMERAL.test(nxt)) return null;
+  return head+" "+nxt.replace(/\.$/,"");
+}
+
 function findBodyHeadings(lines,start,end,skip){
-  const kw=[];
-  for(let i=start;i<end;i++) if(!skip(i)&&isChapterHeading(lines[i])) kw.push(i);
-  if(kw.length) return [kw,"chapter","division heading",null];
+  const kw=[],kwTitles=new Map();
+  for(let i=start;i<end;i++){
+    if(skip(i)) continue;
+    if(isChapterHeading(lines[i])){kw.push(i);continue}
+    const two=twoLineHeading(lines,i,end);
+    if(two){kw.push(i);kwTitles.set(i,two)}
+  }
+  if(kw.length) return [kw,"chapter","division heading",kwTitles.size?kwTitles:null];
+
+  /* Page-per-line files carry the same evidence in two damaged forms and
+     neither is reliably the better one: the heading welded to the front of the
+     page it opens, and the running head repeated on every page of the chapter.
+     Treasure Island yields 22 and 25; Oz yields 0 and 18, its drop-capitals
+     having destroyed every heading. Choosing one tier throws away what the
+     other saw, so both are used and merged, a heading winning where they
+     coincide because it carries an explicit number. */
+  if(isPagePerLine(lines)){
+    const pf=[],titles=new Map();
+    for(let i=start;i<end;i++){
+      if(skip(i)) continue;
+      const m=CHAPTER_HEADING_PREFIX.exec(lines[i]);
+      if(m){pf.push(i);titles.set(i,m[0].trim())}
+    }
+    /* Not a constant: Treasure Island is two lines to the page, so a heading
+       and its first running head sit four lines apart and a two-line window
+       merged nothing. Half the median spacing between headings is the right
+       scale by construction. */
+    const gaps=[];
+    for(let k=1;k<pf.length;k++) gaps.push(pf[k]-pf[k-1]);
+    const window=gaps.length?Math.max(PAGE_GAP,Math.floor(furnMedian(gaps)/2)):PAGE_GAP;
+
+    for(const [i,title] of findHeadChapters(lines,start,end,skip)){
+      /* Directional. A heading precedes its own running heads and never
+         follows them, so looking backwards only stops a series being
+         swallowed by the heading of the chapter after it. */
+      if(pf.some(j=>i-j>=0&&i-j<=window)) continue;
+      pf.push(i);titles.set(i,title);
+    }
+    if(pf.length>=3){
+      pf.sort((a,b)=>a-b);
+      const ev=pf.some(i=>CHAPTER_HEADING_PREFIX.test(lines[i]))
+        ?"division heading at the head of the page"
+        :"running head repeated on every page of the chapter";
+      return [pf,"chapter",ev,titles];
+    }
+  }
   const ns=findNumberedSections(lines,start,end,skip);
   if(ns.length) return [ns,"section","numbered section heading",null];
   const seq=findNumeralSequence(lines,start,end,skip);
   if(seq.length) return [seq,"chapter","bare numeral in ascending sequence",null];
-  /* The first three tiers ask what the page says. This one asks what it
-     repeats, and exists because a scan can destroy every heading in a book
-     while leaving its running heads intact. The titles come back separately
-     because the "heading" line is a page of prose with the title welded to
-     its front, so it cannot be used as the region's name. */
-  const heads=findHeadChapters(lines,start,end,skip);
-  if(heads.length){
-    const titles=new Map(heads);
-    return [heads.map(h=>h[0]),"chapter",
-            "running head repeated on every page of the chapter",titles];
-  }
   return [[],null,null,null];
 }
 /* Two routes: the generic list needs ALL CAPS (its patterns end in wildcards,
@@ -1235,7 +1308,7 @@ function segment(lines){
 
      Carrying a preface into the body is visible in the output; losing a
      chapter is not, and this package prefers the mistake that can be seen. */
-  if(headingTitles&&bodyStart!==null){
+  if(bodyStart!==null&&/^(running head|division heading at)/.test(headingEvidence||"")){
     const opening=metaSpan?metaSpan[1]:cStart;
     if(opening<bodyStart){
       headingIdx=[opening].concat(headingIdx);
@@ -1298,7 +1371,7 @@ function segment(lines){
     ce=Math.min(ce,bodyEnd);
     regions.push(R(BODY,headingKind||"chapter",
       (headingTitles&&headingTitles.get(cs))||lines[cs].trim(),cs,ce,
-      headingTitles?.75:(headingKind==="chapter"?1:.85),
+      /^running head/.test(headingEvidence||"")?.75:(headingKind==="chapter"?1:.85),
       headingEvidence||"chapter heading"));
   });
 
@@ -1639,6 +1712,9 @@ function furnJudge(cands,pageLength){
    appears once, which is what keeps it safe.                                */
 
 const PAGE_PER_LINE_MIN_MEDIAN=200;
+const PAGE_PER_LINE_MAX_CV=0.75;
+/* How near two pieces of evidence count as the same chapter start. */
+const PAGE_GAP=2;
 const PREFIX_MIN_OCCURRENCES=3;
 const PREFIX_NEAR_DUPLICATE=0.80;
 /* The page number is captured separately from the title, and the leading
@@ -1661,13 +1737,31 @@ const PREFIX_NEAR_DUPLICATE=0.80;
    text, which is a property of chapters and of very little else.          */
 const MIN_HEAD_CHAPTERS=3;
 const PREFIX_RE=
-  /^\s*(?:([0-9IVXLilo|\/S]{1,4})\s+)?((?:[A-Z][A-Z0-9.,'’\-]*\s+){1,9}[A-Z][A-Z0-9.,'’\-]*)\s/;
+  /^\s*(?:([0-9IVXLilo|\/S]{1,4})\s+)?((?:[A-Z][A-Z0-9.,'’“”"\-]*\s+){1,9}[A-Z][A-Z0-9.,'’“”"\-]*)\s/;
 const TRAILING_PAGE_NO=/^\s*([0-9IVXLCilvx|\/l]{1,6})\s+(?=[A-Za-z"'])/;
 
+/* Length alone does not establish this, and for a while this pretended it did.
+   A file stored one PARAGRAPH per line also has long lines: Emma passed at a
+   median of 231 characters and Frankenstein at 396.
+
+   Uniformity is what separates them. A page holds a fixed amount of type; a
+   paragraph holds as much as the author wrote.
+
+       Treasure Island (scan)     median 1363   cv 0.34
+       Oz (scan)                  median 1080   cv 0.61
+       ---------------------------------------------------
+       Frankenstein (paragraphs)  median  396   cv 0.88
+       Emma (paragraphs)          median  231   cv 1.35
+
+   The populations do not overlap on either measure and both are required. */
 function isPagePerLine(lines){
   const lens=lines.filter(l=>l.trim()).map(l=>l.trim().length);
   if(lens.length<20) return false;
-  return furnMedian(lens)>=PAGE_PER_LINE_MIN_MEDIAN;
+  if(furnMedian(lens)<PAGE_PER_LINE_MIN_MEDIAN) return false;
+  const mean=lens.reduce((a,b)=>a+b,0)/lens.length;
+  if(!mean) return false;
+  const sd=Math.sqrt(lens.reduce((s,x)=>s+(x-mean)*(x-mean),0)/lens.length);
+  return sd/mean<=PAGE_PER_LINE_MAX_CV;
 }
 
 /* Fold OCR variants of a running head back into their series.

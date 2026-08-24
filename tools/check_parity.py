@@ -224,6 +224,11 @@ def main(argv: list[str]) -> int:
                  # both sides.** These are slow and are worth it.
                  fx / "newwizardoz00densgoog.epub",
                  fx / "mary-shelley_frankenstein.epub",
+                 # Headings inside the page line, and two-line division
+                 # headings. Both tiers added in Week 12 are exercised only by
+                 # these two files.
+                 fx / "treasureisland0000unse_k0j8.epub",
+                 fx / "jane-austen_emma_advanced.epub",
                  fx / "sample.docx", fx / "sample.epub", fx / "sample.html"]
 
     files = [f for f in files if f.exists()]
@@ -255,9 +260,22 @@ def main(argv: list[str]) -> int:
             print(f"  {flag}  {k:<16} python={py[name][k]}  js={js[name][k]}")
 
         for k in ["labels", "titles"]:
-            match = py[name][k] == js[name][k]
+            a, b = py[name][k].split("|"), js[name][k].split("|")
+            match = a == b
             ok &= match
             print(f"  {'OK  ' if match else 'DIFF'}  {k + ' sequence':<16}")
+            # Say WHICH one differs. Reporting only that a sequence mismatched
+            # sent the reader back to the two engines to diff by hand; the
+            # first differing pair is almost always the whole story.
+            if not match:
+                for i, (x, y) in enumerate(zip(a, b)):
+                    if x != y:
+                        print(f"        first at {i}:\n"
+                              f"          python {x[:72]!r}\n"
+                              f"          js     {y[:72]!r}")
+                        break
+                else:
+                    print(f"        lengths differ: python={len(a)} js={len(b)}")
 
         # Compared as exact line-number sets. A count would hide the case where
         # both sides find the same number of lines but disagree about which.

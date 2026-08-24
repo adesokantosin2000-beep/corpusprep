@@ -1708,6 +1708,86 @@ def test_a_combining_mark_is_not_a_word():
           count_tokens_types("caf\u00e9") == count_tokens_types("cafe\u0301"))
 
 
+def test_frankensteins_letters_are_the_novel():
+    """The worst fault the Week 12 integration pass found.
+
+    Walton's four letters open the novel. They were absorbed into a region
+    labelled Preface — 6,184 tokens, where Shelley's preface is about 700 —
+    and dropped from the body: 5,500 words of primary text, silently.
+    """
+    fx = FIXTURES / "mary-shelley_frankenstein.epub"
+    if not fx.exists():
+        print("  SKIP  Frankenstein not present")
+        return
+
+    from corpusprep import analyse
+    from corpusprep.variants import BUILTIN, render
+    doc = analyse(fx)
+    body = [r for r in doc.regions if r.label == "body"]
+    titles = [r.title for r in body]
+
+    check("the letters are divisions of the novel",
+          sum(1 for t in titles if t.lower().startswith("letter")) == 4,
+          str(titles[:6]))
+    check("and the chapters are still all there",
+          sum(1 for t in titles if t.lower().startswith("chapter")) == 24)
+
+    out = render(doc, BUILTIN["body-only"]).text
+    check("Walton survives the body-only variant",
+          "To Mrs.\u00a0Saville, England." in out)
+    check("no preface swallows five thousand words",
+          all(len(doc.region_text(r)) < 12000 for r in doc.regions
+              if r.kind == "preface"))
+
+
+def test_a_heading_may_share_its_line_with_the_page():
+    """Treasure Island's headings survived OCR; the tool was not looking.
+
+    In a page-per-line file the chapter heading is the first few words of the
+    page it opens, not a line. Anchoring to the whole line discarded 24
+    numbered headings and fell back to the weaker running-head tier.
+    """
+    fx = FIXTURES / "treasureisland0000unse_k0j8.epub"
+    if not fx.exists():
+        print("  SKIP  Treasure Island not present")
+        return
+
+    from corpusprep import analyse
+    doc = analyse(fx)
+    body = [r for r in doc.regions if r.label == "body"]
+    named = [r for r in body if "continued" not in r.title]
+
+    check("headings inside the page line are found", len(named) >= 30,
+          f"{len(named)} divisions of 34 chapters plus 6 parts")
+    check("and the evidence names them as headings",
+          any("head of the page" in (r.evidence or "") for r in body))
+    # Both kinds of evidence are damaged in different places, so both are used.
+    check("running-head series still fill the gaps",
+          any(t in [r.title for r in named]
+              for t in ("THE LAST OF THE BLIND MAN.", "THE CAPTAIN\u2019S PAPERS.")))
+
+
+def test_page_per_line_is_about_uniformity_not_length():
+    """A page holds a fixed amount of type; a paragraph does not.
+
+    The predicate tested only that lines were long, which is equally true of a
+    file stored one paragraph per line. Emma passed it at a median of 231
+    characters and Frankenstein at 396.
+    """
+    from corpusprep.furniture import is_page_per_line
+    from corpusprep import importer
+
+    for name, want in (("treasureisland0000unse_k0j8.epub", True),
+                       ("newwizardoz00densgoog.epub", True),
+                       ("mary-shelley_frankenstein.epub", False),
+                       ("jane-austen_emma_advanced.epub", False)):
+        fx = FIXTURES / name
+        if not fx.exists():
+            continue
+        got = is_page_per_line(importer.load(fx).lines)
+        check(f"{name[:28]} page-per-line is {want}", got == want, f"got {got}")
+
+
 def test_chapters_recovered_from_running_heads():
     """A book whose chapter headings OCR destroyed, read from its page heads.
 
@@ -1763,8 +1843,10 @@ def test_running_heads_do_not_invent_chapters():
     check("no chapters invented from running heads",
           find_head_chapters(doc.lines) == [])
     body = [r for r in doc.regions if r.label == "body"]
-    check("and the book still segments by its own numerals", len(body) == 24,
-          f"{len(body)} chapters")
+    # 4 letters and 24 chapters. The entry read 24 until the tool found 28
+    # and the book was checked rather than the code.
+    check("and the book still segments by its own headings", len(body) == 28,
+          f"{len(body)} divisions")
     check("on other evidence entirely",
           all("running head" not in (r.evidence or "") for r in body))
 

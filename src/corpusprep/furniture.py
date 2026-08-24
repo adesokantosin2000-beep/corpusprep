@@ -44,6 +44,11 @@ MIN_OCCURRENCES = 5
 MAX_CV = 0.25
 #: How far a group's interval may sit from the estimated page length.
 PAGE_GAP_TOLERANCE = 0.25
+
+#: How near two pieces of evidence must be to count as the same chapter start.
+#: In a page-per-line file a line is a page, so this is "within two pages" —
+#: the slack a heading and its first running head can differ by, and no more.
+PAGE_GAP = 2
 #: Similarity above which a small group is treated as an OCR-corrupted
 #: variant of a larger one and folded into it.
 NEAR_DUPLICATE = 0.85
@@ -507,6 +512,9 @@ def find(lines: list[str], skip: set[int] | None = None
 #: line-based rules above are the right ones. Running this as well would risk
 #: editing lines for no gain.
 PAGE_PER_LINE_MIN_MEDIAN = 200
+#: Highest variation in line length still consistent with one line per page.
+#: Set between the two populations above, not at the edge of either.
+PAGE_PER_LINE_MAX_CV = 0.75
 
 #: A running head must recur at least this often. A chapter heading appears
 #: once, which is precisely what keeps it safe from this rule.
@@ -541,7 +549,8 @@ PREFIX_NEAR_DUPLICATE = 0.80
 #: reach the threshold. Seven pages escaped that way before this split.
 PREFIX = re.compile(
     r"^\s*(?:([0-9IVXLilo|/S]{1,4})\s+)?"
-    r"((?:[A-Z][A-Z0-9.,'\u2019\-]*\s+){1,9}[A-Z][A-Z0-9.,'\u2019\-]*)\s")
+    r"((?:[A-Z][A-Z0-9.,'\u2019\u201c\u201d\"\-]*\s+){1,9}"
+    r"[A-Z][A-Z0-9.,'\u2019\u201c\u201d\"\-]*)\s")
 
 #: A page number may follow the head. `loi` for 101 and `iii` for 111 are
 #: routine, so this is deliberately loose: it is only stripped when it sits
@@ -560,11 +569,38 @@ class PrefixEdit:
 
 
 def is_page_per_line(lines: list[str]) -> bool:
-    """Whether each line holds a whole page rather than a typeset line."""
+    """Whether each line holds a whole page rather than a typeset line.
+
+    **Length alone does not establish this, and for a while this function
+    pretended it did.** It tested only that the median line was long, which is
+    equally true of a file stored one *paragraph* per line — the normal shape
+    of a Standard Ebooks or Gutenberg transcription. Emma passed it at a median
+    of 231 characters and Frankenstein at 396. Nothing went wrong, because the
+    prefix rule additionally needs a capitalised prefix recurring three times
+    and neither book has one, and because both were segmented by an earlier
+    tier. Both of those were luck rather than design.
+
+    Uniformity is the property that actually separates them. **A page holds a
+    fixed amount of type; a paragraph holds as much as the author wrote.**
+    Measured over the corpus:
+
+        Treasure Island (scan)     median 1363   cv 0.34
+        Oz (scan)                  median 1080   cv 0.61
+        --------------------------------------------------
+        Frankenstein (paragraphs)  median  396   cv 0.88
+        Emma (paragraphs)          median  231   cv 1.35
+        Jane Eyre (paragraphs)     median  129   cv 1.23
+
+    The two populations do not overlap on either measure, and both are now
+    required. Length keeps the rule cheap; uniformity is what makes it true.
+    """
     lens = [len(l.strip()) for l in lines if l.strip()]
     if len(lens) < 20:
         return False
-    return statistics.median(lens) >= PAGE_PER_LINE_MIN_MEDIAN
+    if statistics.median(lens) < PAGE_PER_LINE_MIN_MEDIAN:
+        return False
+    mean = statistics.fmean(lens)
+    return bool(mean) and statistics.pstdev(lens) / mean <= PAGE_PER_LINE_MAX_CV
 
 
 def find_prefix_furniture(lines: list[str], skip: set[int] | None = None
@@ -713,8 +749,20 @@ def find_head_chapters(lines: list[str], start: int = 0, end: int | None = None,
 
     out = []
     for k in spans:
-        forms = [t for _, t in series[k]]
-        title = max(set(forms), key=forms.count)
+        # Most frequent spelling, earliest wins a tie.
+        #
+        # `max(set(forms), key=forms.count)` looks equivalent and is not: it
+        # iterates a set, so a tie is broken by hash order. Treasure Island has
+        # END OF THE FIRST DAY'S FIGHTING twice with a typographic apostrophe
+        # and twice with a straight one, and the two engines picked different
+        # winners. **A tie-break that is not written down is a tie-break the
+        # other implementation cannot copy.**
+        forms = [f for _, f in series[k]]
+        title, best = forms[0], 0
+        for f in forms:
+            n = forms.count(f)
+            if n > best:
+                title, best = f, n
         out.append((series[k][0][0], title))
     return sorted(out)
 

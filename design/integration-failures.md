@@ -38,7 +38,7 @@ the table does not say.
 
 ---
 
-## I1 — Frankenstein loses the first 5,500 words of the novel
+## I1 — Frankenstein loses the first 5,500 words of the novel — **FIXED**
 
 **Severity: highest found. Silent loss of primary text from a clean file.**
 
@@ -85,7 +85,7 @@ from the novel without a word in the report.
 
 ---
 
-## I2 — Treasure Island has real chapter headings and the tool never looks at them
+## I2 — Treasure Island has real chapter headings and the tool never looks at them — **FIXED**
 
 **Severity: high. The strongest available evidence is being skipped.**
 
@@ -141,7 +141,7 @@ rather than another I1.
 
 ---
 
-## I4 — Running-head titles come back damaged
+## I4 — Running-head titles come back damaged — **PARTLY FIXED**
 
 **Severity: low, but it is what the user sees.**
 
@@ -160,7 +160,7 @@ consistently, and produces a visibly wrong title.
 
 ---
 
-## I5 — `is_page_per_line` does not test what its name claims
+## I5 — `is_page_per_line` does not test what its name claims — **FIXED**
 
 **Severity: medium. No damage observed; the exposure is real.**
 
@@ -252,3 +252,107 @@ Highest impact first, which is not the order they were found in:
 
 I4, I6 and I7 are below the line. I6 is a missing capability rather than a
 fault and should be scheduled deliberately, not squeezed into a fix day.
+
+
+---
+
+# Tuesday: what was fixed
+
+| text | before | after |
+|---|---|---|
+| `mary-shelley_frankenstein.epub` | 24 chapters, 89.0% of tokens | **28 divisions, 96.1%** |
+| `treasureisland0000unse_k0j8.epub` | 25 of 34 | **33 of 34** |
+| everything else | unchanged | unchanged |
+
+Four of the seven closed. **I1 and I2 turned out to be one fault wearing two
+costumes**, which is why they are reported together below.
+
+## The single cause behind I1, I2 and I1(a)
+
+Every heading rule assumed *one line, one thing*. Three books break that
+assumption in three different ways:
+
+```
+Frankenstein     'Chapter'  /  ' I'                    one heading, two lines
+Treasure Island  'CHAPTER II. BLACK DOG APPEARS…'      one line, heading + page
+Oz               (nothing)                             the heading is destroyed
+```
+
+Two new tiers, and the fix is the same shape in both: **stop requiring a
+heading to be alone on its line.**
+
+## Merging the two page-per-line tiers rather than choosing
+
+The first attempt made the prefix-heading tier preempt the running-head tier,
+and Treasure Island went from 25 chapters to **22 — worse than before the fix**.
+The heading tier is better where headings survive and blind where they do not.
+
+```
+                 headings   head series
+Treasure Island        22            25
+Oz                      0            18
+```
+
+Neither is reliably the better evidence, so both run and the results merge, a
+heading winning where the two coincide because it carries an explicit number.
+33 of 34.
+
+**A new tier that replaces an old one has to beat it on every text, not on the
+text it was written for.** Checking that was the only reason this was caught.
+
+### The merge window is not a constant
+
+Merging on "within two lines" merged nothing. Treasure Island is two lines to
+the page, so a heading and its first running head sit *four* lines apart. The
+window is now half the median spacing between headings — wider than the offset,
+narrower than a chapter, by construction rather than by tuning.
+
+## I5: uniformity, not length
+
+The predicate now requires the coefficient of variation of line lengths to be
+at most 0.75 as well as a median of 200. **A page holds a fixed amount of type;
+a paragraph holds as much as the author wrote.**
+
+```
+Treasure Island (scan)      median 1363   cv 0.34
+Oz (scan)                   median 1080   cv 0.61
+------------------------------------------------------
+Frankenstein (paragraphs)   median  396   cv 0.88
+Emma (paragraphs)           median  231   cv 1.35
+Jane Eyre (paragraphs)      median  129   cv 1.23
+```
+
+The populations do not overlap on either measure. Emma and Frankenstein no
+longer claim to be page images, which is the honest answer and also removes the
+latent exposure logged on Monday.
+
+## A parity fault, found because Treasure Island was added to the harness
+
+Titles disagreed on one region:
+
+```
+python 'END OF THE FIRST DAY’S FIGHTING.'
+js     "END OF THE FIRST DAY'S FIGHTING."
+```
+
+The running-head title is the most frequent spelling in its series. That series
+has the phrase twice with a typographic apostrophe and twice with a straight
+one, and Python's `max(set(forms), key=forms.count)` breaks the tie by **hash
+order** — not merely different from JavaScript but not reproducible in Python
+either. Both now take the earliest of the joint winners.
+
+**A tie-break that is not written down is a tie-break the other implementation
+cannot copy.**
+
+The harness also now prints *which* title differs. It reported only that a
+sequence mismatched, which meant diffing two engines by hand to find one
+apostrophe.
+
+## Still open, deliberately
+
+**I3** short head series — needs corroboration, not a lower threshold. Oz
+remains at 18 of 24 and there is no further evidence in that file to use.
+**I6** no titled-section tier, so the ballads have no structure. This is a
+missing capability and belongs in a schedule, not a fix day.
+**I7** drama drops the Prologue. A default worth revisiting with a linguist
+rather than settling alone.

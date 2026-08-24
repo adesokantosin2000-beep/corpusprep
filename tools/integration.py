@@ -50,11 +50,15 @@ TEXTS = [
     "treasureisland0000unse_k0j8.epub",
 ]
 
-#: Chapter counts taken from the works themselves, not from any output of this
-#: package. Where a book's structure is not a simple chapter list the entry is
-#: None and the count is reported without judgement.
+#: Division counts taken from the works themselves, not from any output of this
+#: package.
+#:
+#: "Chapter" is the wrong word for some of these and the table says so rather
+#: than rounding. Frankenstein is 4 letters and 24 chapters: Walton's letters
+#: are divisions of the novel, and the entry read 24 until the tool found 28
+#: and the book was checked rather than the code.
 EXPECTED_CHAPTERS = {
-    "mary-shelley_frankenstein.epub": 24,
+    "mary-shelley_frankenstein.epub": 28,
     "h-rider-haggard_king-solomons-mines.epub": 20,
     "jane-austen_emma_advanced.epub": 55,
     "newwizardoz00densgoog.epub": 24,
