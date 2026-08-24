@@ -398,14 +398,18 @@ function footnoteNotice(){
   return `<div class="furn-notice fn-notice">
     <div class="furn-head">
       <span class="t">Footnotes</span>
-      <span class="s">${paired.length} note${paired.length===1?"":"s"}
-        matched to a marker${loose?` · ${loose} bracketed label${loose===1?"":"s"}
-        could not be matched`:""}</span>
+      <span class="s">${CLEANED
+        ? `${paired.length} note${paired.length===1?"":"s"} matched to a marker${
+          loose?` · ${loose} bracketed label${loose===1?"":"s"} could not be
+          matched`:""}`
+        : "this text carries footnotes"}</span>
     </div>
     <p class="furn-lead">A marker is treated as a footnote only when a note
       elsewhere carries the same label. Stage directions, illustrations and
       other bracketed material have no matching note and are left alone.${
-      loose?` The ${loose} unmatched label${loose===1?"":"s"} will not be
+      !CLEANED?" Anything that cannot be matched is never removed, by any "
+      +"option below."
+      :loose?` The ${loose} unmatched label${loose===1?"":"s"} will not be
       removed by any option below.`:""}</p>
     <div class="fn-opts">
       ${opt("retain","Keep footnotes","Markers and notes stay. Study the edition.")}
@@ -436,18 +440,22 @@ function furnitureNotice(){
   return `<div class="furn-notice ${on?"on":""}">
     <div class="furn-head">
       <span class="t">Possible page furniture</span>
-      <span class="s">${DOC.furniture.size} lines · estimated page length
-        ${Math.round(DOC.pageLength)} lines</span>
+      <span class="s">${CLEANED
+        ? `${DOC.furniture.size} lines · estimated page length
+           ${Math.round(DOC.pageLength)} lines`
+        : "this text appears to come from printed pages"}</span>
     </div>
-    <p class="furn-lead">These lines recur at the page interval, which is the
-      pattern a running head or page number makes. Ordinary repeated text, such
-      as a refrain, recurs irregularly and is not listed here.${
+    <p class="furn-lead">Lines recurring at the page interval are the pattern a
+      running head or page number makes. Ordinary repeated text, such as a
+      refrain, recurs irregularly and is not treated as furniture.${
       DOC.catchwords.size?` This text also appears to use <b>catchwords</b>, the
       early modern practice of printing the next page's first word at the foot
-      of the page.`:""}</p>
-    <table class="furn-table">
+      of the page.`:""}${!CLEANED?` <b>Every line proposed for removal is
+      listed with its grounds once cleaning has run</b>, and this option is off
+      unless you turn it on.`:""}</p>
+    ${CLEANED?`<table class="furn-table">
       <thead><tr><th>Recurring line</th><th>Times</th><th>Grounds</th></tr></thead>
-      <tbody>${rows}</tbody></table>
+      <tbody>${rows}</tbody></table>`:""}
     <p class="furn-foot">${on
       ? "These lines will be removed when you clean. Every one is listed in the log."
       : "Nothing is removed unless you tick <b>Drop page furniture</b> in the section list."}

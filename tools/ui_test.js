@@ -161,6 +161,22 @@ async function run(name, fn) {
           d.querySelectorAll('input[name="fn-route"]').length === 3);
     check('keep is the default',
           d.querySelector('input[name="fn-route"]:checked').value === 'retain');
+
+    // The whole point, checked across every panel rather than one of them.
+    // The first pass at this gated the hyphen panel and left the footnote and
+    // furniture panels reporting their counts, which is the same fault twice.
+    const shown = [...d.querySelectorAll('#segview')].map(e => e.textContent)
+      .join(' ').replace(/\s+/g, ' ');
+    check('no panel reports a finding before Clean is pressed',
+          !/\d+ notes? matched/.test(shown) && !/to be removed/.test(shown),
+          shown.slice(0, 140));
+
+    await w.eval('runClean()');
+    await until(dom, 'CLEANED === true');
+    const after = [...d.querySelectorAll('#segview')].map(e => e.textContent)
+      .join(' ').replace(/\s+/g, ' ');
+    check('and reports them once it has', /28 notes matched to a marker/.test(after),
+          after.slice(0, 140));
   });
 
   await run('romeo_juliet.txt: nothing claimed that is not there', async dom => {

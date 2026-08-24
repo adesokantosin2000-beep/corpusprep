@@ -18,4 +18,4 @@ that its output can be audited, that is a defect rather than an untidiness.
 application, so the package and the page cannot drift apart.
 """
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"

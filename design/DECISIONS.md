@@ -1729,3 +1729,35 @@ busy, and never fails to say when it is.
 
 A fixed three-second wait was the request and would have been the wrong build:
 it spends the reader's time on every run of every file to reassure them once.
+
+
+### The same fault twice, in the same afternoon
+
+The first attempt gated the hyphen panel and the summary, and left the footnote
+and page-furniture panels reporting theirs. Reported straight back: *"the
+results is still there before I clicked clean."*
+
+Correct, and the reason is worth naming. **The fix was applied to the panels I
+happened to be looking at rather than to the rule.** The rule is that no panel
+reports a finding before the button is pressed, and it should have been checked
+against every panel at once — which is now what the interface test does, by
+searching the whole segmentation view for outcome language rather than
+inspecting one panel.
+
+### The one real objection, and why it was overridden anyway
+
+The page-furniture panel carried this reasoning in its own comment:
+
+> Shown whether or not the reader intends to remove it. A detector that acts
+> silently cannot be checked, and the cost of a wrong removal here is deleted
+> prose. The reasoning is printed in full so that a mistaken judgement is
+> visible **before** it is acted on rather than discovered afterwards.
+
+That is a real safety argument and holding the table back appears to weaken it.
+It does not, for two reasons: furniture removal is off unless the reader turns
+it on, and cleaning writes nothing to disk. The evidence is still visible before
+anything leaves the tool — just not before the first run rather than not before
+export.
+
+Recorded rather than quietly reversed, because the argument was sound when it
+was written and the constraint that overrode it is a different one.
