@@ -203,6 +203,19 @@ async function loadText(name,buf){
 }
 
 /* ---- what the segmenter found ---- */
+
+/* Before cleaning, this panel describes the SOURCE and nothing else.
+   
+   It used to report how many sections would be removed and how many broken
+   words had been settled, which is detection rather than cleaning and is
+   true either way. Reported next to an unpressed button it still reads as a
+   result, and the whole proposition here is that the reader decides what
+   happens and then sees what happened. **A number that looks like an outcome
+   is an outcome as far as the reader is concerned.**
+   
+   So the counts are held until the button has been pressed. What stays is
+   what the reader needs in order to choose: the structure, the section list,
+   and the options themselves. */
 function drawSummary(){
   const R=DOC.regions;
   const n=k=>R.filter(r=>r.kind===k).length;
@@ -239,7 +252,7 @@ function drawSummary(){
       ${cell(front,"Front-matter blocks")}
       ${cell(back,"Back-matter blocks")}
       ${cell(apparatus,"Apparatus blocks")}
-      ${cell(plannedDrops().length,CLEANED?"Removed":"To be removed")}
+      ${CLEANED?cell(plannedDrops().length,"Removed"):""}
     </div>${furnitureNotice()}${footnoteNotice()}${hyphenNotice()}</div>`;
 }
 
@@ -254,16 +267,20 @@ function hyphenNotice(){
   return `<div class="furn-notice ${on?"on":""}">
     <div class="furn-head">
       <span class="t">Words broken across lines</span>
-      <span class="s">${DOC.breaks.length} found ·
-        <b>${DOC.breaks.length-flagged.length} settled from this text
-        itself</b>${left?` · ${left} kept exactly as printed`:""}</span>
+      <span class="s">${CLEANED
+        ? `${DOC.breaks.length} found · <b>${DOC.breaks.length-flagged.length}
+           settled from this text itself</b>${
+           left?` · ${left} kept exactly as printed`:""}`
+        : "this text is hard-wrapped"}</span>
     </div>
     <p class="furn-lead">A line break inside a word is always an artefact, but
       the hyphen may be real: <b>to-morrow</b> is a word and <b>tomorrow</b> is a
       different one. Each case is settled from the surrounding text — whether
       the finished word appears elsewhere, and whether both halves are words in
       their own right, since a compound is built out of words and a broken word
-      is not.${left?` <b>${left}</b> could not be settled that way, so ${
+      is not.${!CLEANED?" Anything the text cannot settle keeps the hyphen "
+      +"exactly as the source prints it."
+      :left?` <b>${left}</b> could not be settled that way, so ${
       left===1?"it is":"they are"} left with the hyphen exactly as the source
       prints ${left===1?"it":"them"}. Nothing is required of you.`:` Every one
       was settled.`}</p>
@@ -279,14 +296,14 @@ function hyphenNotice(){
         <span class="fn-d">Undoes fixed-width line wrapping. Verse, drama and
           tables are left alone. 99.5% accurate; see the log.</span></label>
     </div>
-    ${left?`<div class="rv-bar">
+    ${CLEANED&&left?`<div class="rv-bar">
       <button class="btn-sm ghost" id="rv-start">Look at the ${left} kept
         hyphen${left===1?"":"s"}</button>
       <button class="btn-sm ghost" id="rv-save">Download queue</button>
       <label class="btn-sm ghost file">Load queue
         <input type="file" id="rv-load" accept=".tsv,.txt" hidden></label>
-    </div>`:`<div class="rv-bar">
-      <button class="btn-sm ghost" id="rv-save">Download decisions</button></div>`}
+    </div>`:CLEANED?`<div class="rv-bar">
+      <button class="btn-sm ghost" id="rv-save">Download decisions</button></div>`:""}
   </div>`;
 }
 
@@ -573,11 +590,49 @@ function refreshPreview(){
   drawSummary(); drawStats(); drawRegions(); drawRunState(); drawGates();
 }
 
+/* Shortest time the working state stays visible.
+   
+   Cleaning a Gutenberg novel takes about 40 ms and a 45 MB scan several
+   seconds, so on small files the indicator would flash and be missed, and on
+   large ones the page would simply stop answering with no explanation. A floor
+   makes the feedback consistent without inventing a delay: anything slower
+   than this shows for exactly as long as it actually takes. */
+const MIN_BUSY_MS=700;
+
 /* The explicit action. Nothing above this line produces cleaned text. */
-function runClean(){
-  RESULT=render(DOC.lines,DOC.regions,CFG,DOC.furniture,DOC.footnotes);
-  RESULT.base=render(DOC.lines,DOC.regions,PRESETS["verbatim"]).stats;
-  CLEANED=true;
+async function runClean(){
+  const b=$("#run-clean");
+  b.classList.add("busy");
+  b.disabled=true;
+  $("#run-label").textContent="Cleaning…";
+  $("#run-note").textContent="Working through the text. Nothing has been "
+    +"written yet.";
+
+  // Yield twice so the browser paints the working state before the main
+  // thread is occupied. One yield is not always enough: the style change and
+  // the paint are separate frames, and a single setTimeout can land between
+  // them, which showed the spinner only after the work had finished.
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(
+    ()=>setTimeout(r,0))));
+
+  const t0=performance.now();
+  try{
+    RESULT=render(DOC.lines,DOC.regions,CFG,DOC.furniture,DOC.footnotes);
+    RESULT.base=render(DOC.lines,DOC.regions,PRESETS["verbatim"]).stats;
+    CLEANED=true;
+  }catch(e){
+    b.classList.remove("busy"); b.disabled=false;
+    $("#run-label").textContent="Clean text";
+    $("#run-note").textContent="Cleaning failed: "+e.message
+      +". The source text is untouched.";
+    throw e;
+  }
+
+  const left=MIN_BUSY_MS-(performance.now()-t0);
+  if(left>0) await new Promise(r=>setTimeout(r,left));
+
+  b.classList.remove("busy");
+  b.disabled=false;
   drawSummary(); drawStats(); drawRegions();
   drawCompare(); drawLog(); drawRunState(); drawGates();
 }
@@ -586,17 +641,18 @@ function drawRunState(){
   const b=$("#run-clean"), n=$("#run-note");
   if(!DOC){ return }
   const drops=plannedDrops().length;
+  const label=$("#run-label")||b;
   if(CLEANED){
-    b.textContent="Cleaned";
+    label.textContent="Cleaned";
     b.className="btn-run done";
     n.textContent="The cleaned text and its log are ready. Adjust the selection "
       +"above to clean again.";
   } else if(RESULT===null&&b.dataset.ran==="1"){
-    b.textContent="Apply changes";
+    label.textContent="Apply changes";
     b.className="btn-run stale";
     n.textContent="The selection has changed since the last run.";
   } else {
-    b.textContent="Clean text";
+    label.textContent="Clean text";
     b.className="btn-run";
     n.textContent=drops
       ? `${drops} of ${DOC.regions.length} sections will be removed. Nothing is `
@@ -639,9 +695,12 @@ function drawRegions(){
   const counts={};
   for(const r of DOC.regions) counts[r.label]=(counts[r.label]||0)+1;
   const drops=plannedDrops().length;
-  $("#seg-sub").textContent=
-    `${DOC.regions.length} sections identified · ${drops} ${CLEANED?"removed":"marked for removal"} `+
-    `by the current selection · ${DOC.gaps.length?"warning: uncovered lines present":"every line accounted for"}`;
+  const cover=DOC.gaps.length?"warning: uncovered lines present"
+                             :"every line accounted for";
+  $("#seg-sub").textContent=CLEANED
+    ? `${DOC.regions.length} sections identified · ${drops} removed by the `
+      +`current selection · ${cover}`
+    : `${DOC.regions.length} sections identified · ${cover}`;
 
   $("#legend").innerHTML=LABELS.filter(l=>counts[l.id]).map(l=>
     `<span><span class="swatch" style="background:${l.fg}"></span>${l.name}</span>`).join("");
@@ -656,12 +715,13 @@ function drawRegions(){
     const shown=kids.length?subtreeWords(DOC.lines,DOC.regions,i):w;
     const size=kids.length?`${shown.toLocaleString()} w · ${kids.length} parts`
                           :`${w.toLocaleString()} w`;
-    return `<div class="region ${keep?"":"dropped"}" data-i="${i}">
+    return `<div class="region ${keep?"":(CLEANED?"dropped":"unselected")}" data-i="${i}">
       <div class="region-head" style="padding-left:${(r.level-1)*26}px">
         <span class="bar" style="background:${l.fg}"></span>
         <span class="k" style="color:${l.fg}">${SHORT[r.label]||l.name}</span>
         <span class="t">${esc(r.title||r.kind)}</span>
-        <span class="i">${r.start+1}–${r.end} · ${size}${keep?"":` · <span class="removed">${CLEANED?"removed":"to be removed"}</span>`}</span>
+        <span class="i">${r.start+1}–${r.end} · ${size}${
+          keep||!CLEANED?"":` · <span class="removed">removed</span>`}</span>
       </div>
       <div class="region-body">${esc(prev)}${esc(more)}
         <div class="evid">${esc(r.evidence)} · confidence ${r.confidence.toFixed(2)}</div>

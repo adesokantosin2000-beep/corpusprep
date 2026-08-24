@@ -1671,3 +1671,61 @@ Frankenstein is genuinely page-per-line — median line 396 characters — so th
 rule runs on it and returns nothing: no running heads, and the book segments on
 its own numerals as it always did, 24 chapters. Regression-tested explicitly,
 because a heading rule that invents chapters is worse than one that finds none.
+
+
+---
+
+## 2026-08-24 — Nothing is reported before the button is pressed
+
+Two things reported from use, and the first is the more interesting.
+
+### A number that looks like an outcome is an outcome
+
+After loading a file the page reported, beside an unpressed Clean button:
+
+```
+Segmentation summary
+  41 sections · 8 to be removed
+  Words broken across lines — 180 found · 177 settled from this text itself
+  [ Look at the 3 kept hyphens ]
+```
+
+Every figure there is *detection*, not cleaning, and every one is true whether
+the button is pressed or not. The defence is technically sound and it misses
+the point: **the reader cannot tell the difference, and the whole proposition
+of this tool is that they decide what happens and then see what happened.**
+Announcing the result first makes the button look decorative.
+
+So the counts wait. What stays is what is needed in order to choose — the
+structure, the section list, the options themselves — and what goes is every
+figure describing an outcome: how many sections would be removed, how many
+breaks were found, how many were settled, the review queue and its size.
+
+A section outside the current selection is now dimmed rather than struck
+through. Struck-out text before the button is pressed states an outcome that
+has not happened; dimming states a selection, which is what it is.
+
+This is the same distinction the package has held everywhere else and had not
+applied to its own interface. Detection labels; removal is a separate, explicit
+step. **The reporting has to obey that too, or the guarantee is only true
+underneath.**
+
+### The page stops answering and does not say so
+
+Cleaning is synchronous. A Gutenberg novel takes about 40 ms; the 45 MB
+Internet Archive scans take several seconds, during which the page does not
+respond and nothing indicates why. That is indistinguishable from a broken
+button.
+
+The button now shows a working state, and `runClean` yields before starting so
+the browser can paint it. **Two yields, not one:** the class change and the
+paint are separate frames, and a single `setTimeout` can land between them,
+which showed the spinner only after the work had already finished.
+
+`MIN_BUSY_MS = 700` is a floor rather than a delay. Without it the indicator
+flashes and is missed on small files. With it, anything slower than 700 ms
+shows for exactly as long as it actually takes — the tool never pretends to be
+busy, and never fails to say when it is.
+
+A fixed three-second wait was the request and would have been the wrong build:
+it spends the reader's time on every run of every file to reassure them once.

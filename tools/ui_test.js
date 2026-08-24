@@ -104,8 +104,28 @@ async function run(name, fn) {
     const heads = [...d.querySelectorAll('.furn-head .t')].map(e => e.textContent.trim());
     check('the hyphen panel is the one shown',
           heads.includes('Words broken across lines'), JSON.stringify(heads));
+    // Nothing is reported until the button has been pressed. The panel
+    // explains what the option does and offers the control; it does not say
+    // how many breaks were found or how many were settled, because next to an
+    // unpressed button a count reads as a result.
+    check('no counts before cleaning',
+          !d.querySelector('#rv-start'),
+          'the review bar is showing before Clean was pressed');
+    const before = [...d.querySelectorAll('.furn-head .s')]
+      .map(e => e.textContent).join(' ');
+    check('and the panel heading claims no outcome',
+          !/\d+ found/.test(before), JSON.stringify(before.trim()));
+    check('but the option is still offered', !!d.querySelector('#dh-on'));
+    check('reflow toggle offered', !!d.querySelector('#rf-on'));
+    // Both off until asked, like every other transformation here.
+    check('reflow is off until asked',
+          !d.querySelector('#rf-on').checked && !w.eval('!!CFG.reflow'));
+
+    // After cleaning, the counts appear and the review bar with them.
+    await w.eval('runClean()');
+    await until(dom, 'CLEANED === true');
     const btn = d.querySelector('#rv-start');
-    check('review offered, not demanded',
+    check('review offered once cleaning has run',
           !!btn && /Look at the \d+ kept hyphen/.test(btn.textContent.replace(/\s+/g, ' ')),
           btn ? btn.textContent.replace(/\s+/g, ' ').trim() : 'missing');
     // The unresolved cases keep the hyphen the source printed, so the reader
@@ -117,20 +137,15 @@ async function run(name, fn) {
     // about most of the document.
     const asked = btn ? parseInt(btn.textContent.match(/\d+/)[0], 10) : 999;
     check('and asks about only a handful', asked <= 6, asked + ' questions');
-    check('dehyphenate toggle offered', !!d.querySelector('#dh-on'));
-    check('reflow toggle offered', !!d.querySelector('#rf-on'));
-    // Both off until asked, like every other transformation here.
-    check('reflow is off until asked',
-          !d.querySelector('#rf-on').checked && !w.eval('!!CFG.reflow'));
 
     // The keyboard path, which is the whole point of the reviewer.
     w.eval('reviewOpen()');
     check('reviewer opens', d.querySelector('#rv-modal').style.display === 'flex');
-    const before = w.eval('QUEUE.length');
+    const qlen = w.eval('QUEUE.length');
     w.eval('reviewDecide("join")');
     check('a decision advances the queue', w.eval('QPOS') === 1);
     check('and is recorded', w.eval('CFG.decisions.size') === 1);
-    check('queue length unchanged by deciding', w.eval('QUEUE.length') === before);
+    check('queue length unchanged by deciding', w.eval('QUEUE.length') === qlen);
   });
 
   await run('pg1232_prince.txt: footnotes', async dom => {
@@ -156,13 +171,27 @@ async function run(name, fn) {
     check('no page furniture', w.eval('DOC.furniture.size') === 0);
   });
 
-  await run('cleaning runs and reports', async dom => {
+  await run('cleaning runs, and says so while it runs', async dom => {
     await load(dom, 'hyphenated.txt');
-    const w = dom.window;
+    const w = dom.window, d = w.document;
     check('nothing cleaned before asking', w.eval('RESULT') === null);
-    w.eval('runClean()');
+
+    // runClean is async: it yields so the browser can paint the working state
+    // before occupying the main thread. On a 45 MB scan the page stops
+    // answering for several seconds, and without this it does so silently.
+    const p = w.eval('runClean()');
+    check('the button says it is working',
+          d.querySelector('#run-clean').classList.contains('busy'));
+    check('and cannot be pressed twice', d.querySelector('#run-clean').disabled);
+    await p;
+
+    check('the working state clears',
+          !d.querySelector('#run-clean').classList.contains('busy')
+          && !d.querySelector('#run-clean').disabled);
     check('cleaning produces text', w.eval('RESULT && RESULT.text.length > 1000'));
     check('and counts tokens', w.eval('RESULT.stats.tokens') > 1000);
+    check('and the button reports it', /Cleaned/.test(
+      d.querySelector('#run-label').textContent));
   });
 
   console.log('\n' + '='.repeat(62));
