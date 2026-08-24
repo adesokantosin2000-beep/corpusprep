@@ -851,6 +851,129 @@ def test_footnote_routes():
           out.stats["word_tokens"] == gone.stats["word_tokens"])
 
 
+def _hyphen_key():
+    import re as _re
+    fk = Path(__file__).parent / "keys" / "hyphenated.hyphens"
+    out = {}
+    for raw in fk.read_text(encoding="utf-8").splitlines():
+        s = raw.split("#")[0].strip()
+        if s and "\t" in s:
+            n, w = s.split("\t")
+            out[int(n)] = w
+    return out
+
+
+def test_dehyphenation_detection():
+    """Every broken word found, and no dash mistaken for one."""
+    from corpusprep import dehyphenate as D
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        print("  SKIP  hyphenation fixture not present")
+        return
+    truth = _hyphen_key()
+    lines = load(fx).lines
+    breaks = D.find(lines)
+    found = {b.line for b in breaks}
+
+    check("every broken word found", not (truth.keys() - found),
+          f"missed {sorted(truth.keys() - found)[:5]}")
+    check("no dash treated as hyphenation", not (found - truth.keys()),
+          f"spurious {sorted(found - truth.keys())[:5]}")
+
+
+def test_dash_at_line_end_is_not_hyphenation():
+    """*Jane Eyre* has 143 lines ending in a hyphen and no hyphenation at all.
+
+    They are dashes used as punctuation. The discriminator is that a
+    hyphenation hyphen is attached to its word; a dash is preceded by a space.
+    Without this guard all 143 would be mangled.
+    """
+    from corpusprep import dehyphenate as D
+
+    fx = FIXTURES / "CBronte_Jane.txt"
+    if not fx.exists():
+        return
+    lines = load(fx).lines
+    ending = sum(1 for l in lines if l.rstrip().endswith("-"))
+    check("the novel really does end lines with hyphens", ending > 100,
+          f"only {ending}")
+    check("but none is treated as a broken word", not D.find(lines),
+          f"{len(D.find(lines))} false breaks")
+
+
+def test_dehyphenation_never_wrong_when_it_acts():
+    """The acceptance criterion: accurate, with the remainder flagged."""
+    from corpusprep import dehyphenate as D
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    truth = _hyphen_key()
+    lines = load(fx).lines
+
+    for label, extra in (("own vocabulary", None),
+                         ("whole novel", D.vocabulary(load(FIXTURES / "CBronte_Jane.txt").lines))):
+        breaks = D.find(lines, extra_vocab=extra)
+        decided = [b for b in breaks if not b.needs_review]
+        wrong = [b for b in decided
+                 if truth.get(b.line, "").lower() != b.resolved.lower()]
+        check(f"never wrong when it decides ({label})", not wrong,
+              f"{len(wrong)} wrong, e.g. {[(b.line, b.resolved) for b in wrong[:3]]}")
+        check(f"it does decide a useful share ({label})",
+              len(decided) >= len(breaks) * 0.4,
+              f"only {len(decided)} of {len(breaks)}")
+
+    # More evidence must never mean fewer decisions.
+    few = len([b for b in D.find(lines) if not b.needs_review])
+    many = len([b for b in D.find(lines, extra_vocab=D.vocabulary(
+        load(FIXTURES / "CBronte_Jane.txt").lines)) if not b.needs_review])
+    check("more vocabulary resolves more cases", many > few, f"{few} -> {many}")
+
+
+def test_real_compounds_keep_their_hyphen():
+    """`half-comprehended` must not become `halfcomprehended`."""
+    from dataclasses import replace as _replace
+    from corpusprep import analyse
+    from corpusprep.variants import BUILTIN, render
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    truth = _hyphen_key()
+    compounds = [w for w in truth.values() if "-" in w]
+    check("the fixture contains real compounds", len(compounds) >= 5)
+
+    doc = analyse(fx)
+    out = render(doc, _replace(BUILTIN["verbatim"], dehyphenate=True))
+    for w in compounds:
+        check(f"{w} keeps its hyphen", w.replace("-", "") not in out.text)
+
+
+def test_dehyphenation_leaves_no_word_split():
+    """Consecutive broken lines must all be repaired, not just the first."""
+    import re as _re
+    from dataclasses import replace as _replace
+    from corpusprep import analyse
+    from corpusprep.variants import BUILTIN, render
+
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        return
+    doc = analyse(fx)
+    out = render(doc, _replace(BUILTIN["verbatim"], dehyphenate=True))
+    left = [l for l in out.text.split("\n") if _re.search(r"\w-$", l)]
+    check("no word left split across lines", not left,
+          f"{len(left)} remain, e.g. {left[:2]}")
+    check("dashes still there", any(l.endswith(" -") for l in out.text.split("\n")))
+
+
+def test_dehyphenation_is_off_by_default():
+    from corpusprep.variants import BUILTIN
+    for name, v in BUILTIN.items():
+        check(f"{name} does not dehyphenate by default", not v.dehyphenate)
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [

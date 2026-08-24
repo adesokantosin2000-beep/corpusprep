@@ -70,6 +70,8 @@ can leave the corpus only because you chose to remove it.
 - Catchword detection for early modern printing
 - Footnote detection, with three routes: keep, remove, or extract to a
   parallel file
+- De-hyphenation of words broken across a line break, with undecidable cases
+  flagged rather than guessed
 - Preprocessing log in Markdown and JSON
 
 Page furniture is detected but never removed unless asked. The detector has so
@@ -83,9 +85,18 @@ counts as a footnote only when a note elsewhere carries the same label, so
 stage directions and other bracketed material are never touched. Anything that
 cannot be paired is reported and left alone by every route.
 
+**No wordlist is bundled, deliberately.** De-hyphenation takes its evidence from
+the document's own vocabulary: if `example` occurs elsewhere in this text, the
+joined form is attested in this text's own spelling. A 234,000-word list of
+modern English recognises only 65% of the word types in *Jane Eyre*, rejecting
+`adapted` and `adding` alongside `againe` and `accurst`, so requiring dictionary
+confirmation would refuse a third of the legitimate joins and fail worst on
+historical material. The rule is never wrong on the cases it decides, and flags
+the rest.
+
 ### Not yet implemented
 
-OCR repair, de-hyphenation, paragraph reflow, PDF import. These are specified in
+OCR repair, paragraph reflow, PDF import. These are specified in
 [`design/design-spec.md`](design/design-spec.md) and scheduled in
 [`design/schedule-phase2.md`](design/schedule-phase2.md). They are listed in
 the application interface, marked as planned, so that current limitations are
@@ -142,7 +153,7 @@ which was quietly splitting words such as *æsthetic* and *naïve*.
 ## Tests
 
 ```bash
-python tests/test_corpusprep.py     # 234 checks, no pytest required
+python tests/test_corpusprep.py     # 260 checks, no pytest required
 python tools/check_parity.py        # Python and JavaScript must agree
 python tools/measure.py             # accuracy against hand-marked keys
 python tools/stress_test.py corpora # traffic-light report over a folder

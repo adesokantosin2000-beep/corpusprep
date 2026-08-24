@@ -115,12 +115,20 @@ In fixed-stanza verse they do not.
 |---|---|---|
 | `scanned_novel.txt` | `tools/make_furniture_fixture.py` (seed 1847) | Running heads and page numbers |
 | `early_modern.txt` | `tools/make_catchword_fixture.py` (seed 1603) | Catchwords |
+| `hyphenated.txt` | `tools/make_hyphen_fixture.py` (seed 1847) | De-hyphenation |
 | `pg_marked.txt` | Hand-written | Gutenberg marker detection |
 | `drama_with_contents.txt` | Hand-written | Contents-list detection |
 | `book_chapter_nesting.txt` | Hand-written | Region hierarchy |
 | `sample.docx`, `sample.epub`, `sample.html` | `tools/` | Format import |
 
-Both generators are deterministic and seeded, so a fixture and its answer key
+`hyphenated.txt` is a different kind of fixture and a better one: **synthetic
+damage applied to real prose.** It is `CBronte_Jane.txt` hard-wrapped to 64
+columns with words broken across the line breaks. The vocabulary, spelling and
+compound habits are Brontë's, and only the breaks are invented. That matters
+because the de-hyphenation rule draws its evidence from the document's own
+vocabulary, so it has to be tested against a real one.
+
+All generators are deterministic and seeded, so a fixture and its answer key
 can never drift apart. Regenerate with the command in each script's docstring.
 
 ---

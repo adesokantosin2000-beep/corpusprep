@@ -76,6 +76,22 @@ def analyse(path: str | Path) -> Document:
             f"(running heads or page numbers). Not removed unless requested."
         )
 
+    from .dehyphenate import find_in_document as find_breaks
+    breaks = find_breaks(doc)
+    doc = doc.with_hyphen_breaks(breaks)
+    if breaks:
+        undecided = [b for b in breaks if b.needs_review]
+        doc.meta["hyphenation"] = {
+            "breaks": len(breaks),
+            "decided": len(breaks) - len(undecided),
+            "flagged": len(undecided),
+        }
+        doc.notes.append(
+            f"{len(breaks)} words are broken across a line break. "
+            f"{len(breaks) - len(undecided)} can be resolved from this text's "
+            f"own vocabulary; {len(undecided)} would need review."
+        )
+
     found = find_footnotes(doc)
     doc = doc.with_footnotes(found)
     paired = [f for f in found if f.paired]

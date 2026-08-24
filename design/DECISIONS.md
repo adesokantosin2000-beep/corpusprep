@@ -591,3 +591,149 @@ with the wrong century and the wrong author.
 The marker comes off the word and leaves the word: `intrattenere[2]` becomes
 `intrattenere`, which now matches the other occurrences of the same word. That
 is the quieter half of the damage and probably the more common one.
+
+---
+
+## 2026-08-23 — De-hyphenation: the wordlist question, answered with numbers
+
+Week 5, Monday. The schedule's instruction was to source a wordlist and check
+its licence before writing any code, on the grounds that several common lists
+cannot be redistributed.
+
+### The licences are fine, and that turns out not to be the point
+
+| List | Terms |
+|---|---|
+| 12dicts | Public domain |
+| Moby | Public domain |
+| SCOWL | Permissive; use, copy, modify, distribute and sell, without fee |
+| web2 (Webster's 2nd) | Public domain |
+
+No blocker. So the real question is not whether a wordlist *may* be used, but
+whether it *should* be, and that is answerable by measurement.
+
+### A modern wordlist is unfit for this job
+
+Coverage of a 234,000-word list (web2) against the actual fixtures:
+
+| Text | Word types | Recognised |
+|---|---|---|
+| Ballads, 1400s–1800s | 3,477 | **62.2%** |
+| *The Prince*, trans. 1908 | 2,995 | **66.9%** |
+| *Jane Eyre*, 1847 | 13,407 | **65.3%** |
+
+A third of the vocabulary of *Jane Eyre* is unknown to it. The rejected words
+are not only archaic spellings like `againe`, `accurst` and `adoe`; they
+include `adapted`, `adding`, `additions` and `adventures`, because the list
+omits inflected forms.
+
+A rule that joined a hyphen only when the joined form is "a known word" would
+therefore **refuse a third of the legitimate joins**, and would fail worst on
+exactly the historical material this tool exists to serve.
+
+### The document's own vocabulary is better evidence
+
+If `example` occurs elsewhere in *this* text, then the joined form is attested
+in this text's own orthography, spelling conventions, dialect, proper nouns and
+technical vocabulary. No external list can match that, and no licence question
+arises because nothing is bundled.
+
+**Decision: no wordlist is shipped.** Evidence comes from the text itself. A
+user may supply their own list as an optional tiebreaker, and the default
+behaviour does not depend on one.
+
+### Rejoining the line and removing the hyphen are two different decisions
+
+This is the part the schedule's framing obscured. A line break in the middle of
+a word is **always** an artefact of typesetting. The hyphen may be entirely
+real:
+
+```
+    to-           ->   to-morrow      (a real 19th-century compound)
+    morrow             tomorrow       (wrong: invents a modern word)
+```
+
+*Jane Eyre* contains 1,146 hyphenated compounds, `to-night` 42 times,
+`drawing-room` 26, `to-morrow` 25. Joining those blindly corrupts real words.
+
+So the two decisions are separated. The fragments are always rejoined onto one
+line, because that break is certainly spurious. Whether the hyphen survives is
+then decided on evidence:
+
+| Evidence in the same document | Action |
+|---|---|
+| `example` attested elsewhere | join, drop the hyphen |
+| `to-morrow` attested elsewhere | join, keep the hyphen |
+| both attested | rejoin, keep hyphen, **flag** |
+| neither attested | rejoin, keep hyphen, **flag** |
+
+Keeping the hyphen when uncertain preserves the source exactly, which is
+visible and reversible. Dropping it invents a word silently.
+
+### A guard that only real text would have suggested
+
+*Jane Eyre* has 143 lines ending in a hyphen, and **not one is hyphenation**:
+
+```
+    ... to the North Cape -
+    ... and said at once -
+```
+
+They are dashes used as punctuation. The discriminator is that a hyphenation
+hyphen is **attached to the word**, while a dash is preceded by whitespace.
+Without that guard, all 143 would have been mangled, joining `Cape` to the
+first word of the next line.
+
+---
+
+## 2026-08-23 — De-hyphenation: measurement
+
+The fixture is **synthetic damage applied to real prose**: *Jane Eyre*
+hard-wrapped to 64 columns, with 180 words broken across lines, 9 of them at
+their own compound hyphen, plus 23 trailing dashes that must be left alone.
+The vocabulary and the compound habits are Brontë's; only the line breaks are
+invented, which matters because the whole question is whether real vocabulary
+supplies enough evidence.
+
+### Detection
+
+| | |
+|---|---|
+| Broken words found | **180 of 180** |
+| Dashes wrongly treated as hyphenation | **0 of 23** |
+| Words left split after repair | **0** |
+
+### Resolution
+
+The number that matters is not how often it acts but whether it is right when
+it does.
+
+| Evidence available | Decides | Correct when it decides |
+|---|---|---|
+| The fixture's own vocabulary | 84 of 180 | **84 of 84 — 100%** |
+| The whole novel's vocabulary | 180 of 180 | **180 of 180 — 100%** |
+
+**Never wrong when it acts; silent about the rest.** All 9 real compounds keep
+their hyphen in both conditions: `half-comprehended` never becomes
+`halfcomprehended`.
+
+The gap between the two rows is the honest limitation. A short text does not
+contain enough of its own vocabulary to resolve every break, and the correct
+response is to flag, not to guess. Supplying the full novel closes the gap
+entirely, which is what happens in real use, where the document *is* the whole
+book.
+
+For comparison, the 234,000-word modern list decides more of the short case but
+gets 16 of them wrong. The document's own vocabulary was never wrong.
+
+### A bug worth recording: consecutive broken lines
+
+The first implementation left **23 of 180 words still split**. Hard-wrapped
+text frequently breaks words on adjacent lines, and merging line 31 into 32
+consumed line 32's own break without repairing it, so every second break in a
+run was skipped.
+
+The repair now keeps absorbing while the line it has just built still ends in a
+break. It was visible only because the test asked whether *any* word remained
+split, rather than whether the joins performed were correct. **The first
+question is the useful one**, and it is easy to write the second by accident.

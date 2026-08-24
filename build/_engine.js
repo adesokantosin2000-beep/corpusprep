@@ -1025,6 +1025,122 @@ function stripFootnoteMarkers(line,labels){
     labels.has(fnNorm(a||b))?"":whole);
 }
 
+/* ---- de-hyphenation ----------------------------------------------------
+   Words broken across a line break by a typesetter's hyphen.
+
+   TWO decisions, not one. The line break is always an artefact. The hyphen may
+   be real: to-morrow is a word, tomorrow is a different one. Jane Eyre has
+   1,146 hyphenated compounds.
+
+   Evidence is the DOCUMENT'S OWN VOCABULARY, not a wordlist. A 234,000 word
+   list of modern English recognises only 65% of the word types in Jane Eyre,
+   rejecting `adapted` and `adding` alongside `againe`. Nothing is bundled.
+
+   Mirrors src/corpusprep/dehyphenate.py.                                    */
+
+const DH_WORD=/[^\W\d_][\w'’-]*/gu;
+// A hyphenation hyphen is ATTACHED to its word. A hyphen preceded by
+// whitespace is a dash: Jane Eyre has 143 of those and no hyphenation at all.
+const DH_TAIL=/[^\W\d_][\w'’]*-\s*$/u;
+const DH_HEAD=/^\s*([^\W\d_][\w'’]*)/u;
+
+const DH_JOIN="join", DH_KEEP="keep",
+      DH_AMBIGUOUS="ambiguous", DH_UNKNOWN="unknown";
+
+function dhVocabulary(lines){
+  const v=new Set();
+  for(const line of lines){
+    DH_WORD.lastIndex=0;
+    let m;
+    while((m=DH_WORD.exec(line))!==null)
+      v.add(m[0].toLowerCase().replace(/^-+|-+$/g,""));
+  }
+  return v;
+}
+
+function dhResolved(b){ return b.decision===DH_JOIN?b.joined:b.hyphenated }
+function dhNeedsReview(b){
+  return b.decision===DH_AMBIGUOUS||b.decision===DH_UNKNOWN;
+}
+
+function findHyphenBreaks(lines,skip,extraVocab){
+  skip=skip||new Set();
+  const vocab=dhVocabulary(lines);
+  if(extraVocab) for(const w of extraVocab) vocab.add(w.toLowerCase());
+
+  const out=[];
+  for(let i=0;i<lines.length-1;i++){
+    const n=i+1;
+    if(skip.has(n)||skip.has(n+1)) continue;
+    if(!DH_TAIL.test(lines[i])) continue;
+    const head=DH_HEAD.exec(lines[i+1]);
+    if(!head) continue;
+
+    const stripped=lines[i].replace(/\s+$/,"").slice(0,-1);
+    const lm=/[^\W\d_][\w'’-]*$/u.exec(stripped);
+    if(!lm) continue;
+    const left=lm[0], right=head[1];
+    if(!left||!right) continue;
+
+    const b={line:n,left,right,joined:left+right,
+             hyphenated:left+"-"+right,decision:DH_UNKNOWN,reason:""};
+    const j=b.joined.toLowerCase().replace(/^-+|-+$/g,"");
+    const h=b.hyphenated.toLowerCase().replace(/^-+|-+$/g,"");
+    const js=vocab.has(j), hs=vocab.has(h);
+
+    if(js&&hs){
+      b.decision=DH_AMBIGUOUS;
+      b.reason="both '"+b.joined+"' and '"+b.hyphenated+"' occur elsewhere in this text";
+    } else if(js){
+      b.decision=DH_JOIN;
+      b.reason="'"+b.joined+"' occurs elsewhere in this text";
+    } else if(hs){
+      b.decision=DH_KEEP;
+      b.reason="'"+b.hyphenated+"' occurs elsewhere in this text";
+    } else {
+      b.decision=DH_UNKNOWN;
+      b.reason="neither '"+b.joined+"' nor '"+b.hyphenated
+              +"' occurs elsewhere in this text";
+    }
+    out.push(b);
+  }
+  return out;
+}
+
+function findHyphenBreaksIn(lines,regions){
+  const skip=new Set();
+  for(const r of regions)
+    if(r.label==="pg_header"||r.label==="pg_licence")
+      for(let i=r.start;i<r.end;i++) skip.add(i+1);
+  return findHyphenBreaks(lines,skip);
+}
+
+/* Keep absorbing while the line just built still ends in a break. Consecutive
+   broken lines are common in hard-wrapped text, and merging 31 into 32 then
+   skipping past 32's own break leaves one word in eight still split.       */
+function applyHyphenBreaks(lines,breaks){
+  const byLine=new Map(breaks.map(b=>[b.line,b]));
+  const out=[];
+  let i=0;
+  while(i<lines.length){
+    let cur=lines[i], j=i;
+    while(j+1<lines.length){
+      const b=byLine.get(j+1);
+      if(!b) break;
+      const head=DH_HEAD.exec(lines[j+1]);
+      if(!head) break;
+      const stripped=cur.replace(/\s+$/,"");
+      const cut=stripped.length-b.left.length-1;
+      if(cut<0||!stripped.endsWith(b.left+"-")) break;
+      cur=stripped.slice(0,cut)+dhResolved(b)+lines[j+1].slice(head[0].length);
+      j++;
+    }
+    out.push(cur);
+    i=j+1;
+  }
+  return out;
+}
+
 /* ---- variants ---- */
 const PRESETS={
   "verbatim":       {keep:{pg_header:1,pg_licence:1,front_matter:1,body:1,back_matter:1,unknown:1},dropHeadings:0,collapse:0,
@@ -1069,6 +1185,13 @@ function render(lines,regions,cfg,furniture,footnotes){
     }
     out.push("");
   }
+  let hyphensJoined=0, hyphensFlagged=0;
+  if(cfg.dehyphenate){
+    // Evidence is drawn from the WHOLE document, not just the kept regions.
+    const br=findHyphenBreaks(out,null,dhVocabulary(lines));
+    for(const b of br) dhNeedsReview(b)?hyphensFlagged++:hyphensJoined++;
+    out=applyHyphenBreaks(out,br);
+  }
   let text=out.join("\n");
   if(cfg.collapse) text=text.replace(/\n{3,}/g,"\n\n");
   text=text.trim()+"\n";
@@ -1076,7 +1199,7 @@ function render(lines,regions,cfg,furniture,footnotes){
   return {text,kept,dropped,stats:{chars:text.length,lines:text.split("\n").length-1,
     tokens:tt.tokens,types:tt.types,kept:kept.length,dropped:dropped.length,
     furnitureRemoved,footnotesRemoved:paired.length,
-    footnoteLinesRemoved:noteLinesRemoved},
+    footnoteLinesRemoved:noteLinesRemoved,hyphensJoined,hyphensFlagged},
     footnoteText:cfg.footnotes==="extract"&&paired.length
       ? paired.map(f=>"["+f.label+"]\t"+f.text).join("\n")+"\n" : null};
 }

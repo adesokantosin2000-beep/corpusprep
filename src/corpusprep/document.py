@@ -131,6 +131,8 @@ class Document:
     #: line-level property rather than a region: a marker sits inside a word
     #: inside a paragraph inside a chapter.
     footnotes: list = field(default_factory=list)
+    #: Words broken across a line break, with the decision taken for each.
+    hyphen_breaks: list = field(default_factory=list)
     meta: dict = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
@@ -144,6 +146,9 @@ class Document:
 
     def with_footnotes(self, found: list) -> "Document":
         return replace(self, footnotes=list(found))
+
+    def with_hyphen_breaks(self, breaks: list) -> "Document":
+        return replace(self, hyphen_breaks=list(breaks))
 
     def with_note(self, note: str) -> "Document":
         return replace(self, notes=[*self.notes, note])

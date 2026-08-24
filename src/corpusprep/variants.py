@@ -59,6 +59,13 @@ class Variant:
     # research question, so removal is not the obvious default. It stays
     # "retain" until the researcher says otherwise.
     footnotes: str = "retain"
+    # Rejoin words broken across a line break.
+    #
+    # Off by default like every other repair. The break itself is always an
+    # artefact, but whether the hyphen survives is a judgement, and on a short
+    # text the evidence is often absent. Cases the rule cannot decide are
+    # flagged rather than guessed.
+    dehyphenate: bool = False
 
     def keeps(self, label: str) -> bool:
         return self.keep.get(label, True)
@@ -76,6 +83,7 @@ class Variant:
                 "drop_headings": self.drop_headings,
                 "drop_furniture": self.drop_furniture,
                 "footnotes": self.footnotes,
+                "dehyphenate": self.dehyphenate,
             },
         }
 
@@ -212,6 +220,19 @@ def render(doc: Document, variant: Variant) -> VariantResult:
 
         out.append("")  # Blank line between regions
 
+    hyphen_joined = 0
+    hyphen_flagged = 0
+    if variant.dehyphenate:
+        from . import dehyphenate as _dh
+        # Evidence is drawn from the WHOLE document, not just the kept
+        # regions. A word attested only in the preface is still attested in
+        # this text's own orthography, and discarding that evidence would
+        # flag cases the document could have answered.
+        breaks = _dh.find(out, extra_vocab=_dh.vocabulary(doc.lines))
+        hyphen_joined = sum(1 for b in breaks if not b.needs_review)
+        hyphen_flagged = sum(1 for b in breaks if b.needs_review)
+        out = _dh.apply(out, breaks)
+
     text = "\n".join(out)
 
     if variant.collapse_blank_lines:
@@ -231,6 +252,8 @@ def render(doc: Document, variant: Variant) -> VariantResult:
         "furniture_removed": furniture_removed,
         "footnotes_removed": len(paired),
         "footnote_lines_removed": notes_removed,
+        "hyphens_joined": hyphen_joined,
+        "hyphens_flagged": hyphen_flagged,
     }
 
     if variant.footnotes == "extract":

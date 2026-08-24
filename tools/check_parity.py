@@ -52,7 +52,8 @@ if(eng<0||engEnd<0||fmt<0||fmtEnd<0){
   console.error('could not locate engine/format blocks in index.html');process.exit(2);}
 const M=new Function(html.slice(eng,engEnd)+html.slice(fmt,fmtEnd)+
   '; return {segment,render,PRESETS,coverageGaps,countTT,extractFile,'+
-  'findFurnitureIn,looksLikePageNumber,findCatchwords,findFootnotesIn};')();
+  'findFurnitureIn,looksLikePageNumber,findCatchwords,findFootnotesIn,'+
+  'findHyphenBreaksIn};')();
 
 const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
 
@@ -84,6 +85,9 @@ const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
     out[path.basename(f)]={
       furniture:[...fu.furniture].sort((a,b)=>a-b).join(","),
       catchwords:[...fu.catchwords].sort((a,b)=>a-b).join(","),
+      hyphens:M.findHyphenBreaksIn(lines,seg.regions)
+        .map(b=>b.line+":"+b.decision+":"+(b.decision==="join"?b.joined:b.hyphenated))
+        .sort().join(","),
       footnotes:M.findFootnotesIn(lines,seg.regions)
         .map(f=>f.label+":"+(f.markerLine||0)+">"+(f.bodyStart||0)+":"+(f.paired?1:0))
         .sort().join(","),
@@ -104,6 +108,7 @@ const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
 def run_python(files: list[Path]) -> dict:
     from corpusprep import BUILTIN, load, render, segment
     from corpusprep.document import count_tokens_types
+    from corpusprep.dehyphenate import find_in_document as find_breaks
     from corpusprep.footnotes import find_in_document as find_footnotes
     from corpusprep.furniture import find_in_document
 
@@ -114,6 +119,8 @@ def run_python(files: list[Path]) -> dict:
         cw = sorted(m.line for m in _catch if m.accepted)
         fn = sorted(f"{f.label}:{f.marker_line or 0}>{f.body_start or 0}:"
                     f"{1 if f.paired else 0}" for f in find_footnotes(doc))
+        hy = sorted(f"{b.line}:{b.decision}:{b.resolved}"
+                    for b in find_breaks(doc))
         res = {}
         for v in VARIANTS:
             r = render(doc, BUILTIN[v])
@@ -123,6 +130,7 @@ def run_python(files: list[Path]) -> dict:
             "furniture": ",".join(str(i) for i in sorted(marked)),
             "catchwords": ",".join(str(i) for i in cw),
             "footnotes": ",".join(fn),
+            "hyphens": ",".join(hy),
             "furniture_page": round(page, 1),
             "regions": len(doc.regions),
             "chapters": len([r for r in doc.regions if r.kind == "chapter"]),
@@ -180,6 +188,8 @@ def main(argv: list[str]) -> int:
                  fx / "romeo_juliet.txt",
                  # Real footnotes, with labels restarting every chapter.
                  fx / "pg1232_prince.txt",
+                 # Real prose, hard-wrapped: 180 broken words and 23 dashes.
+                 fx / "hyphenated.txt",
                  fx / "sample.docx", fx / "sample.epub", fx / "sample.html"]
 
     files = [f for f in files if f.exists()]
@@ -218,7 +228,7 @@ def main(argv: list[str]) -> int:
         # both sides find the same number of lines but disagree about which.
         # Compared separately, not merged. Two rules disagreeing in opposite
         # directions would cancel out in a union and read as agreement.
-        for field in ("furniture", "catchwords", "footnotes"):
+        for field in ("furniture", "catchwords", "footnotes", "hyphens"):
             a = set(filter(None, py[name][field].split(",")))
             b = set(filter(None, js[name][field].split(",")))
             ok &= a == b
