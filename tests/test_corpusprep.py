@@ -1619,6 +1619,52 @@ def test_extra_vocab_must_come_from_outside_the_document():
           "extra_vocab=_dh.vocabulary(doc.lines)" not in src)
 
 
+def test_digitisation_apparatus_is_not_body():
+    """Internet Archive and Google Books boilerplate is not the book.
+
+    Reported from a real Internet Archive scan: `body-only` retained the
+    Archive's EPUB notice, Google's full usage guidelines and a per-page OCR
+    confidence line, because none of it is Gutenberg and nothing looked for it.
+    """
+    from corpusprep.segment import is_scan_apparatus
+
+    fx = FIXTURES / "scan_apparatus.txt"
+    if not fx.exists():
+        return
+    doc = segment(load(fx))
+    apparatus = [r for r in doc.regions if r.kind == "scan_apparatus"]
+    check("the digitisation notices are found", len(apparatus) >= 5,
+          f"{len(apparatus)} found")
+    check("and labelled as apparatus, not front matter",
+          all(r.label == "pg_licence" for r in apparatus))
+
+    body = "\n".join(l for r in doc.regions if r.label == "body"
+                     for l in doc.lines[r.start:r.end])
+    check("the Archive notice is out of the body",
+          "Internet Archive" not in body)
+    check("the Google notice is out of the body",
+          "Google Book Search" not in body)
+    check("the OCR confidence line is out of the body",
+          "estimated to be only" not in body)
+    check("but the story is still there", "Dorothy lived" in body)
+
+
+def test_scan_phrases_do_not_catch_prose():
+    """One verbatim match is conclusive; ordinary prose must not match."""
+    from corpusprep.segment import is_scan_apparatus as s
+
+    check("Archive notice", s("This book was produced in EPUB format by the "
+                              "Internet Archive."))
+    check("Google notice", s("This is a digital copy of a book that was "
+                             "preserved for generations"))
+    check("OCR confidence", s("The text on this page is estimated to be only "
+                              "4.93% accurate"))
+    check("prose is untouched",
+          not s("Dorothy lived in the midst of the great Kansas prairies"))
+    check("a novel may discuss copyright",
+          not s("It has survived long enough for the copyright to expire"))
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [

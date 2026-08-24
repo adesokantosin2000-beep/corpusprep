@@ -117,6 +117,7 @@ In fixed-stanza verse they do not.
 | `early_modern.txt` | `tools/make_catchword_fixture.py` (seed 1603) | Catchwords |
 | `hyphenated.txt` | `tools/make_hyphen_fixture.py` (seed 1847) | De-hyphenation |
 | `mixed_verse.txt` | `tools/make_mixed_fixture.py` (seed 1847) | Protected spans |
+| `scan_apparatus.txt` | Hand-written from a real scan | Digitisation notices |
 | `pg_marked.txt` | Hand-written | Gutenberg marker detection |
 | `drama_with_contents.txt` | Hand-written | Contents-list detection |
 | `book_chapter_nesting.txt` | Hand-written | Region hierarchy |

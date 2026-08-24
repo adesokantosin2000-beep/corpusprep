@@ -317,6 +317,61 @@ function licenceScore(t){const lo=t.toLowerCase();return LICENCE_PHRASES.filter(
 
 /* Requires >=2 distinct legal phrases AND the word "gutenberg", so a novel
    discussing copyright or a trademark dispute is never flagged. */
+/* Apparatus added by mass-digitisation projects, not by any publisher.
+
+   Reported from a real Internet Archive scan whose body-only output carried
+   the Archive's EPUB notice, Google's usage guidelines and a per-page OCR
+   confidence line. None of it is Gutenberg, so nothing recognised it.
+
+   THIS IS NOT FRONT MATTER. A researcher studying an edition may want its
+   preface; nobody wants the scanner's notice, and the two should not share a
+   switch.
+
+   No score threshold is needed. Every phrase is verbatim boilerplate,
+   reproduced identically across millions of volumes, so one match is
+   conclusive -- unlike a licence phrase such as "public domain", which a
+   novel may legitimately discuss.                                           */
+const SCAN_APPARATUS_PHRASES=[
+  "produced in epub format by the internet archive",
+  "the book pages were scanned and converted to epub",
+  "this process relies on optical character recognition",
+  "the internet archive was founded in 1996",
+  "created with hocr-to-epub",
+  "this is a digital copy of a book that was preserved",
+  "carefully scanned by google",
+  "about google book search",
+  "google book search helps readers discover",
+  "refrain from automated querying",
+  "maintain attribution",
+  "the google \u201cwatermark\u201d you see on each file",
+  "books.google.com",
+  "http : //books . google . com",
+  "digitized by the internet archive",
+  "original from",
+  "the text on this page is estimated to be only",
+];
+
+function scanApparatusScore(text){
+  const low=text.toLowerCase();
+  let n=0;
+  for(const ph of SCAN_APPARATUS_PHRASES) if(low.includes(ph)) n++;
+  return n;
+}
+
+function findScanApparatus(lines){
+  const out=[]; let start=null;
+  const all=lines.concat([""]);
+  for(let i=0;i<all.length;i++){
+    if(all[i].trim()){ if(start===null) start=i; }
+    else if(start!==null){
+      const score=scanApparatusScore(lines.slice(start,i).join("\n"));
+      if(score>=1) out.push([start,i,score]);
+      start=null;
+    }
+  }
+  return out;
+}
+
 function findLicenceBlocks(lines,min=2){
   const out=[]; let start=null;
   for(let i=0;i<=lines.length;i++){
@@ -401,6 +456,21 @@ function segment(lines){
         Math.min(1,.5+.15*sc),sc+" licence phrases, no sentinel marker"));
     }
   }
+
+  /* Digitisation-project apparatus. Runs whether or not Gutenberg markers were
+     found: an Internet Archive or Google scan carries this material and no
+     Gutenberg licence at all. Labelled as apparatus rather than front matter,
+     because a reader may want an edition's preface and never wants the
+     scanner's notice. */
+  for(const [s,e,sc] of findScanApparatus(lines.slice(cStart,cEnd))){
+    const a=s+cStart,b=e+cStart;
+    if(licSpans.some(([x,y])=>x<=a&&a<y)) continue;
+    licSpans.push([a,b]);
+    regions.push(R(PG_LICENCE,"scan_apparatus","Digitisation notice",a,b,.95,
+      sc+" verbatim phrase(s) from a scanning pipeline "+
+      "(Internet Archive, Google Books or similar)"));
+  }
+
   /* Transcriber credits sit *after* the START marker, so they escape the
      header region, and often name pglaf.org without saying "gutenberg". */
   for(const [a,b] of findTranscriberNotes(lines,cStart,cEnd)){

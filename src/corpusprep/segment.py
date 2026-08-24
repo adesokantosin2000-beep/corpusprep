@@ -106,6 +106,42 @@ LICENCE_PHRASES = [
     "donations to the project gutenberg",
 ]
 
+#: Apparatus added by mass-digitisation projects, not by any publisher.
+#:
+#: Reported from a real Internet Archive scan whose `body-only` output carried
+#: the Archive's EPUB notice, Google's full usage guidelines and a per-page OCR
+#: confidence note. None of it is Gutenberg, so none of it was recognised.
+#:
+#: **This is not front matter.** A researcher studying an edition may well want
+#: its preface and dedication; nobody wants the scanner's notice. The two are
+#: different in kind and are labelled differently.
+#:
+#: These strings are verbatim boilerplate reproduced identically across
+#: millions of volumes, so matching them is exact rather than statistical.
+SCAN_APPARATUS_PHRASES = [
+    # Internet Archive
+    "produced in epub format by the internet archive",
+    "the book pages were scanned and converted to epub",
+    "this process relies on optical character recognition",
+    "the internet archive was founded in 1996",
+    "created with hocr-to-epub",
+    # Google Books
+    "this is a digital copy of a book that was preserved",
+    "carefully scanned by google",
+    "about google book search",
+    "google book search helps readers discover",
+    "refrain from automated querying",
+    "maintain attribution",
+    "the google \u201cwatermark\u201d you see on each file",
+    "books.google.com",
+    "http : //books . google . com",
+    # HathiTrust and similar
+    "digitized by the internet archive",
+    "original from",
+    # Per-page OCR confidence, emitted by the Archive's pipeline
+    "the text on this page is estimated to be only",
+]
+
 # ---------------------------------------------------------------------------
 # Body headings
 #
@@ -489,6 +525,28 @@ def licence_score(text: str) -> int:
     return sum(1 for p in LICENCE_PHRASES if p in low)
 
 
+def scan_apparatus_score(text: str) -> int:
+    """Count distinct digitisation-project phrases in a block.
+
+    Separate from `licence_score` because the two are different things. A
+    Gutenberg licence is a condition of use; an Internet Archive notice or a
+    Google Books usage statement is machinery from the scanning pipeline, and
+    it appears in books that have no licence attached at all.
+    """
+    low = text.lower()
+    return sum(1 for p in SCAN_APPARATUS_PHRASES if p in low)
+
+
+def is_scan_apparatus(text: str) -> bool:
+    """One phrase is enough: these are verbatim, not statistical.
+
+    Every string in `SCAN_APPARATUS_PHRASES` is boilerplate reproduced
+    identically across millions of scans. A single match is conclusive in a way
+    that one legal-sounding word never is, so no threshold is needed.
+    """
+    return scan_apparatus_score(text) >= 1
+
+
 def _blocks(lines: list[str], start: int, end: int):
     """Yield (a, b) for each blank-line-delimited block in [start, end)."""
     a = None
@@ -564,6 +622,33 @@ def find_licence_blocks(lines: list[str], min_score: int = 2) -> list[tuple[int,
     return blocks
 
 
+def find_scan_apparatus(lines: list[str]) -> list[tuple[int, int, int]]:
+    """Find blocks added by a digitisation project rather than a publisher.
+
+    Reported from a real Internet Archive scan, whose `body-only` output
+    carried the Archive's EPUB notice, Google's usage guidelines and a per-page
+    OCR confidence line. None of it is Gutenberg, so nothing recognised it.
+
+    Unlike the licence rule this needs no score threshold. Every phrase is
+    verbatim boilerplate reproduced identically across millions of volumes, so
+    one match is conclusive; a licence phrase like "public domain" is not,
+    because a novel may discuss it.
+    """
+    blocks: list[tuple[int, int, int]] = []
+    start = None
+    for i, line in enumerate(lines + [""]):
+        if line.strip():
+            if start is None:
+                start = i
+        else:
+            if start is not None:
+                score = scan_apparatus_score("\n".join(lines[start:i]))
+                if score >= 1:
+                    blocks.append((start, i, score))
+                start = None
+    return blocks
+
+
 # ---------------------------------------------------------------------------
 # Main segmenter
 # ---------------------------------------------------------------------------
@@ -626,6 +711,28 @@ def segment(doc: Document) -> Document:
                 start=s, end=e, confidence=min(1.0, 0.5 + 0.15 * score),
                 evidence=f"{score} licence phrases, no sentinel marker",
             ))
+
+    # --- 2a. Digitisation-project apparatus --------------------------------
+    #
+    # Runs whether or not Gutenberg markers were found: an Internet Archive or
+    # Google scan carries this material and no Gutenberg licence at all.
+    #
+    # Labelled as apparatus rather than front matter deliberately. A researcher
+    # studying an edition may want its preface; nobody wants the scanner's
+    # notice, and the two should not share a switch.
+    for s, e, score in find_scan_apparatus(lines[content_start:content_end]):
+        s += content_start
+        e += content_start
+        if any(a <= s < b for a, b in licence_spans):
+            continue
+        licence_spans.append((s, e))
+        regions.append(Region(
+            label=PG_LICENCE, kind="scan_apparatus",
+            title="Digitisation notice",
+            start=s, end=e, confidence=0.95,
+            evidence=f"{score} verbatim phrase(s) from a scanning pipeline "
+                     f"(Internet Archive, Google Books or similar)",
+        ))
 
     # --- 2b. Transcriber / producer credits -------------------------------
     # These sit *after* the START marker, so they escape the header region,
