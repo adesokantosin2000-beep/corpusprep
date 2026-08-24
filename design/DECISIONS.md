@@ -1240,3 +1240,84 @@ reader found in one session what 362 tests could not.
 `pg1232_prince.txt` was added as a *footnote* fixture, and its segmentation was
 never checked. **A fixture added to test one rule is silently exempt from every
 other rule**, which is worth remembering for the next one.
+
+---
+
+## 2026-08-23 — The first real scan, and what it broke
+
+A user downloaded *The New Wizard of Oz* from the Internet Archive and ran it
+through the tool. `body-only` returned 41,258 tokens containing the Archive's
+EPUB notice, Google's full usage guidelines, a Stanford catalogue stamp and
+several pages of pure OCR noise.
+
+This ended a blocker open since Week 2. Every previous fixture was a Gutenberg
+transcription, from which volunteers remove page furniture by policy, or
+something I generated.
+
+### What raw OCR actually looks like
+
+Nothing I had built for.
+
+**One page per line.** 269 non-blank lines for a whole book, median length
+1,080 characters, longest 2,955. Headings are buried *inside* those lines:
+
+```
+LIST OF CHAPTERS I. ThB CrCLONE I IL The Council with the Munchkins 7 II...
+INTRODUCTION p^LR lore, legends, myths and fairy tales have followed chi...
+```
+
+**Three kinds of apparatus, none of them Gutenberg.** The Archive's notice,
+Google's scanning notice, and a per-page OCR confidence line.
+
+**Text damaged even where the page is legible:**
+
+```
+lived in the midst of the ^ ^'^^ great Kansas prairies, with Uncle ^y^
+```
+
+### The scanner tells you which pages are rubbish
+
+The most useful thing in the file, and I had been ignoring it. Above each page
+it doubts, the Archive prints:
+
+```
+The text on this page is estimated to be only 4.93% accurate
+```
+
+28 such pages, **every one under 50%, median 5.1%**, and beneath each is text
+like `/ .•;?(^ V //'^i .^< .r/<vrr./;-/`.
+
+**This is the only rule in the package that infers nothing.** Every other rule
+has to work out what a line is from its shape or its neighbours. Here the
+digitisation pipeline has already done the work and written the answer down,
+and the tool's only job is to believe it.
+
+The region reports the figure — `Unreadable page (4.93% accurate)` — rather
+than a generic label, which meant running it *before* the generic apparatus
+rule. The note and its page share a blank-delimited block, so whichever rule
+runs first claims both, and the one that knows the number should win.
+
+### Result
+
+| | Before | After |
+|---|---|---|
+| `body-only` tokens | 41,258 | **39,760** |
+| Archive notice, Google guidelines, catalogue stamp | in the body | removed |
+| Pages the scanner calls unreadable | in the body | 28 regions, each reporting its figure |
+| The story | present | present |
+
+1,498 tokens of apparatus removed, 479 of them pure OCR noise.
+
+### What is still wrong, and it is the bigger half
+
+**No chapters were found.** The book's headings are inside 1,000-character
+lines, and every structural rule here looks for a heading as a whole line. The
+segmenter returns 23 undifferentiated `body` regions instead of 24 chapters.
+
+This is not a small gap. It means `body-only` on a scan of this shape keeps the
+title page, the introduction, the contents list and the dedication, because
+none of them can be told apart from the text.
+
+Recorded rather than fixed. It needs headings to be found *within* a line,
+which is a different rule from the one that exists, and it is the right first
+task for Week 12.

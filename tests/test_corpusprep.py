@@ -1665,6 +1665,70 @@ def test_scan_phrases_do_not_catch_prose():
           not s("It has survived long enough for the copyright to expire"))
 
 
+def test_real_scan_from_internet_archive():
+    """The first genuine scanned book the tool has ever been given.
+
+    Reported from real use: `body-only` returned 41,258 tokens with the
+    Archive's notice, Google's guidelines, a Stanford catalogue stamp and
+    pages of OCR noise all inside it.
+    """
+    fx = FIXTURES / "newwizardoz00densgoog.epub"
+    if not fx.exists():
+        print("  SKIP  real scan not present")
+        return
+
+    from corpusprep import analyse
+    from corpusprep.variants import BUILTIN, render
+
+    doc = analyse(fx)
+    out = render(doc, BUILTIN["body-only"]).text
+
+    for junk, what in (("Internet Archive", "the Archive's EPUB notice"),
+                       ("Google Book Search", "Google's usage guidelines"),
+                       ("hocr-to-epub", "the conversion tool's signature"),
+                       ("estimated to be only", "the OCR confidence notes"),
+                       ("Stanford", "the library catalogue stamp")):
+        check(f"{what} is out of the body", junk not in out)
+
+    check("but the book itself survives", "Kansas prairies" in out)
+
+
+def test_scanner_reported_accuracy_is_believed():
+    """The one rule here that infers nothing.
+
+    Every other rule has to work out what a line is. Here the digitisation
+    pipeline states its own confidence above each doubtful page, and the tool's
+    only job is to believe it. On this scan 28 pages are reported, median 5.1%
+    accurate, and the text beneath them is unreadable.
+    """
+    from corpusprep.segment import (find_unreadable_pages, ocr_accuracy,
+                                    OCR_MIN_ACCURACY)
+
+    check("a note is read", ocr_accuracy(
+        "The text on this page is estimated to be only 4.93% accurate") == 4.93)
+    check("ordinary prose carries none",
+          ocr_accuracy("Dorothy lived in the midst of the great prairies") is None)
+
+    lines = ["The text on this page is estimated to be only 4.93% accurate",
+             "/ .•;?(^ V //'^i .^< .r/<vrr", "",
+             "The text on this page is estimated to be only 96.0% accurate",
+             "Dorothy lived in the midst of the great Kansas prairies", ""]
+    bad = find_unreadable_pages(lines)
+    check("the unreadable page is caught", len(bad) == 1, f"{len(bad)} found")
+    check("and the readable one is left alone",
+          bad and bad[0][2] < OCR_MIN_ACCURACY)
+
+    fx = FIXTURES / "newwizardoz00densgoog.epub"
+    if not fx.exists():
+        return
+    doc = segment(load(fx))
+    rejected = [r for r in doc.regions if r.kind == "ocr_rejected"]
+    check("the real scan's unreadable pages are all found",
+          len(rejected) >= 25, f"{len(rejected)}")
+    check("and each region states the figure",
+          all("% accurate" in r.title for r in rejected))
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [

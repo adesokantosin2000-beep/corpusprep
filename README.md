@@ -76,6 +76,8 @@ can leave the corpus only because you chose to remove it.
   web application, for every case the rules decline to decide
 - Protected spans: verse, drama and tabular material identified before any
   reflow, so their line breaks are never treated as typesetting
+- Digitisation apparatus: Internet Archive and Google Books notices, and pages
+  the scanner itself reports as unreadable
 - Preprocessing log in Markdown and JSON
 
 Page furniture is detected but never removed unless asked. The detector has so

@@ -525,6 +525,58 @@ def licence_score(text: str) -> int:
     return sum(1 for p in LICENCE_PHRASES if p in low)
 
 
+#: The Internet Archive prints its own OCR confidence above each page it is
+#: unsure of. Below this figure the page is noise rather than text.
+#:
+#: Not a guess. On the first real scan tested, 28 pages carried a note, every
+#: one under 50% and the median at 5.1%, and the text beneath them reads:
+#:
+#:     / .•;?(^ V //'^i .^< .r/<vrr./;-/ , , r '.:ii«fe3*«i'*— - -c'
+#:
+#: A page like that contributes nothing but noise tokens to a word count.
+OCR_MIN_ACCURACY = 50.0
+
+#: `The text on this page is estimated to be only 4.93% accurate`
+OCR_ACCURACY_NOTE = re.compile(
+    r"text on this page is estimated to be only\s*([\d.]+)\s*% accurate",
+    re.IGNORECASE)
+
+
+def ocr_accuracy(line: str) -> float | None:
+    """The scanner's own confidence for the page that follows, if stated."""
+    m = OCR_ACCURACY_NOTE.search(line)
+    return float(m.group(1)) if m else None
+
+
+def find_unreadable_pages(lines: list[str],
+                          threshold: float = OCR_MIN_ACCURACY
+                          ) -> list[tuple[int, int, float]]:
+    """Pages the scanner itself reports as unreadable: (start, end, accuracy).
+
+    **This is measured evidence rather than inference.** Every other rule in
+    this package has to work out what a line is; here the digitisation pipeline
+    has already done the work and written down the answer, and the tool's only
+    job is to believe it.
+
+    The note precedes the page it describes, so the block returned is the run
+    of text after the note, up to the next blank line.
+    """
+    out: list[tuple[int, int, float]] = []
+    for i, line in enumerate(lines):
+        acc = ocr_accuracy(line)
+        if acc is None or acc >= threshold:
+            continue
+        # The region starts at the note itself. In practice the note and the
+        # page it describes sit in the same blank-delimited block, so starting
+        # after it would let the generic apparatus rule claim both first and
+        # report "Digitisation notice" where it could report the actual figure.
+        k = i + 1
+        while k < len(lines) and lines[k].strip():
+            k += 1
+        out.append((i, k, acc))
+    return out
+
+
 def scan_apparatus_score(text: str) -> int:
     """Count distinct digitisation-project phrases in a block.
 
@@ -712,7 +764,25 @@ def segment(doc: Document) -> Document:
                 evidence=f"{score} licence phrases, no sentinel marker",
             ))
 
-    # --- 2a. Digitisation-project apparatus --------------------------------
+    # --- 2a. Pages the scanner reports as unreadable ----------------------
+    #
+    # The only rule here that does not have to infer anything: the digitisation
+    # pipeline states its own confidence, and this believes it.
+    for s, e, acc in find_unreadable_pages(lines[content_start:content_end]):
+        s += content_start
+        e += content_start
+        if any(a <= s < b for a, b in licence_spans):
+            continue
+        licence_spans.append((s, e))
+        regions.append(Region(
+            label=PG_LICENCE, kind="ocr_rejected",
+            title=f"Unreadable page ({acc:g}% accurate)",
+            start=s, end=e, confidence=1.0,
+            evidence=f"the scanner reports this page as {acc:g}% accurate, "
+                     f"below the {OCR_MIN_ACCURACY:g}% floor",
+        ))
+
+    # --- 2b0. Digitisation-project apparatus ------------------------------
     #
     # Runs whether or not Gutenberg markers were found: an Internet Archive or
     # Google scan carries this material and no Gutenberg licence at all.

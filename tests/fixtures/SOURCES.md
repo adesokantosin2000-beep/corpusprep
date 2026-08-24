@@ -88,6 +88,28 @@ footnote. A rule that deleted bracketed material would strip the stage
 directions, and a corpus of drama without its stage directions is a corpus of a
 different work.
 
+### `newwizardoz00densgoog.epub`
+
+*The New Wizard of Oz*, L. Frank Baum, 1903. Scanned by Google from the
+Stanford University Libraries copy, converted to EPUB by the Internet Archive.
+
+- **Source:** Internet Archive, identifier `newwizardoz00densgoog`
+- **Status:** Public domain. Baum died in 1919; the volume was published in 1903
+  and its Google/Archive scan adds no copyright, as neither claims one over a
+  public-domain work.
+- **Modified:** No. The file is exactly as downloaded, 45 MB including page
+  images.
+
+**The first genuinely scanned book this tool has ever been given**, and the one
+that ended a blocker open since Week 2. Every previous fixture was either a
+Gutenberg transcription, from which volunteers remove page furniture by policy,
+or something I generated.
+
+It contains, in one file: the Internet Archive's EPUB notice, Google's full
+scanning notice and usage guidelines, a Stanford library catalogue stamp, 28
+pages the scanner itself reports as unreadable — median **5.1% accurate** — and
+a book whose text is one page per line with the headings buried inside them.
+
 ### `pg921-images-3.epub`
 
 - **Source:** Project Gutenberg eBook #921, <https://www.gutenberg.org/ebooks/921>

@@ -317,6 +317,41 @@ function licenceScore(t){const lo=t.toLowerCase();return LICENCE_PHRASES.filter(
 
 /* Requires >=2 distinct legal phrases AND the word "gutenberg", so a novel
    discussing copyright or a trademark dispute is never flagged. */
+/* The Internet Archive prints its own OCR confidence above each page it is
+   unsure of. Below this figure the page is noise rather than text.
+
+   Not a guess. On the first real scan tested, 28 pages carried a note, every
+   one under 50% and the median at 5.1%, and the text beneath them reads:
+
+       / .•;?(^ V //'^i .^< .r/<vrr./;-/ , , r '.:ii«fe3*«i'*— - -c'
+
+   THIS IS THE ONLY RULE HERE THAT DOES NOT HAVE TO INFER ANYTHING. The
+   digitisation pipeline states its own confidence, and this believes it.    */
+const OCR_MIN_ACCURACY=50;
+const OCR_ACCURACY_NOTE=
+  /text on this page is estimated to be only\s*([\d.]+)\s*% accurate/i;
+
+function ocrAccuracy(line){
+  const m=OCR_ACCURACY_NOTE.exec(line);
+  return m?parseFloat(m[1]):null;
+}
+
+function findUnreadablePages(lines,threshold){
+  threshold=threshold===undefined?OCR_MIN_ACCURACY:threshold;
+  const out=[];
+  for(let i=0;i<lines.length;i++){
+    const acc=ocrAccuracy(lines[i]);
+    if(acc===null||acc>=threshold) continue;
+    // The region starts at the note: in practice the note and the page it
+    // describes share a block, and starting after it lets the generic
+    // apparatus rule claim both and lose the figure.
+    let k=i+1;
+    while(k<lines.length&&lines[k].trim()) k++;
+    out.push([i,k,acc]);
+  }
+  return out;
+}
+
 /* Apparatus added by mass-digitisation projects, not by any publisher.
 
    Reported from a real Internet Archive scan whose body-only output carried
@@ -455,6 +490,18 @@ function segment(lines){
       regions.push(R(PG_LICENCE,"licence_block","Licence text (unmarked)",a,b,
         Math.min(1,.5+.15*sc),sc+" licence phrases, no sentinel marker"));
     }
+  }
+
+  /* Pages the scanner reports as unreadable. Runs first, so the log carries
+     the actual figure rather than a generic notice. */
+  for(const [s,e,acc] of findUnreadablePages(lines.slice(cStart,cEnd))){
+    const a=s+cStart,b=e+cStart;
+    if(licSpans.some(([x,y])=>x<=a&&a<y)) continue;
+    licSpans.push([a,b]);
+    regions.push(R(PG_LICENCE,"ocr_rejected",
+      "Unreadable page ("+(+acc.toFixed(2))+"% accurate)",a,b,1,
+      "the scanner reports this page as "+(+acc.toFixed(2))+"% accurate, below "+
+      "the "+OCR_MIN_ACCURACY+"% floor"));
   }
 
   /* Digitisation-project apparatus. Runs whether or not Gutenberg markers were
