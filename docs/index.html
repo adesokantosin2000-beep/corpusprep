@@ -377,8 +377,10 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
   border-bottom-width:2px;border-radius:3px;padding:1px 5px;background:var(--paper);
   color:var(--muted)}
-.ver{font-size:11px;color:var(--faint);font-family:var(--mono);
-  margin-left:10px;letter-spacing:.02em}
+.ver{font-size:11px;color:var(--accent);font-family:var(--mono);
+  letter-spacing:.02em;background:var(--accent-soft);border:1px solid #dbe5e0;
+  padding:2px 7px;border-radius:10px;font-weight:600;flex-shrink:0;
+  align-self:center}
 </style>
 </head>
 <body>
@@ -425,6 +427,11 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
 <div id="app">
 <header>
   <span class="wordmark">Corpus<em>Prep</em></span>
+  <!-- Beside the wordmark on purpose. "Which version am I running?" has to be
+       answerable at a glance, because a stale cached page and a broken one look
+       identical otherwise. The right-hand end of this header already overflows
+       on a narrow window, so a marker there can be clipped out of sight. -->
+  <span class="ver" id="hdr-ver" title="Version of this page"></span>
   <span class="sep"></span>
   <span class="doc" id="hdr-doc">No text loaded</span>
   <span class="spacer"></span>
@@ -434,10 +441,6 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
     Processed locally
   </span>
-  <!-- Displayed so that "which version am I running?" is answerable. A stale
-       cached page is otherwise indistinguishable from a broken one, which cost
-       a real debugging session. -->
-  <span class="ver" id="hdr-ver" title="Version of this page"></span>
   <div class="who" id="who"></div>
 </header>
 
