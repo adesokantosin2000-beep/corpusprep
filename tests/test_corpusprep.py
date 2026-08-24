@@ -1729,6 +1729,90 @@ def test_scanner_reported_accuracy_is_believed():
           all("% accurate" in r.title for r in rejected))
 
 
+def test_running_heads_as_line_prefixes():
+    """In page-per-line OCR the running head is a line PREFIX, not a line.
+
+    Found in the first real scan. A whole page arrives as one paragraph, so the
+    running head is simply its opening words:
+
+        WONDERFUL EMERALD CITY OF OZ  loi  fore I have no brains...
+
+    92 of 269 non-blank lines carried one and every furniture rule missed them,
+    because all of them assume furniture occupies its own line.
+    """
+    from corpusprep.furniture import (find_prefix_furniture, is_page_per_line,
+                                      apply_prefix_edits)
+
+    fx = FIXTURES / "newwizardoz00densgoog.epub"
+    if not fx.exists():
+        return
+    lines = load(fx).lines
+    check("the scan is recognised as page-per-line", is_page_per_line(lines))
+
+    edits = find_prefix_furniture(lines)
+    check("the running heads are found", len(edits) >= 60, f"{len(edits)}")
+
+    out = apply_prefix_edits(lines, edits)
+    touched = {e.line for e in edits}
+    check("every untouched line is byte-identical",
+          all(a == b for i, (a, b) in enumerate(zip(lines, out), 1)
+              if i not in touched))
+    check("the running head is gone",
+          not any("WONDERFUL EMERALD CITY" in l for l in out))
+    check("the book is not", any("Kansas prairies" in l for l in out))
+
+
+def test_prefix_rule_only_runs_on_page_per_line_text():
+    """The guard that keeps it away from ordinary text.
+
+    Removing a line wrongly loses a page, which is obvious. Removing a prefix
+    wrongly loses the first few words of a page, which is quiet — and a quiet
+    error in a corpus tool is the worse of the two. So the rule refuses to run
+    at all unless the text has the shape it was written for.
+    """
+    from corpusprep.furniture import find_prefix_furniture, is_page_per_line
+
+    for name in ("CBronte_Jane.txt", "pg9405_ballads.txt", "romeo_juliet.txt",
+                 "hyphenated.txt", "pg1232_prince.txt"):
+        fx = FIXTURES / name
+        if not fx.exists():
+            continue
+        lines = load(fx).lines
+        if is_page_per_line(lines):
+            continue
+        check(f"{name} is left entirely alone",
+              not find_prefix_furniture(lines))
+
+
+def test_a_heading_appearing_once_is_never_stripped():
+    """What separates a running head from a chapter title is recurrence."""
+    from corpusprep.furniture import find_prefix_furniture
+
+    # At least 20 lines: the rule refuses to judge a file too short to show a
+    # shape, which is itself part of the guard.
+    page = "the quick brown fox jumped over the lazy dog " * 12
+    lines = []
+    for i in range(30):
+        if i % 2:
+            lines.append(f"THE COUNCIL WITH THE MUNCHKINS {i} {page}")
+        else:
+            # Genuinely distinct words, not distinct digits: `normalise`
+            # strips digits so that `JANE EYRE 42` and `JANE EYRE 43` group as
+            # one head, which is right, and which made an earlier version of
+            # this test build twelve identical "unique" headings.
+            word = ["ALPHA", "BETA", "GAMMA", "DELTA", "EPSILON", "ZETA",
+                    "ETA", "THETA", "IOTA", "KAPPA", "LAMBDA", "MU",
+                    "NU", "XI", "OMICRON"][i // 2]
+            lines.append(f"CHAPTER OF {word} {i} {page}")
+
+    edits = find_prefix_furniture(lines)
+    stripped = {lines[e.line - 1][:20] for e in edits}
+    check("the recurring head is stripped",
+          any(s.startswith("THE COUNCIL") for s in stripped))
+    check("the headings appearing once are not",
+          not any(s.startswith("CHAPTER OF") for s in stripped), str(stripped))
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [

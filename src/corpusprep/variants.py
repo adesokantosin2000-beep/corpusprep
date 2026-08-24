@@ -228,6 +228,20 @@ def render(doc: Document, variant: Variant) -> VariantResult:
 
         out.append("")  # Blank line between regions
 
+    # Running heads welded to the front of a line are removed here, before
+    # de-hyphenation and reflow, because they sit at a line boundary that
+    # reflow is about to dissolve.
+    prefix_heads = 0
+    if variant.drop_furniture and doc.prefix_furniture:
+        from .furniture import apply_prefix_edits, PrefixEdit
+        keep = {i + 1 for i, _ in enumerate(out)}
+        # The edits are indexed against the document, not against the kept
+        # regions, so they are re-found on the output rather than mapped.
+        from .furniture import find_prefix_furniture as _fpf
+        edits = _fpf(out)
+        prefix_heads = len(edits)
+        out = apply_prefix_edits(out, edits)
+
     # ---- stage order is not arbitrary ----------------------------------
     #
     # De-hyphenation MUST run before reflow.
@@ -293,6 +307,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
         "regions_kept": len(kept),
         "regions_dropped": len(dropped),
         "furniture_removed": furniture_removed,
+        "running_heads_stripped": prefix_heads,
         "footnotes_removed": len(paired),
         "footnote_lines_removed": notes_removed,
         "hyphens_joined": hyphen_joined,

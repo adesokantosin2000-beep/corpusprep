@@ -133,6 +133,10 @@ class Document:
     footnotes: list = field(default_factory=list)
     #: Words broken across a line break, with the decision taken for each.
     hyphen_breaks: list = field(default_factory=list)
+    #: Running heads welded to the FRONT of page-per-line OCR lines. Edits
+    #: rather than line numbers, because the line survives and its opening
+    #: words do not.
+    prefix_furniture: list = field(default_factory=list)
     #: Review decisions, keyed by (kind, content). Never by line number: see
     #: corpusprep.review for why position is the wrong identity.
     decisions: dict = field(default_factory=dict)
@@ -155,6 +159,9 @@ class Document:
 
     def with_decisions(self, decisions: dict) -> "Document":
         return replace(self, decisions=dict(decisions))
+
+    def with_prefix_furniture(self, edits: list) -> "Document":
+        return replace(self, prefix_furniture=list(edits))
 
     def with_note(self, note: str) -> "Document":
         return replace(self, notes=[*self.notes, note])

@@ -53,7 +53,8 @@ if(eng<0||engEnd<0||fmt<0||fmtEnd<0){
 const M=new Function(html.slice(eng,engEnd)+html.slice(fmt,fmtEnd)+
   '; return {segment,render,PRESETS,coverageGaps,countTT,extractFile,'+
   'findFurnitureIn,looksLikePageNumber,findCatchwords,findFootnotesIn,'+
-  'findHyphenBreaksIn,findProtectedIn,reflowLines,protectedLines};')();
+  'findHyphenBreaksIn,findProtectedIn,reflowLines,protectedLines,'+
+  'findPrefixFurniture};')();
 
 const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
 
@@ -88,6 +89,7 @@ const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
       reflowed:(()=>{const r=M.reflowLines(lines,
         M.protectedLines(M.findProtectedIn(lines,seg.regions)));
         return r.blocksJoined+"/"+r.blocksKept+"/"+M.countTT(r.lines.join("\n")).tokens})(),
+      prefixes:M.findPrefixFurniture(lines).map(e=>e.line+":"+e.end).join(","),
       protected:M.findProtectedIn(lines,seg.regions)
         .map(s=>s.start+"-"+s.end).sort().join(","),
       hyphens:M.findHyphenBreaksIn(lines,seg.regions)
@@ -114,6 +116,7 @@ def run_python(files: list[Path]) -> dict:
     from corpusprep import BUILTIN, load, render, segment
     from corpusprep.document import count_tokens_types
     from corpusprep.dehyphenate import find_in_document as find_breaks
+    from corpusprep.furniture import find_prefix_furniture as find_prefix
     from corpusprep.protect import find_in_document as find_protected
     from corpusprep.protect import protected_lines
     from corpusprep.reflow import reflow as reflow_lines
@@ -130,6 +133,7 @@ def run_python(files: list[Path]) -> dict:
         hy = sorted(f"{b.line}:{b.decision}:{b.resolved}"
                     for b in find_breaks(doc))
         pr = sorted(f"{s.start}-{s.end}" for s in find_protected(doc))
+        px = ",".join(f"{e.line}:{e.end}" for e in find_prefix(doc.lines))
         _r = reflow_lines(doc.lines, protected_lines(find_protected(doc)))
         rf = (f"{_r.blocks_joined}/{_r.blocks_kept}/"
               f"{count_tokens_types(chr(10).join(_r.lines))[0]}")
@@ -144,6 +148,7 @@ def run_python(files: list[Path]) -> dict:
             "footnotes": ",".join(fn),
             "hyphens": ",".join(hy),
             "protected": ",".join(pr),
+            "prefixes": px,
             "reflowed": rf,
             "furniture_page": round(page, 1),
             "regions": len(doc.regions),
@@ -246,7 +251,7 @@ def main(argv: list[str]) -> int:
         # Compared separately, not merged. Two rules disagreeing in opposite
         # directions would cancel out in a union and read as agreement.
         for field in ("furniture", "catchwords", "footnotes", "hyphens",
-                      "protected"):
+                      "protected", "prefixes"):
             a = set(filter(None, py[name][field].split(",")))
             b = set(filter(None, js[name][field].split(",")))
             ok &= a == b

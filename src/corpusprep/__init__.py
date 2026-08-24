@@ -101,6 +101,17 @@ def analyse(path: str | Path,
             f"own vocabulary; {len(undecided)} would need review."
         )
 
+    from .furniture import find_prefix_furniture
+    edits = find_prefix_furniture(doc.lines)
+    if edits:
+        doc = doc.with_prefix_furniture(edits)
+        doc.meta["prefix_furniture"] = {"lines": len(edits)}
+        doc.notes.append(
+            f"{len(edits)} lines begin with a running head welded to the page "
+            f"text, as happens when each line holds a whole scanned page. "
+            f"Removed only if you ask for page furniture to be dropped."
+        )
+
     found = find_footnotes(doc)
     doc = doc.with_footnotes(found)
     paired = [f for f in found if f.paired]

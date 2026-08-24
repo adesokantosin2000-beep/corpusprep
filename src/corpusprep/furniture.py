@@ -482,3 +482,111 @@ def find(lines: list[str], skip: set[int] | None = None
     catch, catch_matches = find_catchwords(lines, breaks, marked, skip)
     marked |= catch
     return marked, candidates, page_length, catch_matches
+
+
+# ---------------------------------------------------------------------------
+# Furniture as a line PREFIX
+# ---------------------------------------------------------------------------
+#
+# Everything above assumes furniture occupies its own line. That holds for
+# plain-text transcription, where a page break is a line break. It is false of
+# page-per-line OCR, where a whole page arrives as one paragraph and the
+# running head is simply its first words:
+#
+#     WONDERFUL EMERALD CITY OF OZ  loi  fore I have no brains, and I c...
+#
+# `loi` is the page number 101, misread. On the first real scan tested, 92 of
+# 269 non-blank lines carried a prefix like this and the detector found none.
+#
+# The signal is unchanged: a running head RECURS. A chapter heading appears
+# once. That difference is what makes this safe, and it is the only guard the
+# rule needs beyond the shape of the text.
+
+#: Below this median line length the file is not page-per-line, and the
+#: line-based rules above are the right ones. Running this as well would risk
+#: editing lines for no gain.
+PAGE_PER_LINE_MIN_MEDIAN = 200
+
+#: A running head must recur at least this often. A chapter heading appears
+#: once, which is precisely what keeps it safe from this rule.
+PREFIX_MIN_OCCURRENCES = 3
+
+#: Two or more words in capitals at the start of a line.
+PREFIX = re.compile(
+    r"^\s*((?:[A-Z][A-Z0-9.,'\u2019\-]*\s+){1,9}[A-Z][A-Z0-9.,'\u2019\-]*)\s")
+
+#: A page number may follow the head. `loi` for 101 and `iii` for 111 are
+#: routine, so this is deliberately loose: it is only stripped when it sits
+#: between a confirmed running head and the page text.
+TRAILING_PAGE_NO = re.compile(r"^\s*([0-9IVXLCilvx|/l]{1,6})\s+(?=[A-Za-z\"'])")
+
+
+@dataclass
+class PrefixEdit:
+    """A running head to be removed from the FRONT of a line, not the line."""
+
+    line: int              # 1-based
+    prefix: str            # the text to remove
+    end: int               # character offset just past it
+    reason: str = ""
+
+
+def is_page_per_line(lines: list[str]) -> bool:
+    """Whether each line holds a whole page rather than a typeset line."""
+    lens = [len(l.strip()) for l in lines if l.strip()]
+    if len(lens) < 20:
+        return False
+    return statistics.median(lens) >= PAGE_PER_LINE_MIN_MEDIAN
+
+
+def find_prefix_furniture(lines: list[str], skip: set[int] | None = None
+                          ) -> list[PrefixEdit]:
+    """Find running heads welded to the start of page-per-line text.
+
+    **This edits lines rather than removing them, and that is the dangerous
+    part.** Removing a line wrongly loses a page, which is obvious. Removing a
+    prefix wrongly loses the first few words of a page, which is quiet, and a
+    quiet error in a corpus tool is the worse of the two.
+
+    So the bar is deliberately higher than for the line rules: the text must be
+    page-per-line, and the prefix must recur. Anything appearing once is left
+    exactly where it is.
+    """
+    skip = skip or set()
+    if not is_page_per_line(lines):
+        return []
+
+    groups: dict[str, list[tuple[int, str, int]]] = {}
+    for i, line in enumerate(lines, 1):
+        if i in skip:
+            continue
+        m = PREFIX.match(line)
+        if not m:
+            continue
+        groups.setdefault(normalise(m.group(1)), []).append(
+            (i, m.group(1), m.end(1)))
+
+    out: list[PrefixEdit] = []
+    for key, hits in groups.items():
+        if len(hits) < PREFIX_MIN_OCCURRENCES:
+            continue
+        for line_no, text, end in hits:
+            rest = lines[line_no - 1][end:]
+            n = TRAILING_PAGE_NO.match(rest)
+            stop = end + (n.end(1) if n else 0)
+            out.append(PrefixEdit(
+                line=line_no, prefix=lines[line_no - 1][:stop].strip(), end=stop,
+                reason=f"this heading opens {len(hits)} pages, so it is a "
+                       f"running head rather than part of the text"))
+    out.sort(key=lambda e: e.line)
+    return out
+
+
+def apply_prefix_edits(lines: list[str], edits: list[PrefixEdit]) -> list[str]:
+    """Remove confirmed running heads from the front of their lines."""
+    by_line = {e.line: e for e in edits}
+    out = []
+    for i, line in enumerate(lines, 1):
+        e = by_line.get(i)
+        out.append(line[e.end:].lstrip() if e else line)
+    return out

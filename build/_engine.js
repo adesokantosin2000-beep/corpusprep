@@ -928,6 +928,76 @@ function furnJudge(cands,pageLength){
   return cands;
 }
 
+/* ---- furniture as a line PREFIX ----------------------------------------
+   Everything above assumes furniture occupies its own line. That holds for
+   plain-text transcription, where a page break is a line break. It is false of
+   page-per-line OCR, where a whole page arrives as one paragraph and the
+   running head is simply its first words:
+
+       WONDERFUL EMERALD CITY OF OZ  loi  fore I have no brains, and I c...
+
+   `loi` is the page number 101, misread. On the first real scan tested, 92 of
+   269 non-blank lines carried a prefix like this and the detector found none.
+
+   THIS EDITS LINES RATHER THAN REMOVING THEM, and that is the dangerous part.
+   Removing a line wrongly loses a page, which is obvious. Removing a prefix
+   wrongly loses the first few words of a page, which is quiet, and a quiet
+   error in a corpus tool is the worse of the two. So the bar is higher: the
+   text must be page-per-line, and the prefix must RECUR. A chapter heading
+   appears once, which is what keeps it safe.                                */
+
+const PAGE_PER_LINE_MIN_MEDIAN=200;
+const PREFIX_MIN_OCCURRENCES=3;
+const PREFIX_RE=
+  /^\s*((?:[A-Z][A-Z0-9.,'’\-]*\s+){1,9}[A-Z][A-Z0-9.,'’\-]*)\s/;
+const TRAILING_PAGE_NO=/^\s*([0-9IVXLCilvx|\/l]{1,6})\s+(?=[A-Za-z"'])/;
+
+function isPagePerLine(lines){
+  const lens=lines.filter(l=>l.trim()).map(l=>l.trim().length);
+  if(lens.length<20) return false;
+  return furnMedian(lens)>=PAGE_PER_LINE_MIN_MEDIAN;
+}
+
+function findPrefixFurniture(lines,skip){
+  skip=skip||new Set();
+  if(!isPagePerLine(lines)) return [];
+
+  const groups=new Map();
+  for(let i=0;i<lines.length;i++){
+    const n=i+1;
+    if(skip.has(n)) continue;
+    const m=PREFIX_RE.exec(lines[i]);
+    if(!m) continue;
+    const key=furnNormalise(m[1]);
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push([n,m[1],m.index+m[0].indexOf(m[1])+m[1].length]);
+  }
+
+  const out=[];
+  for(const [key,hits] of groups){
+    if(hits.length<PREFIX_MIN_OCCURRENCES) continue;
+    for(const [lineNo,text,end] of hits){
+      const rest=lines[lineNo-1].slice(end);
+      const nm=TRAILING_PAGE_NO.exec(rest);
+      const stop=end+(nm?nm[0].indexOf(nm[1])+nm[1].length:0);
+      out.push({line:lineNo,prefix:lines[lineNo-1].slice(0,stop).trim(),
+                end:stop,
+                reason:"this heading opens "+hits.length+" pages, so it is a "+
+                       "running head rather than part of the text"});
+    }
+  }
+  out.sort((a,b)=>a.line-b.line);
+  return out;
+}
+
+function applyPrefixEdits(lines,edits){
+  const byLine=new Map(edits.map(e=>[e.line,e]));
+  return lines.map((l,i)=>{
+    const e=byLine.get(i+1);
+    return e?l.slice(e.end).replace(/^\s+/,""):l;
+  });
+}
+
 /* ---- catchwords --------------------------------------------------------
    In books printed between roughly 1500 and 1800 the last line of each page
    carries the first word of the following page, so the binder could confirm
@@ -1728,6 +1798,15 @@ function render(lines,regions,cfg,furniture,footnotes){
     }
     out.push("");
   }
+  // Running heads welded to the front of a line go first: they sit at a line
+  // boundary that reflow is about to dissolve.
+  let runningHeadsStripped=0;
+  if(cfg.dropFurniture){
+    const pe=findPrefixFurniture(out);
+    runningHeadsStripped=pe.length;
+    if(pe.length) out=applyPrefixEdits(out,pe);
+  }
+
   /* ---- stage order is not arbitrary ---------------------------------
      De-hyphenation MUST run before reflow. It works on words broken across a
      line break, and reflow removes exactly those breaks. The other way round,
@@ -1760,7 +1839,7 @@ function render(lines,regions,cfg,furniture,footnotes){
   const tt=countTT(text);
   return {text,kept,dropped,stats:{chars:text.length,lines:text.split("\n").length-1,
     tokens:tt.tokens,types:tt.types,kept:kept.length,dropped:dropped.length,
-    furnitureRemoved,footnotesRemoved:paired.length,
+    furnitureRemoved,runningHeadsStripped,footnotesRemoved:paired.length,
     footnoteLinesRemoved:noteLinesRemoved,hyphensJoined,hyphensFlagged,
     paragraphsJoined},
     footnoteText:cfg.footnotes==="extract"&&paired.length

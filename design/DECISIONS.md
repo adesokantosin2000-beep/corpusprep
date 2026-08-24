@@ -1399,3 +1399,71 @@ The chapters cannot be found until this is done. The chapter headings in this
 scan are also line prefixes, sitting where the running head would be at the
 start of a chapter. Splitting the prefix off is what makes them visible, so one
 change answers both.
+
+
+---
+
+## 2026-08-23 — Prefix furniture: built and measured
+
+Built as designed the same day, which the design note had argued against. It
+went quickly because the design had already separated the hard part from the
+easy one.
+
+### Result on the real scan
+
+| | |
+|---|---|
+| Running heads found | **74** |
+| Words removed | 408 |
+| Untouched lines altered | **0** |
+| Both engines agree | line and cut position, all 74 |
+
+`body-only` with furniture removal falls from 39,760 to 39,410 tokens.
+`WONDERFUL EMERALD CITY OF OZ` no longer appears anywhere; the story does.
+
+### The guards, and why each is there
+
+**The text must be page-per-line.** Median non-blank line length of 200
+characters or more. Below that, the line-based rules are the right ones and
+running this as well would edit lines for no gain. Every other fixture in the
+repository is left entirely alone by this rule, and a test asserts it.
+
+**The prefix must recur, at least three times.** This is the whole of the
+safety argument. A running head opens many pages; a chapter title opens one.
+`THE CYCLONE` and `AWAY TO THE SOUTH` appear once in this scan and are
+untouched, while `WONDERFUL EMERALD CITY OF OZ` opens nine pages and goes.
+
+**The file must have at least twenty lines.** A file too short to show a shape
+should not be judged to have one.
+
+### The trade this rule makes, stated plainly
+
+Every other furniture rule marks a line for deletion. This one edits a line in
+place, and the failure modes are not equivalent. **Delete a line wrongly and a
+page vanishes, which a reader notices. Delete a prefix wrongly and the first
+few words of a page vanish, which a reader does not.** The quieter error is the
+worse one in a tool whose proposition is that its output can be audited.
+
+That asymmetry is why the bar is three occurrences rather than two, and why the
+rule refuses to run at all on text of the wrong shape.
+
+### A test that lied twice while I wrote it
+
+The synthetic case for "a heading appearing once is never stripped" failed
+twice, both times because the test data was wrong rather than the code.
+
+First it built twelve lines, below the twenty-line floor, so the rule declined
+to act and nothing was stripped. Then it built headings distinguished only by a
+trailing digit — and `normalise` strips digits, deliberately, so that
+`JANE EYRE 42` and `JANE EYRE 43` group as one head. Twelve "unique" headings
+were one heading twelve times over.
+
+**Both failures were the test misunderstanding a rule that was working.** Worth
+recording because the instinct on a red test is to suspect the code.
+
+### What this does not fix
+
+The chapters are still not found. Stripping the running heads makes the chapter
+titles visible in principle, but the segmenter still looks for a heading as a
+whole line and these sit at the front of one. That is the next piece, and it is
+now a smaller one.
