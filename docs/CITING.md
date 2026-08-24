@@ -15,20 +15,38 @@ your methods section.
 ## Current release
 
 > Adesokan, T. (2026). *CorpusPrep: corpus preparation for linguists*
-> (version 0.6.0) [Computer software].
-> https://github.com/adesokantosin2000-beep/corpusprep
+> (version 0.6.0) [Computer software]. Zenodo.
+> https://doi.org/10.5281/zenodo.22083932
 
 BibTeX:
 
 ```bibtex
 @software{adesokan_corpusprep_2026,
-  author  = {Adesokan, Tosin},
-  title   = {{CorpusPrep: corpus preparation for linguists}},
-  version = {0.6.0},
-  year    = {2026},
-  url     = {https://github.com/adesokantosin2000-beep/corpusprep}
+  author    = {Adesokan, Tosin},
+  title     = {{CorpusPrep: corpus preparation for linguists}},
+  version   = {0.6.0},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.22083932},
+  url       = {https://doi.org/10.5281/zenodo.22083932}
 }
 ```
+
+## Two DOIs, and they are not interchangeable
+
+| | DOI | Resolves to |
+|---|---|---|
+| **Version** | `10.5281/zenodo.22083932` | `v0.6.0`, frozen. Never changes. |
+| **Concept** | `10.5281/zenodo.22083931` | Whatever the newest release is. |
+
+**Cite the version DOI in a thesis, a paper, or any methods section.** The
+concept DOI is convenient and it moves: someone following it in two years will
+land on a different version of the software than the one that produced your
+results, which is exactly the failure a DOI is supposed to prevent.
+
+The concept DOI is right when referring to the software as a project rather
+than to a run — in a related-work paragraph, a bibliography of tools, or a
+sentence like "CorpusPrep is maintained at…".
 
 Machine-readable metadata is in [`CITATION.cff`](../CITATION.cff). GitHub reads
 it for the "Cite this repository" button, and Zenodo reads
@@ -36,15 +54,27 @@ it for the "Cite this repository" button, and Zenodo reads
 
 ---
 
-## Getting a DOI
+## Releasing a new version
 
-A GitHub URL is not an archival citation. The repository can be renamed,
-made private or deleted, and a reviewer three years from now has no guarantee
-the link resolves. A DOI is permanent and points at a frozen copy of the code.
+The archive is already set up: `v0.6.0` is deposited at
+[10.5281/zenodo.22083932](https://doi.org/10.5281/zenodo.22083932). Every
+future GitHub release is archived automatically and gets its own version DOI.
 
-This is a five-minute, one-time setup, and it must be done **before** the
-release is created — Zenodo only sees releases published after the switch is
-turned on.
+What has to be true for each release:
+
+- **`_version.py`, `CITATION.cff` and the tag must agree.** The test suite
+  checks the first two against each other and refuses the commit otherwise.
+- **The tag must point at a commit that already contains `.zenodo.json`.**
+  Zenodo reads its metadata from the tagged snapshot, not from the branch. The
+  first attempt at `v0.6.0` was tagged before that file existed and the tag had
+  to be moved, which is easy before a release exists and awkward after.
+- **Update `CITATION.cff` with the new version DOI** once Zenodo mints it, and
+  the badge in `README.md`. The concept DOI never changes.
+
+The original one-time setup, recorded in case it is needed for another
+repository: sign in to Zenodo with the GitHub account, open **GitHub** in the
+account menu, and turn the repository's toggle on. It must be done **before**
+the release is created — Zenodo does not see releases published earlier.
 
 1. Sign in at [zenodo.org](https://zenodo.org) with the GitHub account.
 2. Go to **GitHub** in the Zenodo account menu.
