@@ -74,6 +74,8 @@ can leave the corpus only because you chose to remove it.
   flagged rather than guessed
 - A review queue: a hand-editable file, and a keyboard-driven reviewer in the
   web application, for every case the rules decline to decide
+- Protected spans: verse, drama and tabular material identified before any
+  reflow, so their line breaks are never treated as typesetting
 - Preprocessing log in Markdown and JSON
 
 Page furniture is detected but never removed unless asked. The detector has so

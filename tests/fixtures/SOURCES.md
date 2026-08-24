@@ -116,6 +116,7 @@ In fixed-stanza verse they do not.
 | `scanned_novel.txt` | `tools/make_furniture_fixture.py` (seed 1847) | Running heads and page numbers |
 | `early_modern.txt` | `tools/make_catchword_fixture.py` (seed 1603) | Catchwords |
 | `hyphenated.txt` | `tools/make_hyphen_fixture.py` (seed 1847) | De-hyphenation |
+| `mixed_verse.txt` | `tools/make_mixed_fixture.py` (seed 1847) | Protected spans |
 | `pg_marked.txt` | Hand-written | Gutenberg marker detection |
 | `drama_with_contents.txt` | Hand-written | Contents-list detection |
 | `book_chapter_nesting.txt` | Hand-written | Region hierarchy |
@@ -127,6 +128,12 @@ columns with words broken across the line breaks. The vocabulary, spelling and
 compound habits are Brontë's, and only the breaks are invented. That matters
 because the de-hyphenation rule draws its evidence from the document's own
 vocabulary, so it has to be tested against a real one.
+
+`mixed_verse.txt` is the same kind of fixture and for the same reason: real
+*Jane Eyre* prose hard-wrapped to 66 columns with real ballad stanzas embedded
+in it. A fixture of pure verse and one of pure prose would both be passed by a
+detector that guessed the same answer for every line. **The boundary is the only
+difficult part**, so this fixture is nothing but boundaries.
 
 All generators are deterministic and seeded, so a fixture and its answer key
 can never drift apart. Regenerate with the command in each script's docstring.

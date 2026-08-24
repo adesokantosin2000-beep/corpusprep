@@ -1250,6 +1250,147 @@ function reviewApply(breaks,decisions){
   return n;
 }
 
+/* ---- protected spans ---------------------------------------------------
+   Lines that must never be rejoined. Reflow cannot start without this.
+
+   THE QUESTION IS NOT THE GENRE. IT IS WHO BROKE THE LINE.
+
+     broken by a typesetter   stops mid-phrase, continues in lower case
+     broken by the author     stops at a phrase boundary, next line capitalised
+
+   Line-length variance, the obvious signal, does not work: verse scores 0.31
+   on the fixtures and hard-wrapped prose 0.27, with unwrapped prose highest of
+   all at 1.23. The two-signal test separates them by a factor of twenty.
+
+   Neither signal works alone. Capitals alone catch every sentence start;
+   line-final punctuation alone scores 95% on unwrapped prose, where each line
+   is a whole paragraph.
+
+   Mirrors src/corpusprep/protect.py.                                        */
+
+const PR_WINDOW=6;
+const PR_MIN_RATE=0.45;
+const PR_MIN_SPAN=3;
+const PR_UNWRAPPED_P95=200;
+
+const PR_CLOSERS=[".",",",";",":","!","?",'"',"'","’","”","--","—"];
+
+function prEndsPhrase(s){
+  for(const c of PR_CLOSERS) if(s.endsWith(c)) return true;
+  return false;
+}
+
+// A file storing one line per paragraph has nothing to rejoin. Answering that
+// first avoids asking a question the document never posed.
+function isWrapped(lines){
+  const lens=lines.filter(l=>l.trim()).map(l=>l.replace(/\s+$/,"").length);
+  if(lens.length<10) return false;
+  lens.sort((a,b)=>a-b);
+  return lens[Math.floor(lens.length*0.95)]<PR_UNWRAPPED_P95;
+}
+
+function authorialBreak(a,b){
+  a=a.replace(/\s+$/,""); b=b.trim();
+  if(!a||!b) return false;
+  if(!prEndsPhrase(a)) return false;
+  const f=b[0];
+  return f.toUpperCase()===f&&f.toLowerCase()!==f ? true : !/[a-z]/i.test(f);
+}
+
+function breakProfile(lines){
+  const out=[];
+  for(let i=0;i<lines.length;i++)
+    out.push(authorialBreak(lines[i], i+1<lines.length?lines[i+1]:""));
+  return out;
+}
+
+function findProtected(lines,skip){
+  skip=skip||new Set();
+  if(!isWrapped(lines)) return [];
+
+  const profile=breakProfile(lines), n=lines.length;
+  const prot=new Array(n).fill(false);
+
+  for(let i=0;i<n;i++){
+    if(skip.has(i+1)||!lines[i].trim()) continue;
+    // The window stops at a blank line in each direction. A blank line is a
+    // structural boundary, and evidence from the block on the other side is
+    // not evidence about this one. Without this an eight-line stanza between
+    // two paragraphs is judged mostly on the paragraphs.
+    let lo=i;
+    while(lo>0&&lines[lo-1].trim()&&i-lo<PR_WINDOW) lo--;
+    let hi=i;
+    while(hi+1<n&&lines[hi+1].trim()&&hi-i<PR_WINDOW) hi++;
+    let seen=0,yes=0;
+    for(let j=lo;j<=hi;j++) if(lines[j].trim()){ seen++; if(profile[j]) yes++ }
+    if(seen&&yes/seen>=PR_MIN_RATE) prot[i]=true;
+  }
+
+  const indents=lines.filter(l=>l.trim())
+    .map(l=>{const m=/^[ \t]+/.exec(l); return m?m[0].length:0});
+  const tally=new Map();
+  for(const v of indents) tally.set(v,(tally.get(v)||0)+1);
+  let common=0,best=-1;
+  for(const [v,c] of tally) if(c>best){best=c;common=v}
+
+  const spans=[];
+  let i=0;
+  while(i<n){
+    if(!prot[i]){ i++; continue }
+    let j=i;
+    while(j+1<n&&(prot[j+1]||!lines[j+1].trim())) j++;
+    let a=i,b=j;
+    while(a<=b&&!lines[a].trim()) a++;
+    while(b>=a&&!lines[b].trim()) b--;
+    // Extend to the enclosing blank-delimited blocks. A stanza is indivisible:
+    // protecting five lines of it and reflowing three is a corruption, and the
+    // last line of a passage is always the weakest evidence because nothing
+    // follows it to vouch for the break.
+    while(a>0&&lines[a-1].trim()) a--;
+    while(b+1<n&&lines[b+1].trim()) b++;
+
+    if(b>=a&&(b-a+1)>=PR_MIN_SPAN){
+      const body=[];
+      for(let k=a;k<=b;k++) if(lines[k].trim()) body.push(k);
+      const rate=body.filter(k=>profile[k]).length/Math.max(1,body.length);
+      let reason=Math.round(rate*100)+"% of these line breaks fall at a phrase "
+                +"boundary followed by a capital";
+      const ind=body.filter(k=>{const m=/^[ \t]+/.exec(lines[k]);
+                                return m&&m[0].length>common}).length;
+      if(body.length&&ind===body.length) reason+=", and every line is indented";
+      spans.push({start:a+1,end:b+1,reason});
+    }
+    i=Math.max(j,b)+1;
+  }
+
+  // Extending to block boundaries can make two seeds land on the same block,
+  // so overlapping or touching spans are merged.
+  spans.sort((x,y)=>x.start-y.start||x.end-y.end);
+  const merged=[];
+  for(const s of spans){
+    if(merged.length&&s.start<=merged[merged.length-1].end+1){
+      if(s.end>merged[merged.length-1].end) merged[merged.length-1].end=s.end;
+      continue;
+    }
+    merged.push({start:s.start,end:s.end,reason:s.reason});
+  }
+  return merged;
+}
+
+function findProtectedIn(lines,regions){
+  const skip=new Set();
+  for(const r of regions)
+    if(r.label==="pg_header"||r.label==="pg_licence")
+      for(let i=r.start;i<r.end;i++) skip.add(i+1);
+  return findProtected(lines,skip);
+}
+
+function protectedLines(spans){
+  const out=new Set();
+  for(const s of spans) for(let n=s.start;n<=s.end;n++) out.add(n);
+  return out;
+}
+
 /* ---- variants ---- */
 const PRESETS={
   "verbatim":       {keep:{pg_header:1,pg_licence:1,front_matter:1,body:1,back_matter:1,unknown:1},dropHeadings:0,collapse:0,

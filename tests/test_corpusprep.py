@@ -1137,6 +1137,103 @@ def test_version_is_single_sourced():
           str(carriers))
 
 
+def _ranges(name):
+    import re as _re
+    fk = Path(__file__).parent / "keys" / name
+    out = set()
+    for raw in fk.read_text(encoding="utf-8").splitlines():
+        s = raw.split("#")[0].strip()
+        if not s:
+            continue
+        m = _re.match(r"^(\d+)(?:-(\d+))?$", s)
+        a, b = int(m.group(1)), int(m.group(2) or m.group(1))
+        out.update(range(a, b + 1))
+    return out
+
+
+def test_protected_spans_on_mixed_text():
+    """Verse embedded in hard-wrapped prose. The boundary is the whole test."""
+    from corpusprep import protect as P
+
+    fx = FIXTURES / "mixed_verse.txt"
+    fk = Path(__file__).parent / "keys" / "mixed_verse.protected"
+    if not fx.exists() or not fk.exists():
+        print("  SKIP  mixed fixture not present")
+        return
+
+    truth = _ranges("mixed_verse.protected")
+    doc = segment(load(fx))
+    spans = P.find_in_document(doc)
+    found = P.protected_lines(spans)
+
+    check("no prose protected", not (found - truth),
+          f"wrongly protected {sorted(found - truth)[:5]}")
+    check("no verse left unprotected", not (truth - found),
+          f"missed {sorted(truth - found)[:5]}")
+    check("one span per passage", len(spans) == 5, f"got {len(spans)}")
+    check("no duplicate spans",
+          len(spans) == len({(s.start, s.end) for s in spans}))
+    for s in spans:
+        check(f"span {s.start}-{s.end} explains itself", "%" in s.reason)
+
+
+def test_prose_is_never_protected():
+    """The error this rule must never make.
+
+    A protected paragraph is left in fragments for ever, and unlike a missed
+    stanza there is nothing in the output to show that it happened.
+    """
+    from corpusprep import protect as P
+
+    for name, limit in (("hyphenated.txt", 0.02),
+                        ("CBronte_Jane.txt", 0.02),
+                        ("pg1232_prince.txt", 0.05)):
+        fx = FIXTURES / name
+        if not fx.exists():
+            continue
+        doc = segment(load(fx))
+        found = P.protected_lines(P.find_in_document(doc))
+        body = sum(1 for l in doc.lines if l.strip())
+        check(f"{name} is essentially unprotected", len(found) / body <= limit,
+              f"{len(found)}/{body} protected")
+
+
+def test_verse_and_drama_are_protected():
+    from corpusprep import protect as P
+
+    for name, floor in (("pg9405_ballads.txt", 0.75), ("romeo_juliet.txt", 0.5)):
+        fx = FIXTURES / name
+        if not fx.exists():
+            continue
+        doc = segment(load(fx))
+        found = P.protected_lines(P.find_in_document(doc))
+        body = sum(1 for l in doc.lines if l.strip())
+        check(f"{name} is mostly protected", len(found) / body >= floor,
+              f"only {len(found)}/{body}")
+
+
+def test_unwrapped_text_has_nothing_to_protect():
+    """One line per paragraph means there is no break to judge."""
+    from corpusprep import protect as P
+
+    fx = FIXTURES / "CBronte_Jane.txt"
+    if not fx.exists():
+        return
+    lines = load(fx).lines
+    check("the novel is recognised as not hard-wrapped", not P.is_wrapped(lines))
+    check("and yields no spans", not P.find(lines))
+
+
+def test_authorial_break_needs_both_signals():
+    """Either signal alone misfires; the pair is what carries the meaning."""
+    from corpusprep.protect import authorial_break as ab
+
+    check("phrase end plus capital", ab("When ye have lust to dine,", "There shall no meat"))
+    check("capital alone is not enough", not ab("a long line of prose that", "Continues here"))
+    check("phrase end alone is not enough", not ab("the end of a clause,", "and it continues"))
+    check("blank lines carry no evidence", not ab("anything.", ""))
+
+
 def test_chapter_heading_precision():
     """Heading vocabulary must be wide, but must not swallow prose."""
     should_match = [

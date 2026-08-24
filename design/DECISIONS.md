@@ -841,3 +841,130 @@ travel deliberately.
 `prepare()` always writes it. A file that appears only sometimes is a file
 nobody learns to look for, and the record of what *was* decided is worth as
 much as the list of what remains.
+
+---
+
+## 2026-08-23 — Protected spans: the schedule's proposed signal does not work
+
+Week 8. Reflow cannot start until we know which lines must never be rejoined,
+so this comes first.
+
+The schedule's plan for Tuesday was a **line-length variance detector**, on the
+premise that "prose wraps to a consistent width; verse does not". Measured
+against the fixtures, that premise is false.
+
+| Text | Kind | Length CV |
+|---|---|---|
+| Ballads | verse | 0.31 |
+| *Romeo and Juliet* | drama | 0.43 |
+| Hard-wrapped *Jane Eyre* | prose | **0.27** |
+| *The Prince* | prose | **0.21** |
+| Unwrapped *Jane Eyre* | prose | **1.23** |
+
+Verse sits at 0.31 and hard-wrapped prose at 0.27. There is no threshold
+between them. Worse, the highest variance in the set belongs to **prose**:
+unwrapped paragraphs run from a few characters to 2,410, so the proposed rule
+would rank ordinary novel prose as the most verse-like text available.
+
+The premise was right about hard-wrapped prose and wrong about the comparison
+class.
+
+### The question is not the genre. It is who broke the line
+
+A useful reframing, and it removes the need to classify texts at all:
+
+- A line broken **by a typesetter** stops mid-phrase and continues in lower
+  case, because the break fell wherever the margin was.
+- A line broken **by the author** stops at a phrase boundary and the next line
+  opens with a capital, because the break is part of the composition.
+
+Measured as *"this line ends on punctuation and the next begins with a
+capital"*:
+
+| Text | Kind | Authorial breaks |
+|---|---|---|
+| Ballads | verse | **60%** |
+| *Romeo and Juliet* | drama | **77%** |
+| Hard-wrapped *Jane Eyre* | prose | **3%** |
+| *The Prince* | prose | **3%** |
+
+A twentyfold separation, from two signals that cost nothing to compute. Neither
+works alone: line-initial capitals alone would catch every sentence start, and
+line-final punctuation alone scores 95% on unwrapped prose, where every line is
+a whole paragraph. Together they describe the break rather than the text.
+
+### Protection must be per span, not per document
+
+A novel contains a quoted ballad; a play contains prose scenes; a treatise
+contains a table. Classifying a whole document would protect all of it or none.
+
+So the rate is computed in a **local window**, and a run of lines whose breaks
+are mostly authorial becomes a protected span. Everything outside is available
+for reflow. That is also why the fixture for this has to be a mixed document:
+a test on pure verse and pure prose would pass without ever exercising the
+boundary, which is the only part that is hard.
+
+### Unwrapped text needs neither protecting nor reflowing
+
+*Jane Eyre* as stored here has one line per paragraph and a 95th-percentile
+line length of 888 characters. There is nothing to rejoin. Detecting that first
+avoids answering a question the document never asked.
+
+---
+
+## 2026-08-23 — Protected spans: measurement
+
+| Fixture | Kind | Protected | Correct |
+|---|---|---|---|
+| `mixed_verse.txt` | 5 verse passages in wrapped prose | 52 of 52 lines, 5 spans | **100% precision, 100% recall** |
+| `hyphenated.txt` | wrapped prose | 0% | ✅ |
+| `CBronte_Jane.txt` | unwrapped prose | 0% | ✅ |
+| `pg9405_ballads.txt` | verse | 89% | ✅ |
+| `romeo_juliet.txt` | drama | 66% | ✅ |
+| `pg1232_prince.txt` | prose | 1% | see below |
+
+Two structural faults were found by measurement, and neither was a threshold.
+
+### The window must stop at blank lines
+
+Recall started at **73%**: one eight-line stanza was missed entirely. It is
+enjambed ballad verse, where alternate lines run on without punctuation, so its
+own evidence is thin — and the ±6 line window reached across the blank lines
+into the surrounding paragraphs, which then outvoted it.
+
+**A blank line is a structural boundary, and evidence from the block on the
+other side is not evidence about this one.** Confining the window raised recall
+to 92% and drama from 38% to 66%. Loosening `MIN_RATE` would have "fixed" the
+same symptom by starting to protect prose, which is the one error this rule must
+never make.
+
+### A stanza cannot be half-protected
+
+The remaining misses were all final lines of passages, which is structural
+rather than accidental: the last line of a block has nothing after it to vouch
+for its break, so it is always the weakest evidence in the passage.
+
+Once a span is found it is extended to its enclosing blank-delimited block.
+Protecting five lines of a stanza and reflowing the other three is not a partial
+success but a corruption. That took recall to **100%**.
+
+### A duplicate-span bug the extension introduced
+
+Extending to block boundaries let two separate seeds land on the same block, so
+*The Prince* reported the same passage twice and double-counted its lines.
+Overlapping spans are now merged. **A fix that changes what a span means will
+usually break something about how spans are counted**, and printing them was
+what showed it.
+
+### The apparent false positive is not one
+
+The 1% in *The Prince* is two bibliographies:
+
+```
+Editions. Aldo, Venice, 1546; della Tertina, 1550; Cambiagi, Flore
+6 vols., 1782-5; dei Classici, Milan, 10 1813; Silvestri, 9 vols.,
+```
+
+Not verse, but line-structured reference material that a reflow would also
+destroy. `design-spec.md` lists tabular material among the protected
+categories, so this is the rule working, not failing. Left as it is.

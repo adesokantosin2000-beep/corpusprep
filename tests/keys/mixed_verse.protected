@@ -1,0 +1,18 @@
+# Protected-span key: mixed_verse.txt
+#
+# Line numbers of verse embedded in hard-wrapped prose. Exact by construction.
+#
+# Prose: CBronte_Jane.txt, wrapped to 66 columns.
+# Verse: pg9405_ballads.txt, copied intact.
+# Both are real text; only the arrangement is invented.
+#
+# 52 protected lines in 5 passages, out of 279.
+#
+# The point of this fixture is the BOUNDARY. A detector that answered the same
+# for every line would score well on pure verse or pure prose and fail here.
+
+34-45
+91-98
+135-142
+174-185
+225-236
