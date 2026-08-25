@@ -283,6 +283,14 @@ Run it with `python tools/integration.py`. Every failure it found, including
 the ones still unfixed, is in
 [`design/integration-failures.md`](design/integration-failures.md).
 
+Precision and recall for each individual rule are in
+[`design/measurement.md`](design/measurement.md), reproducible with
+`python tools/measure_rules.py`. That table records **what kind of evidence
+each figure rests on**, because it matters more than the figure: four of the
+rules are scored against fixtures generated with known answers, which is enough
+to develop against and not enough to publish. Two rules have no figure at all
+and the table says so rather than leaving a blank.
+
 The keys are read from the sources, never copied from the tool's output. A key
 derived from what the tool already produces measures only consistency with
 itself.
