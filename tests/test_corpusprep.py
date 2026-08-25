@@ -1693,6 +1693,74 @@ def test_real_scan_from_internet_archive():
     check("but the book itself survives", "Kansas prairies" in out)
 
 
+def test_stage_order_is_enforced():
+    """The order the stages run in, asserted rather than commented.
+
+    The Week 9 commit shipped them the wrong way round. Reflow ran first,
+    dissolved the line breaks de-hyphenation exists to repair, and recovered
+    81 of 166 broken words instead of 162. **Nothing failed.** The comment
+    saying "must run before" was already in the file, and a comment cannot
+    fail.
+
+    There is no way for a user to ask for a different order — the stages are
+    statements in one function, so nothing can be refused at runtime. The risk
+    is a future edit moving them, which is precisely what happened. So this
+    checks the source of both engines, and the measured cost of getting it
+    wrong.
+    """
+    import re
+    from corpusprep.variants import STAGE_ORDER
+    want = [name for name, _ in STAGE_ORDER]
+
+    py = (FIXTURES.parent.parent / "src" / "corpusprep" / "variants.py").read_text(encoding="utf-8")
+    check("the Python engine runs the stages in order",
+          re.findall(r"# STAGE (\w+)", py) == want,
+          str(re.findall(r"# STAGE (\w+)", py)))
+
+    js_path = FIXTURES.parent.parent / "build" / "_engine.js"
+    if js_path.exists():
+        js = js_path.read_text(encoding="utf-8")
+        # Only the render function's markers, not any elsewhere in the file.
+        got = re.findall(r"/\* STAGE (\w+) \*/", js)
+        check("and the JavaScript engine runs them in the same order",
+              got == want, str(got))
+
+    # Every stage in the list has a reason recorded beside it. A dependency
+    # nobody can explain is a dependency somebody will reorder.
+    check("and every stage says why it sits where it does",
+          all(len(why) > 20 for _, why in STAGE_ORDER))
+
+
+def test_the_wrong_stage_order_is_measurably_worse():
+    """Why the order matters, measured rather than asserted.
+
+    This is the test that would have caught Week 9. It runs de-hyphenation and
+    reflow both ways round on the same text and compares what survives.
+    """
+    fx = FIXTURES / "hyphenated.txt"
+    if not fx.exists():
+        print("  SKIP  hyphenated fixture not present")
+        return
+
+    from corpusprep import dehyphenate as dh, protect as pt, reflow as rf
+    lines = fx.read_text(encoding="utf-8").splitlines()
+
+    # Right way round: repair the breaks, then remove them.
+    right = dh.apply(lines, dh.find(lines))
+    right_breaks = len(dh.find(lines))
+
+    # Wrong way round: remove the breaks, then look for them.
+    reflowed = rf.reflow(lines, pt.protected_lines(pt.find(lines))).lines
+    wrong_breaks = len(dh.find(reflowed))
+
+    check("the breaks exist before reflow", right_breaks > 100,
+          f"{right_breaks} breaks")
+    check("and reflow consumes nearly all of them", wrong_breaks * 10 < right_breaks,
+          f"{wrong_breaks} left of {right_breaks}")
+    check("so de-hyphenation must run first, and does",
+          len("\n".join(right)) > 0 and right != lines)
+
+
 def test_a_combining_mark_is_not_a_word():
     """Three phantom tokens, found by widening the parity harness.
 

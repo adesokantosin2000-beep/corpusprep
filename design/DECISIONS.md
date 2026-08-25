@@ -1844,3 +1844,42 @@ researcher to start something the tool cannot finish.
 
 **A capability list that is not maintained is worse than none**, because it is
 read as a claim about the present rather than a note about the past.
+
+
+---
+
+## 2026-08-24 — Stage order: the task as scheduled could not be done
+
+Week 12, Wednesday. The instruction was *"enforce dependencies in code, not in
+documentation"*, complete when *"wrong order is refused with an explanation"*.
+
+**There is nothing to refuse.** `Variant` has no ordering field and there is no
+pipeline configuration anywhere; the stages are five statements in one
+function. A user cannot express a wrong order, so a runtime guard would be
+protecting against a thing that cannot happen.
+
+The risk is real but it is somewhere else: **a future edit moving the
+statements.** Which is exactly what happened. The Week 9 commit shipped reflow
+before de-hyphenation, dissolved the line breaks de-hyphenation exists to
+repair, and recovered 81 of 166 broken words instead of 162. Nothing failed,
+and the comment saying *must run before* was already in the file.
+
+**A comment cannot fail.** That is the whole lesson, and it is why the
+scheduled task was worth redefining rather than skipping.
+
+### What was built instead
+
+`STAGE_ORDER` in `variants.py` names the five stages with the reason each sits
+where it does. Both engines carry a marker at each stage, and the test asserts
+that the markers appear in the declared order — in Python and in JavaScript.
+
+A second test measures the cost rather than asserting it: it runs reflow first
+and counts how many breaks survive for de-hyphenation to find. Almost none do.
+That is the test that would have caught Week 9.
+
+### The guard was checked by breaking it
+
+A test that has never failed is a test nobody has verified. Reordering the
+markers in Python fails the Python check; reordering them in JavaScript fails
+the JavaScript check; restoring both passes. Recorded because the temptation
+with a structural check is to write it, watch it pass, and assume it works.

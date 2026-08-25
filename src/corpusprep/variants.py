@@ -30,6 +30,31 @@ from .document import (
 )
 
 
+#: The cleaning stages, in the only order that works.
+#:
+#: **This is a dependency list, not a preference.** Each stage consumes
+#: evidence the next one no longer has, so a wrong order does not merely
+#: produce different output — it produces quietly worse output, with no error.
+#:
+#: The order shipped in the Week 9 commit was wrong. Reflow ran before
+#: de-hyphenation, dissolved the line breaks de-hyphenation exists to repair,
+#: and recovered 81 of 166 broken words instead of 162. Nothing failed. The
+#: comment saying "must run before" was already in the file.
+#:
+#: So the order is now asserted rather than commented: `STAGE_ORDER` is
+#: checked against the source of both engines, and against the measured
+#: difference the wrong order makes. See `test_stage_order_is_enforced`.
+STAGE_ORDER = (
+    ("regions",     "select and remove whole sections"),
+    ("furniture",   "strip running heads welded to the front of a line, "
+                    "because they sit at a line boundary reflow will dissolve"),
+    ("dehyphenate", "repair words broken across a line break, while the "
+                    "breaks still exist"),
+    ("reflow",      "rejoin paragraphs, removing those breaks"),
+    ("whitespace",  "normalise blank lines last, on finished text"),
+)
+
+
 @dataclass
 class Variant:
     """A named cleaning configuration."""
@@ -186,6 +211,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
     kept: list[Region] = []
     dropped: list[Region] = []
     out: list[str] = []
+    # STAGE regions
     furniture_removed = 0
 
     # Only labels that were successfully paired may be stripped. An unpaired
@@ -231,6 +257,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
     # Running heads welded to the front of a line are removed here, before
     # de-hyphenation and reflow, because they sit at a line boundary that
     # reflow is about to dissolve.
+    # STAGE furniture
     prefix_heads = 0
     if variant.drop_furniture and doc.prefix_furniture:
         from .furniture import apply_prefix_edits, PrefixEdit
@@ -255,6 +282,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
     # The dependency is enforced here, in the code, rather than described in
     # documentation that a later edit can quietly contradict.
 
+    # STAGE dehyphenate
     hyphen_joined = 0
     hyphen_flagged = 0
     if variant.dehyphenate:
@@ -279,6 +307,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
         hyphen_flagged = sum(1 for b in breaks if b.needs_review)
         out = _dh.apply(out, breaks)
 
+    # STAGE reflow
     paragraphs_joined = 0
     if variant.reflow:
         from . import protect as _pt, reflow as _rf
@@ -292,6 +321,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
 
     text = "\n".join(out)
 
+    # STAGE whitespace
     if variant.collapse_blank_lines:
         pattern = r"\n{%d,}" % (variant.max_blank_lines + 2)
         text = re.sub(pattern, "\n" * (variant.max_blank_lines + 1), text)

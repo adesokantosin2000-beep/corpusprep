@@ -2642,6 +2642,7 @@ const PRESETS={
 };
 
 function render(lines,regions,cfg,furniture,footnotes){
+  /* STAGE regions */
   const kept=[],dropped=[],out=[];
   // Only paired labels may be stripped. An unpaired marker is the case where
   // the tool does not know what it is looking at, and no route touches it.
@@ -2673,6 +2674,7 @@ function render(lines,regions,cfg,furniture,footnotes){
   }
   // Running heads welded to the front of a line go first: they sit at a line
   // boundary that reflow is about to dissolve.
+  /* STAGE furniture */
   let runningHeadsStripped=0;
   if(cfg.dropFurniture){
     const pe=findPrefixFurniture(out);
@@ -2686,6 +2688,7 @@ function render(lines,regions,cfg,furniture,footnotes){
      reflow joins the fragments first and de-hyphenation finds nothing: 0 of
      180 breaks seen, 81 of 166 words recovered, against 162 in this order. */
   let hyphensJoined=0, hyphensFlagged=0;
+  /* STAGE dehyphenate */
   if(cfg.dehyphenate){
     // Evidence comes from the text being produced, NOT from the whole
     // document. The document contains the broken fragments, so feeding its
@@ -2699,6 +2702,7 @@ function render(lines,regions,cfg,furniture,footnotes){
   }
 
   let paragraphsJoined=0;
+  /* STAGE reflow */
   if(cfg.reflow){
     // Protected spans are recomputed on the output: verse that survived
     // region selection is still verse, and its line numbers have moved.
@@ -2706,6 +2710,7 @@ function render(lines,regions,cfg,furniture,footnotes){
     paragraphsJoined=r.blocksJoined;
     out=r.lines;
   }
+  /* STAGE whitespace */
   let text=out.join("\n");
   if(cfg.collapse) text=text.replace(/\n{3,}/g,"\n\n");
   text=text.trim()+"\n";
