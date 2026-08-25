@@ -65,7 +65,7 @@ const CAPABILITIES=[
   {ready:1, t:"Records every decision in a log",
    d:"Markdown and JSON, including token and type counts, suitable for citation."},
   {ready:0, t:"Reads PDF",
-   d:"Not implemented. Text extraction from PDF is scheduled but no decision has been taken on whether the result is good enough to offer."},
+   d:"Available in the Python package, not in this browser version. A PDF whose text layer is unreadable is refused with the reason rather than returned as noise."},
   {ready:0, t:"Repairs OCR characters",
    d:"Broken ligatures, stray marks and mis-scanned characters. Damaged pages are currently identified and reported, not corrected."},
   {ready:0, t:"Detects titled sections without numbering",

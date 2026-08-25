@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: Adesokan
     given-names: Tosin
-version: 0.7.0
+version: 0.8.0
 doi: 10.5281/zenodo.22083932
 identifiers:
   - type: doi

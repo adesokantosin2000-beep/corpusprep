@@ -81,6 +81,9 @@ def load(path: str | Path) -> Document:
     """
     path = Path(path)
 
+    if path.suffix.lower() == ".pdf":
+        return _load_pdf(path)
+
     if is_container(path):
         return _load_container(path)
 
@@ -121,6 +124,53 @@ def load(path: str | Path) -> Document:
             f"{doc.meta['replacement_chars']} undecodable byte(s) replaced "
             f"with U+FFFD. The source file may be damaged."
         )
+    return doc
+
+
+class UnreadablePDF(ValueError):
+    """A PDF this tool cannot read, with the reason attached.
+
+    Raised rather than returned as an empty Document, because a Document with
+    no lines looks like a very short book. **The caller must be forced to
+    notice**, which is the whole reason this class exists: the failure it
+    guards against is a PDF that extracts 930 lines of byte 0x01 and passes
+    every check that asks only whether text came out.
+    """
+
+    def __init__(self, extraction):
+        super().__init__(extraction.note)
+        self.extraction = extraction
+
+
+def _load_pdf(path: Path) -> Document:
+    """Load a PDF, refusing it with an explanation when it cannot be read."""
+    from . import pdf as _pdf
+
+    e = _pdf.extract(path)
+    if not e.usable:
+        raise UnreadablePDF(e)
+
+    doc = Document(
+        source_path=path,
+        lines=e.lines,
+        encoding=f"utf-8 (from pdf, {e.kind})",
+        had_bom=False,
+        newline="\n",
+        meta={
+            "encoding_confidence": 1.0,
+            "source_bytes": path.stat().st_size,
+            "replacement_chars": 0,
+            "container": "pdf",
+            "pdf_kind": e.kind,
+            "pdf_pages": e.pages,
+            "pdf_letter_ratio": round(e.letter_ratio, 4),
+            # The one thing PDF gives that no other format does. Every other
+            # input makes the furniture rules infer page boundaries from an
+            # ascending run of page numbers; here they are stated.
+            "page_starts": e.page_starts,
+            "note": e.note,
+        },
+    )
     return doc
 
 

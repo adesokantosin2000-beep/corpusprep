@@ -11,11 +11,13 @@ document (html). In every case we walk the markup and emit one line per
 paragraph, because paragraph structure is the one thing worth preserving —
 the segmenter downstream depends on blank-line-delimited blocks.
 
-**PDF is deliberately absent.** Extraction from PDF produces hyphenated
-line-breaks, hard-wrapped lines, running headers and scattered page numbers —
-exactly the problems CorpusPrep cannot yet fix. Supporting import before
-supporting repair would let people build bad corpora while trusting the tool,
-which is worse than declining. Add it once reflow and de-hyphenation exist.
+**PDF lives in `corpusprep.pdf`, not here.** It was deliberately absent while
+extraction produced hyphenated line-breaks, hard-wrapped lines, running heads
+and scattered page numbers with nothing able to repair them — supporting import
+before supporting repair lets people build bad corpora while trusting the tool,
+which is worse than declining. De-hyphenation and reflow now exist, so it is
+supported, in its own module because a PDF needs something no container format
+does: a judgement about whether what was extracted is language at all.
 """
 
 from __future__ import annotations
@@ -233,12 +235,13 @@ def extract(path: str | Path) -> tuple[str, dict]:
     ext = path.suffix.lower()
 
     if ext == ".pdf":
+        # Reached only if something calls this directly with a PDF.
+        # `importer.load` intercepts .pdf first and never gets here, so this
+        # message is for a caller who has bypassed the front door.
         raise UnsupportedFormat(
-            "PDF is not supported yet. PDF text extraction produces hyphenated "
-            "line-breaks, hard-wrapped lines, running headers and stray page "
-            "numbers, which are the exact problems CorpusPrep cannot yet repair. "
-            "Support is planned once de-hyphenation and reflow exist. "
-            "For now, export the PDF to .docx or .txt first."
+            "PDF is not a container format and is not handled here. Use "
+            "corpusprep.importer.load(), which routes PDFs to corpusprep.pdf, "
+            "or call corpusprep.pdf.extract() directly."
         )
     if ext == ".doc":
         raise UnsupportedFormat(

@@ -324,7 +324,12 @@ def test_pdf_and_doc_refused_with_reason():
     """Unsupported formats must explain why, not fail obscurely."""
     from corpusprep.formats import UnsupportedFormat, extract
 
-    for ext, word in [(".pdf", "hyphenated"), (".doc", "re-save")]:
+    # PDF used to be refused here with advice to export it to .docx. It is
+    # now supported, in corpusprep.pdf, and this message is only reachable by
+    # a caller that has bypassed importer.load(). **A refusal message that
+    # names a limitation the tool no longer has is worse than no message**,
+    # so it points at the right door instead.
+    for ext, word in [(".pdf", "importer"), (".doc", "re-save")]:
         try:
             extract("nonexistent" + ext)
             check(f"{ext} refused", False, "no exception raised")
@@ -1691,6 +1696,62 @@ def test_real_scan_from_internet_archive():
         check(f"{what} is out of the body", junk not in out)
 
     check("but the book itself survives", "Kansas prairies" in out)
+
+
+def test_a_pdf_that_extracts_nothing_readable_is_refused():
+    """The failure that was not in the design, found on the first real PDF.
+
+    Sinclair's *Basic Text Processing* (1991), a 25-page scan: extraction
+    succeeds, throws nothing, and returns 930 non-blank lines in which every
+    character is byte 0x01. The fonts are subsetted with broken character maps,
+    so the glyphs never become letters.
+
+    **A check of the form "did we get any text?" answers yes, 930 lines** and
+    hands the researcher a corpus of control characters. So the test is not
+    whether text came out; it is whether what came out is language.
+    """
+    from corpusprep import pdf
+
+    check("control characters are not language",
+          pdf.letter_ratio("\x01" * 500) == 0.0)
+    check("and ordinary prose is",
+          pdf.letter_ratio("It was the best of times, it was the worst.") > 0.7)
+
+    # Unicode-aware on purpose. A Yoruba or Polish text is not less readable
+    # for having characters outside ASCII, and an ASCII-only test would report
+    # a perfectly good extraction as broken.
+    check("in any script",
+          pdf.letter_ratio("Ọlọ́run kò sí níbí; żółć gęślą jaźń") > 0.6)
+
+    check("the threshold sits clear of both",
+          0.0 < pdf.MIN_LETTER_RATIO < 0.7)
+
+
+def test_an_empty_pdf_says_it_is_empty():
+    """A 0-byte file is a failed download, not a book with no words."""
+    import tempfile
+    from corpusprep import pdf, importer
+
+    if not pdf.available():
+        print("  SKIP  pypdf not installed")
+        return
+
+    with tempfile.TemporaryDirectory() as d:
+        empty = Path(d) / "nothing.pdf"
+        empty.write_bytes(b"")
+        e = pdf.extract(empty)
+        check("an empty file is not usable", not e.usable)
+        check("and the reason names the cause", "empty" in e.note.lower(), e.note)
+
+        # It must be raised, not returned as a Document with no lines, because
+        # a Document with no lines looks like a very short book.
+        try:
+            importer.load(empty)
+            check("loading an unreadable PDF raises", False, "it did not")
+        except importer.UnreadablePDF as exc:
+            check("loading an unreadable PDF raises", True)
+            check("and carries the explanation with it",
+                  len(str(exc)) > 20 and hasattr(exc, "extraction"))
 
 
 def test_stage_order_is_enforced():

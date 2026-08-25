@@ -1883,3 +1883,94 @@ A test that has never failed is a test nobody has verified. Reordering the
 markers in Python fails the Python check; reordering them in JavaScript fails
 the JavaScript check; restoring both passes. Recorded because the temptation
 with a structural check is to write it, watch it pass, and assume it works.
+
+
+---
+
+## 2026-08-25 — PDF, and a failure mode that was not in the design
+
+Reprioritised on the user's argument, which was the right one: **OCR text lives
+in PDFs.** The two EPUB scans were the exception, and a researcher with a
+folder of PDFs currently cannot use this tool at all.
+
+Three real PDFs, three different outcomes, and the important one was not among
+the three I predicted.
+
+### The design said there were three kinds of PDF
+
+    text     a usable text layer
+    ocr      a text layer written by OCR over page images
+    image    no text layer; nothing to extract
+
+**There is a fourth, and it is the dangerous one.** Sinclair's *Basic Text
+Processing* (1991), a 25-page scan: extraction succeeds, raises nothing, and
+returns **930 non-blank lines in which every character is byte 0x01**. The
+fonts are subsetted — `AAAAAB+font000000002f28b5b2` — with broken character
+maps, so the glyph codes never become letters.
+
+A check of the form *did we get any text?* answers **yes, 930 lines**, and
+hands the researcher a corpus of control characters.
+
+That is exactly the silent failure this package exists to prevent, and it
+appeared within an hour of PDF work beginning. **The test is not whether text
+came out. It is whether what came out is language:**
+
+    if the extracted text contains almost no letters, the extraction failed,
+    however much of it there is.
+
+`MIN_LETTER_RATIO = 0.35`. Prose runs 70–80% letters; the Sinclair file scores
+0.0%. Nothing observed sits between, so the threshold is set clear of both
+rather than tuned — and low rather than high, because the cost of a false alarm
+is a message and the cost of a miss is a corpus of control characters.
+
+The ratio is Unicode-aware. An ASCII-only test would report a perfectly good
+Yoruba or Polish extraction as broken.
+
+### Refused, not returned empty
+
+`UnreadablePDF` is raised rather than a Document with no lines being returned,
+because **a Document with no lines looks like a very short book.** The caller
+has to be made to notice; that is the entire point of the class.
+
+### The gift of the format
+
+Every other input forces the furniture rules to infer where pages begin, from
+an ascending run of page numbers. That inference is the most fragile thing in
+the package and it is what destroyed 63 lines of a ballad collection in Week 2.
+
+**A PDF states it.** `page_starts` is recorded on the Document. The Fagunwa
+file puts its page number on the *first* line of each page — `v`, `vi`, `3`,
+`4`, `5` — so with the boundaries known, the tool can *verify* a page-number
+series rather than infer one. Not yet used by the rules; recorded as the next
+PDF task, because it turns a guess into a fact.
+
+### One dependency, optional
+
+`pypdf` is the first dependency this package has taken, and zero dependencies
+was a real selling point. It is imported lazily and its absence produces an
+instruction rather than a traceback, so everything except PDF still runs on the
+standard library alone.
+
+### The web application is deliberately left alone
+
+PDF in the browser needs `pdf.js`, which is large and normally loaded from a
+CDN, so the app would stop being one self-contained offline file. The research
+value is in the Python package and arrives today; the single-file property
+survives until there is evidence anyone needs PDF in the browser.
+
+### A stale refusal, found on the way
+
+`formats.py` still refused PDFs with advice to export them to `.docx` first,
+citing limitations — hyphenation and reflow — that were fixed three releases
+ago. Nothing reaches that message any more, and **a refusal naming a
+limitation the tool no longer has is worse than no message at all.** Same fault
+as the capability list, in a different file.
+
+### The fixtures are not in the repository, deliberately
+
+All three PDFs are in copyright and came from a shadow library. They are used
+locally and kept outside the repository, which is public, MIT-licensed and
+attached to a name that is about to appear on a thesis. **The findings are
+committed; the files are not.** Public-domain PDFs with the same properties are
+needed before any of this can be regression-tested, and the Internet Archive
+has scans with the same broken-font problem.

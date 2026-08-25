@@ -30,3 +30,8 @@ corpora_wild/
 Thumbs.db
 .vscode/
 .idea/
+
+# Copyrighted PDFs used for local testing. The findings belong in the
+# repository; the files do not. See design/DECISIONS.md, 2026-08-25.
+*.pdf
+pdf-tests/
