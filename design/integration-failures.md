@@ -356,3 +356,104 @@ remains at 18 of 24 and there is no further evidence in that file to use.
 missing capability and belongs in a schedule, not a fix day.
 **I7** drama drops the Prologue. A default worth revisiting with a linguist
 rather than settling alone.
+
+
+---
+
+# PDF pass, ten files
+
+`python tools/pdf_triage.py FOLDER`. Three more PDFs arrived — Beowulf, *Doctor
+Faustus*, and a set of metaphysical poems — and all three are verse or drama,
+which is the material the untested rules were most exposed on.
+
+| kind | n | |
+|---|---|---|
+| usable text | **5** | ready to clean |
+| unreadable text layer | 1 | 7,205 "words", 0% letters |
+| no text layer | 3 | nothing to extract |
+| empty file | 1 | failed download |
+
+**Five of ten usable**, up from two of seven. The proportion is not the finding;
+the two faults below are.
+
+---
+
+## P1 — A rule that scores 100% found 0 of 337 verse lines — **NOT FIXED**
+
+**Severity: highest. Maximum possible damage, on the material the rule exists
+to protect.**
+
+`LIT 201 Recommended metaphysical poems.pdf` is ten poems. Protected spans
+found **none of them**:
+
+```
+as extracted (a blank line between every verse line):    0 of 337
+with the blank lines removed:                          337 of 337
+```
+
+The rule is not wrong about this text. It is completely right and never gets
+to look at it.
+
+PDF extraction double-spaces the file — 55% of its lines are whitespace-only —
+and `find()` stops its window at a blank line in each direction. So **every
+verse line is judged alone, on a single data point**, and a single line is
+never enough evidence. `break_profile` agrees the text is verse: 69% of lines
+break deliberately, against a threshold of 45%.
+
+### The fix for one input shape is the fault for another
+
+The window stops at blank lines *deliberately*, and the reasoning is written
+out in the source:
+
+> Without this an eight-line stanza sitting between two paragraphs is judged
+> mostly on the paragraphs, and enjambed verse is lost entirely. That is a
+> windowing fault, not a threshold that needs loosening.
+
+That was right, and it is what breaks here. A blank line is a structural
+boundary **only when blank lines are not the norm**. At 55% density, uniformly
+alternating, they are line spacing.
+
+### Why this is the worst fault found so far
+
+Turn on reflow and every line break in ten poems is destroyed. That is the
+precise damage protected spans exist to prevent, and the fixture that scores
+100% on it is `mixed_verse.txt` — real prose with real verse embedded.
+
+Its own note explains the choice:
+
+> A fixture of pure verse and one of pure prose would both be passed by a
+> detector that guessed the same answer for every line. **The boundary is the
+> only difficult part**, so this fixture is nothing but boundaries.
+
+Right about the fixture, wrong about the world. **A book of poems is pure
+verse, and pure verse is where the damage is total.**
+
+Not confined to the extreme case. Beowulf, at 5% blank lines, protects 2,627
+of a possible 3,318 — losing 21% to the same cause without anything looking
+wrong.
+
+---
+
+## P2 — A 21,581-token "Introduction", and this time it is correct
+
+**Severity: none observed. Recorded because it cannot be distinguished from
+I1 without reading the book.**
+
+*Doctor Faustus* keeps 56% of its tokens under `body-only`. The missing 44% is
+one region:
+
+```
+front_matter  introduction  21,581 tok  'Introduction'
+```
+
+An editor's introduction to a Marlowe edition, and a researcher studying
+Marlowe's language should drop it. The tool is right.
+
+But this is the **same shape** as the Frankenstein fault, where a
+6,184-token "Preface" turned out to contain the opening of the novel. The
+difference between the two is not visible in the output, and **nothing in the
+tool distinguishes them.** There is still no check that a front-matter region
+is front-matter-sized; it simply happened to be correct here.
+
+Recorded so that the next large front-matter region is inspected rather than
+trusted.

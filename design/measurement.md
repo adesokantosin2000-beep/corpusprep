@@ -112,10 +112,17 @@ Three errors in 177 is 98.3%, and all three are explicable rather than random,
 which is the more useful property: each names a class of text that will fail,
 so a user can look for it.
 
-### Protected spans — 100%
+### Protected spans — 100% on the fixture, 0% on a book of poems
 
-Every verse line in `mixed_verse.txt` identified, no prose line wrongly
-protected. The fixture is real *Jane Eyre* prose wrapped to 66 columns with
+**Read the fixture figure with the failure beside it.** On
+`mixed_verse.txt` the rule finds every verse line and protects no prose. On
+the first real collection of poetry it met — ten metaphysical poems extracted
+from PDF — it found **0 of 337**, because the extraction double-spaces the
+file and the rule's window stops at blank lines, so every verse line is judged
+alone. See `design/integration-failures.md`, P1.
+
+The 100% is real and it is measured on a fixture built to contain boundaries
+rather than pure verse. Pure verse is where the damage is total. The fixture is real *Jane Eyre* prose wrapped to 66 columns with
 real ballad stanzas embedded in it, so **the boundary is the only difficult
 part and the fixture is nothing but boundaries.**
 
