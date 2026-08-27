@@ -2171,6 +2171,55 @@ const BLOCK_TAGS=new Set(["p","div","br","li","tr","section","article","blockquo
   "h1","h2","h3","h4","h5","h6","pre","figcaption","td","th"]);
 const DROP_TAGS=new Set(["script","style","noscript","head","svg","template"]);
 
+/* Markdown: keep the words, drop the markup.
+
+   This exists because a tester's corpus was 45% URL. She exported an
+   Instagram comment thread through a Markdown converter and cleaned it here,
+   and nothing was removed - the file picker offered .md and nothing read it,
+   so every character of every link target was counted as a word. Her twelve
+   most frequent words were https, www, instagram, com, c, gram, p, u,
+   lzntxq, shudu, explore, tags. Not one was typed by a human.
+
+   Nothing new in principle: htmlToText has always discarded tags because
+   markup is not language. Markdown is markup with a friendlier face.
+
+   Link TEXT is kept and the target discarded. @shudu.gram is something a
+   person wrote and may be the object of study; the URL is scaffolding the
+   converter added. */
+const MD_LINK=/\[([^\]]*)\]\(\s*<?([^)\s]*)>?[^)]*\)/g;
+const MD_IMAGE=/!\[([^\]]*)\]\([^)]*\)/g;
+const MD_BARE_URL=/(?<![\(\[])\bhttps?:\/\/\S+/g;
+const MD_REF_DEF=/^[ ]{0,3}\[[^\]]+\]:\s*\S+.*$/gm;
+const MD_ATX=/^[ ]{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/gm;
+const MD_EMPH=/(\*{1,3}|~~|`+)(?=\S)([\s\S]+?)(?<=\S)\1/g;
+/* Underscore emphasis may NOT sit inside a word. CommonMark forbids it for
+   exactly the reason that bit here: snake_case. Treating _ like * turned the
+   handle @michaelaseewald_v24 into @michaelaseewaldv24, silently renaming a
+   person. Usernames and hashtags are full of underscores, and social media is
+   where this reader is most needed. */
+const MD_EMPH_US=/(?<![^\W_])(_{1,3})(?=\S)([\s\S]+?)(?<=\S)\1(?![^\W_])/g;
+const MD_MARKER=/^[ ]{0,3}(?:>+\s?|[-*+]\s+|\d{1,3}[.)]\s+)/gm;
+const MD_RULE=/^[ ]{0,3}(?:[-*_]\s?){3,}\s*$/gm;
+
+function markdownToText(source){
+  let text=source;
+  const headings=[];
+  text=text.replace(MD_REF_DEF,"");
+  text=text.replace(MD_IMAGE,"$1");
+  text=text.replace(MD_LINK,"$1");
+  text=text.replace(MD_BARE_URL,"");
+  text=text.replace(MD_RULE,"");
+  text=text.replace(MD_MARKER,"");
+  text=text.replace(MD_ATX,(m,h,words)=>{headings.push(words);return words});
+  for(let i=0;i<3;i++){                       // nested **_like this_**
+    const next=text.replace(MD_EMPH,"$2").replace(MD_EMPH_US,"$2");
+    if(next===text) break;
+    text=next;
+  }
+  text=text.replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n");
+  return {text:text.trim()+"\n",meta:{container:"markdown",headings}};
+}
+
 function htmlToText(source){
   const doc=new DOMParser().parseFromString(source,"text/html");
   const out=[]; let buf=[], skip=0, headings=0;
@@ -2286,6 +2335,11 @@ async function extractFile(name,buf){
     "Open it in Word and re-save as .docx.");
   if(ext===".docx") return docxToText(buf);
   if(ext===".epub") return epubToText(buf);
+  if([".md",".markdown",".mdown",".mkd"].includes(ext)){
+    let src; try{src=new TextDecoder("utf-8",{fatal:true}).decode(buf)}
+    catch(e){src=new TextDecoder("windows-1252").decode(buf)}
+    return markdownToText(src);
+  }
   if([".html",".htm",".xhtml"].includes(ext)){
     let src; try{src=new TextDecoder("utf-8",{fatal:true}).decode(buf)}
     catch(e){src=new TextDecoder("windows-1252").decode(buf)}

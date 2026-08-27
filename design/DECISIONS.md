@@ -2092,3 +2092,78 @@ is 0.958 similar to the head and merges. One line, reported for review, and
 furniture removal is off unless requested. Left as it is: a guard for "titles
 on opening pages" would be a rule about position guessing at intent, which is
 the kind of thing this package has been wrong about before.
+
+
+---
+
+## 2026-08-25 — A corpus that was 45% URL
+
+A tester cleaned an Instagram comment thread and reported that nothing much
+changed. It was the most useful thing anyone has reported.
+
+Her file, exported through a Markdown converter:
+
+```
+[bymiracohen](https://www.instagram.com/bymiracohen/)
+ [9 w](https://www.instagram.com/p/C6-u-LzNtxQ/c/18439282027191808/)
+Love what you're creating 🌍 fellow AI here navigating the world
+```
+
+Her twelve most frequent words:
+
+```
+https · www · instagram · com · c · gram · p · u · lzntxq ·
+shudu · explore · tags
+```
+
+**Not one of them was typed by a human.** `lzntxq` is a fragment of the post's
+URL. After the link targets go: `that`, `shudu`, `ai`, `we`, `black` — which
+is her actual data, and `black` and `ai` are precisely what a study of that
+thread would be about.
+
+**45% of the file was inside URLs.**
+
+### Not a new domain. A missing reader.
+
+The first reading of this was "social media is out of scope", and that was
+wrong. `extract_html` has discarded tags since the beginning, on the grounds
+that markup is not language. Markdown is markup with a friendlier face.
+**A tool that reads HTML and not Markdown has a gap rather than a boundary.**
+
+Worse: the file picker already offered `.md`. The application advertised a
+format it did not read, so the file loaded as plain text and every character
+of every link target became a word. **Offering a format and not reading it is
+worse than refusing it**, because the failure is silent and the user concludes
+the tool does nothing.
+
+Link *text* is kept and the target discarded. `[@shudu.gram](https://…)`
+becomes `@shudu.gram`: the handle is something a person wrote and may well be
+the object of study, while the URL is scaffolding the converter added.
+
+### The reader renamed someone
+
+The first version treated `_` like `*` and turned `@michaelaseewald_v24` into
+`@michaelaseewaldv24` — silently renaming a person while removing 46% of the
+file it was meant to clean.
+
+CommonMark forbids intraword `_` for exactly this reason: `snake_case`.
+Usernames, hashtags and file paths are full of underscores, and **social media
+is precisely where this reader is most needed**, so the one place the rule
+matters is the one place it was wrong.
+
+### The harness agreed about a reader neither engine had run
+
+Adding the fixture produced a 65-token difference, which was not engine drift:
+`check_parity.py` keeps its *own* list of container extensions and nobody
+updated it, so it read `.md` as plain text on the JS side only. A third list
+of extensions, after `formats.SUPPORTED` and `is_container`.
+
+Fixing that revealed a second fault underneath. Markdown was then classed with
+docx, epub and html as needing a DOM — and with jsdom absent it was **skipped
+entirely**, so the harness printed PASS on a check that had not run. Markdown
+is regular expressions and needs no DOM.
+
+*"Needs extraction"* and *"needs a DOM"* are different questions, and
+conflating them hid the very thing being added. **This is the second time in
+three days that the parity harness has reported agreement on code it never
+executed.**

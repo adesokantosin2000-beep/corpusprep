@@ -56,14 +56,26 @@ const M=new Function(html.slice(eng,engEnd)+html.slice(fmt,fmtEnd)+
   'findHyphenBreaksIn,findProtectedIn,reflowLines,protectedLines,'+
   'findPrefixFurniture};')();
 
-const CONTAINER=/\.(docx|epub|html|htm|xhtml)$/i;
+/* Must match formats.is_container() on the Python side. It did not when
+   Markdown was added, so the harness read .md as plain text and reported a
+   65-token difference as engine drift — a third list of extensions nobody
+   thought to update.
+
+   Split in two, because "needs extraction" and "needs a DOM" are different
+   questions and conflating them hid the Markdown check entirely. docx, epub
+   and html are parsed through DOMParser and are skipped when jsdom is absent;
+   Markdown is regular expressions and runs anywhere. Marking it as
+   DOM-requiring meant it was silently skipped and the harness reported
+   agreement on a reader neither engine had run. */
+const CONTAINER=/\.(docx|epub|html|htm|xhtml|md|markdown|mdown|mkd)$/i;
+const NEEDS_DOM=/\.(docx|epub|html|htm|xhtml)$/i;
 
 (async()=>{
   const out={_haveDOM:haveDOM,_skipped:[]};
   for(const f of process.argv.slice(3)){
     let text;
     if(CONTAINER.test(f)){
-      if(!haveDOM){ out._skipped.push(path.basename(f)); continue; }
+      if(NEEDS_DOM.test(f)&&!haveDOM){ out._skipped.push(path.basename(f)); continue; }
       const buf=fs.readFileSync(f);
       const ab=buf.buffer.slice(buf.byteOffset,buf.byteOffset+buf.byteLength);
       text=(await M.extractFile(path.basename(f),ab)).text;
@@ -229,6 +241,10 @@ def main(argv: list[str]) -> int:
                  # these two files.
                  fx / "treasureisland0000unse_k0j8.epub",
                  fx / "jane-austen_emma_advanced.epub",
+                 # Markdown: link targets are markup, not language. Added
+                 # after a tester's corpus turned out to be 45% URL because
+                 # nothing read .md and every target was counted as words.
+                 fx / "social_markdown.md",
                  fx / "sample.docx", fx / "sample.epub", fx / "sample.html"]
 
     files = [f for f in files if f.exists()]

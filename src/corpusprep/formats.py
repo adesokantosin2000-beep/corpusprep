@@ -29,7 +29,8 @@ import zipfile
 from html.parser import HTMLParser
 from pathlib import Path
 
-SUPPORTED = {".txt", ".text", ".docx", ".epub", ".html", ".htm", ".xhtml", ".md"}
+SUPPORTED = {".txt", ".text", ".docx", ".epub", ".html", ".htm", ".xhtml",
+             ".md", ".markdown", ".mdown", ".mkd", ".pdf"}
 
 # WordprocessingML / OPF namespaces
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -225,6 +226,100 @@ def extract_epub(path: Path) -> tuple[str, dict]:
 # Dispatch
 # ---------------------------------------------------------------------------
 
+#: A Markdown inline link: `[text](target)`.
+#:
+#: The target is not language and nobody typed it. Written non-greedily and
+#: with a character class that stops at `)`, so two links on one line do not
+#: swallow the prose between them.
+MD_LINK = re.compile(r"\[([^\]]*)\]\(\s*<?([^)\s]*)>?[^)]*\)")
+MD_IMAGE = re.compile(r"!\[([^\]]*)\]\([^)]*\)")
+#: A bare URL sitting in running text.
+MD_BARE_URL = re.compile(r"(?<![\(\[])\bhttps?://\S+")
+#: Reference-style definitions: `[1]: https://…` on a line of their own.
+MD_REF_DEF = re.compile(r"(?m)^\s{0,3}\[[^\]]+\]:\s*\S+.*$")
+#: ATX headings, `## Like this`. The hashes are markup; the words are not.
+MD_ATX = re.compile(r"(?m)^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$")
+#: Emphasis, code spans and strikethrough — asterisks, backticks, tildes.
+MD_EMPH = re.compile(r"(\*{1,3}|~~|`+)(?=\S)(.+?)(?<=\S)\1", re.S)
+
+#: Underscore emphasis, which may NOT sit inside a word.
+#:
+#: CommonMark forbids intraword `_` for exactly the reason that bit here:
+#: `snake_case` identifiers. Treating `_` like `*` turned the handle
+#: `@michaelaseewald_v24` into `@michaelaseewaldv24`, silently renaming a
+#: person — the first version of this reader corrupted a username while
+#: removing 46% of the file it was meant to clean, which is the kind of quiet
+#: damage this package exists to prevent.
+#:
+#: Usernames, hashtags and file paths are full of underscores, and social
+#: media is precisely where this reader is most needed.
+MD_EMPH_US = re.compile(r"(?<![^\W_])(_{1,3})(?=\S)(.+?)(?<=\S)\1(?![^\W_])", re.S)
+#: Blockquote and list markers at the start of a line.
+MD_MARKER = re.compile(r"(?m)^\s{0,3}(?:>+\s?|[-*+]\s+|\d{1,3}[.)]\s+)")
+#: A table row or a rule made of punctuation.
+MD_RULE = re.compile(r"(?m)^\s{0,3}(?:[-*_]\s?){3,}\s*$")
+
+
+def extract_markdown(source: str) -> tuple[str, dict]:
+    """Return (text, meta) from Markdown, keeping the words and dropping the markup.
+
+    **This exists because a tester's corpus was 45% URL.**
+
+    She exported an Instagram comment thread through a Markdown converter and
+    cleaned it with CorpusPrep, which removed nothing. The file looks like this::
+
+        [bymiracohen](https://www.instagram.com/bymiracohen/)
+         [9 w](https://www.instagram.com/p/C6-u-LzNtxQ/c/18439282027191808/)
+        Love what you're creating 🌍 fellow AI here navigating the world
+
+    Loaded as plain text — which is what a `.md` file was, since nothing here
+    read Markdown — every character of every link target became a word. Her
+    twelve most frequent words were:
+
+        https · www · instagram · com · c · gram · p · u · lzntxq ·
+        shudu · explore · tags
+
+    **Not one of them was typed by a human.** `lzntxq` is a fragment of the
+    post's URL. After the targets are dropped the same file gives `that`,
+    `shudu`, `ai`, `we`, `black` — which is her actual data.
+
+    Nothing new in principle: `extract_html` has always discarded tags on the
+    grounds that markup is not language. Markdown is markup with a friendlier
+    face, and a tool that reads HTML but not Markdown has a gap rather than a
+    boundary.
+
+    **Link text is kept and the target discarded**, which is the one judgement
+    here. `[@shudu.gram](https://instagram.com/shudu.gram/)` becomes
+    `@shudu.gram`: the handle is something a person wrote and may well be the
+    object of study, while the URL is scaffolding the converter added.
+    """
+    text = source
+    text = MD_REF_DEF.sub("", text)
+    text = MD_IMAGE.sub(r"\1", text)          # alt text is authored; the path is not
+    text = MD_LINK.sub(r"\1", text)
+    text = MD_BARE_URL.sub("", text)
+    text = MD_RULE.sub("", text)
+    text = MD_MARKER.sub("", text)
+
+    headings: list[str] = []
+
+    def _heading(m):
+        headings.append(m.group(2))
+        return m.group(2)
+
+    text = MD_ATX.sub(_heading, text)
+    # Emphasis last: the markers can wrap text the rules above have moved.
+    for _ in range(3):                          # nested **_like this_**
+        new = MD_EMPH_US.sub(r"\2", MD_EMPH.sub(r"\2", text))
+        if new == text:
+            break
+        text = new
+
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip() + "\n", {"container": "markdown", "headings": headings}
+
+
 def extract(path: str | Path) -> tuple[str, dict]:
     """Extract plain text from a supported container format.
 
@@ -252,6 +347,13 @@ def extract(path: str | Path) -> tuple[str, dict]:
         return extract_docx(path)
     if ext == ".epub":
         return extract_epub(path)
+    if ext in {".md", ".markdown", ".mdown", ".mkd"}:
+        raw = path.read_bytes()
+        try:
+            src = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            src = raw.decode("cp1252", errors="replace")
+        return extract_markdown(src)
     if ext in {".html", ".htm", ".xhtml"}:
         raw = path.read_bytes()
         try:
@@ -269,5 +371,6 @@ def extract(path: str | Path) -> tuple[str, dict]:
 def is_container(path: str | Path) -> bool:
     """True if the file needs extraction rather than plain decoding."""
     return Path(path).suffix.lower() in {
-        ".docx", ".epub", ".html", ".htm", ".xhtml"
+        ".docx", ".epub", ".html", ".htm", ".xhtml",
+        ".md", ".markdown", ".mdown", ".mkd",
     }

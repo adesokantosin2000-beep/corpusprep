@@ -1698,6 +1698,66 @@ def test_real_scan_from_internet_archive():
     check("but the book itself survives", "Kansas prairies" in out)
 
 
+def test_markdown_keeps_the_words_and_drops_the_link_targets():
+    """Reported by a tester whose corpus was 45% URL.
+
+    She exported an Instagram comment thread through a Markdown converter and
+    cleaned it here, and nothing was removed — because nothing read Markdown,
+    so a `.md` file was plain text and every character of every link target
+    was a word. Her twelve most frequent words were `https`, `www`,
+    `instagram`, `com`, `c`, `gram`, `p`, `u`, `lzntxq`, `shudu`, `explore`,
+    `tags`. **Not one was typed by a human.**
+    """
+    from corpusprep.formats import extract_markdown
+
+    src = ("[bymiracohen](https://www.instagram.com/bymiracohen/)\n"
+           " [9 w](https://www.instagram.com/p/C6-u-LzNtxQ/c/18439282027191808/)\n"
+           "Love what you're creating, fellow AI here\n")
+    out, meta = extract_markdown(src)
+
+    check("the link text survives", "bymiracohen" in out)
+    check("and the prose with it", "fellow AI here" in out)
+    check("the URL does not", "instagram.com" not in out and "https" not in out)
+    check("nor the post id", "lzntxq" not in out.lower())
+    check("and it says what it read", meta["container"] == "markdown")
+
+
+def test_markdown_does_not_rename_people():
+    """Underscore emphasis may not sit inside a word, and it matters here.
+
+    CommonMark forbids intraword `_` because of `snake_case`. The first
+    version of this reader treated `_` like `*` and turned the handle
+    `@michaelaseewald_v24` into `@michaelaseewaldv24` — silently renaming a
+    person while removing 46% of the file it was meant to clean.
+
+    Usernames, hashtags and file paths are full of underscores, and social
+    media is exactly where this reader is most needed.
+    """
+    from corpusprep.formats import extract_markdown
+
+    out, _ = extract_markdown(
+        "Credits: [@michaelaseewald_v24](https://x.com/a/) and "
+        "[sustainably_curated_by_m](https://x.com/b/)")
+    check("a handle keeps its underscores",
+          "@michaelaseewald_v24" in out, out.strip())
+    check("and so does a longer one",
+          "sustainably_curated_by_m" in out, out.strip())
+
+    # But emphasis that really is emphasis still goes.
+    out2, _ = extract_markdown("a *bold* and _italic_ and __strong__ word")
+    check("real emphasis is still stripped",
+          out2.strip() == "a bold and italic and strong word", out2.strip())
+
+
+def test_markdown_is_offered_as_an_input_format():
+    """A tool that reads HTML and not Markdown has a gap, not a boundary."""
+    from corpusprep.formats import SUPPORTED, is_container
+    check(".md is supported", ".md" in SUPPORTED)
+    check("and needs extraction rather than plain decoding",
+          is_container("x.md") and is_container("x.markdown"))
+    check("plain text still does not", not is_container("x.txt"))
+
+
 def test_furniture_from_stated_page_boundaries():
     """The rule the other ones wish they were.
 
