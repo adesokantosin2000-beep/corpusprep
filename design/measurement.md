@@ -17,7 +17,7 @@ them. `measure_rules.py` reads them.
 | Region labelling | hand | **99.99%** over 7,654 lines | | |
 | Page furniture | exact | 98.3% | 98.3% | 98.3% |
 | Catchwords | exact | 85.7% | 100.0% | 92.3% |
-| Protected spans | exact | 100.0% | 100.0% | 100.0% |
+| Protected spans | exact | 100.0% | 100.0% | 100.0% | ← and 0 of 337 on real verse |
 | De-hyphenation | exact | 98.3% of decided | — | — |
 | Paragraph reflow | derived | 99.5% of paragraphs recovered | | |
 | Chapter segmentation | hand | 5 of 6 books exact | | |
@@ -121,10 +121,11 @@ from PDF — it found **0 of 337**, because the extraction double-spaces the
 file and the rule's window stops at blank lines, so every verse line is judged
 alone. See `design/integration-failures.md`, P1.
 
-The 100% is real and it is measured on a fixture built to contain boundaries
-rather than pure verse. Pure verse is where the damage is total. The fixture is real *Jane Eyre* prose wrapped to 66 columns with
-real ballad stanzas embedded in it, so **the boundary is the only difficult
-part and the fixture is nothing but boundaries.**
+The fixture is real *Jane Eyre* prose wrapped to 66 columns with real ballad
+stanzas embedded in it, so the boundary is the only difficult part and the
+fixture is nothing but boundaries. That was a deliberate choice and it left a
+hole: **pure verse is where the damage is total, and no fixture contained
+any.**
 
 ---
 
