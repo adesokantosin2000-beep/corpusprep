@@ -68,6 +68,18 @@ const M=new Function(html.slice(eng,engEnd)+html.slice(fmt,fmtEnd)+
    DOM-requiring meant it was silently skipped and the harness reported
    agreement on a reader neither engine had run. */
 const CONTAINER=/\.(docx|epub|html|htm|xhtml|md|markdown|mdown|mkd)$/i;
+/* PDF is deliberately absent from both lists.
+
+   Python reads PDFs with pypdf and the browser with pdf.js. They are
+   different libraries and produce different text from the same file, so the
+   two engines cannot agree on PDF INPUT and it would be dishonest to pretend
+   otherwise by comparing them. Every rule downstream is still compared, on
+   text both engines receive identically.
+
+   What is checked instead is that both engines judge a PDF usable or
+   unusable by the same numbers - see test_both_engines_judge_pdfs_by_the_
+   same_numbers. A browser accepting a file the package refuses would hand a
+   researcher a corpus of control characters.                                */
 const NEEDS_DOM=/\.(docx|epub|html|htm|xhtml)$/i;
 
 (async()=>{

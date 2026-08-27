@@ -1758,6 +1758,38 @@ def test_markdown_is_offered_as_an_input_format():
     check("plain text still does not", not is_container("x.txt"))
 
 
+def test_both_engines_judge_pdfs_by_the_same_numbers():
+    """The one thing the parity harness cannot check for PDFs.
+
+    Python reads PDFs with `pypdf` and the browser reads them with `pdf.js`.
+    They are different libraries and produce different text from the same file,
+    so **the two engines legitimately cannot agree on PDF input** and the
+    harness excludes it. Every rule downstream still agrees; only the reader
+    differs.
+
+    What must not differ is the judgement about whether an extraction is
+    usable. If the browser accepted a file the package refused, a researcher
+    would get a corpus of control characters from one and an explanation from
+    the other.
+    """
+    import re
+    from corpusprep import pdf
+
+    js_path = FIXTURES.parent.parent / "build" / "_engine.js"
+    if not js_path.exists():
+        print("  SKIP  engine source not present")
+        return
+    js = js_path.read_text(encoding="utf-8")
+
+    for name, want in (("PDF_MIN_LETTER_RATIO", pdf.MIN_LETTER_RATIO),
+                       ("PDF_MIN_CHARS_TO_JUDGE", pdf.MIN_CHARS_TO_JUDGE),
+                       ("PDF_MIN_PAGES_WITH_TEXT", pdf.MIN_PAGES_WITH_TEXT)):
+        m = re.search(rf"const {name}=([\d.]+);", js)
+        check(f"{name} agrees across engines",
+              m is not None and float(m.group(1)) == want,
+              f"js={m.group(1) if m else 'missing'} python={want}")
+
+
 def test_furniture_from_stated_page_boundaries():
     """The rule the other ones wish they were.
 

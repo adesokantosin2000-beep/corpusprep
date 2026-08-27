@@ -1357,7 +1357,7 @@ function findFurniture(lines,skip){
           catchwords:cw.catchwords,catchwordMatches:cw.matches};
 }
 
-function findFurnitureIn(lines,regions){
+function findFurnitureIn(lines,regions,pageStarts){
   /* Search the body only.
 
      A title page carries the book's title, which is character-for-character
@@ -1369,7 +1369,109 @@ function findFurnitureIn(lines,regions){
   for(const r of regions)
     if(r.label!=="body")
       for(let i=r.start;i<r.end;i++) skip.add(i+1);
+
+  /* When the file states where its pages begin, use that and do not infer.
+     Not a union with the inferred rule: inference is what marked 63 lines of a
+     ballad collection as furniture, and a fact does not need corroboration
+     from a guess. Mirrors furniture.find_in_document. */
+  if(pageStarts&&pageStarts.length>=MIN_PAGE_EDGE_OCCURRENCES){
+    const r=findEdgeFurniture(lines,pageStarts);
+    const furniture=new Set([...r.furniture].filter(n=>!skip.has(n)));
+    const candidates=r.candidates
+      .map(c=>({...c,lines:c.lines.filter(n=>!skip.has(n))}))
+      .filter(c=>c.lines.length);
+    const gaps=[];
+    for(let i=1;i<pageStarts.length;i++) gaps.push(pageStarts[i]-pageStarts[i-1]);
+    return {furniture,candidates,pageLength:gaps.length?furnMedian(gaps):0,
+            catchwords:new Set(),catchwordMatches:[]};
+  }
   return findFurniture(lines,skip);
+}
+
+/* Running heads and feet, from known page boundaries rather than a guess.
+
+   Every other input format forces findFurniture to work out where pages begin,
+   from a series of numbers that counts upwards. That inference is the most
+   fragile thing here and it is what marked 63 lines of a ballad collection as
+   furniture in Week 2. A PDF states the boundaries, so there is nothing to
+   infer, no coefficient of variation and no threshold to defend against
+   fixed-stanza verse.
+
+   Three agreeing pages is plenty when the question is only "does this recur AT
+   a page boundary". Mirrors furniture.find_edge_furniture.                 */
+const MIN_PAGE_EDGE_OCCURRENCES=3;
+
+/* Fold OCR variants together. Single linkage, swept until nothing changes:
+   damaged copies drift further from each other than from the clean form, so a
+   seeded comparison under-merges, and a variant can become reachable only
+   after another has joined. No size guard, unlike mergeNearDuplicates - it is
+   unnecessary when every candidate already sits at a stated boundary, and with
+   it nothing merges at all. */
+function clusterEdges(bucket,originals){
+  const keys=[...bucket.keys()].sort((a,b)=>
+    bucket.get(b).length-bucket.get(a).length||(a<b?-1:a>b?1:0));
+  const absorbed=new Set();
+  for(let i=0;i<keys.length;i++){
+    const big=keys[i];
+    if(absorbed.has(big)||big.charCodeAt(0)===0) continue;
+    const members=[big];
+    let changed=true;
+    while(changed){
+      changed=false;
+      for(let j=i+1;j<keys.length;j++){
+        const small=keys[j];
+        if(absorbed.has(small)||small.charCodeAt(0)===0) continue;
+        if(members.some(m=>seqRatio(m,small)>=FURN_NEAR_DUPLICATE)){
+          bucket.set(big,bucket.get(big).concat(bucket.get(small)));
+          absorbed.add(small); members.push(small); changed=true;
+        }
+      }
+    }
+  }
+  for(const k of absorbed){ bucket.delete(k); originals.delete(k); }
+  for(const v of bucket.values()) v.sort((a,b)=>a-b);
+}
+
+function findEdgeFurniture(lines,pageStarts){
+  if(!pageStarts||pageStarts.length<MIN_PAGE_EDGE_OCCURRENCES)
+    return {furniture:new Set(),candidates:[]};
+  const bounds=[...pageStarts,lines.length];
+  const heads=new Map(), feet=new Map(), originals=new Map();
+
+  for(let b=0;b<bounds.length-1;b++){
+    const content=[];
+    for(let i=bounds[b];i<Math.min(bounds[b+1],lines.length);i++)
+      if(lines[i].trim()) content.push(i);
+    if(!content.length) continue;
+    for(const [idx,bucket] of [[content[0],heads],[content[content.length-1],feet]]){
+      const s=lines[idx].trim();
+      if(s.length>FURN_MAX_LEN) continue;
+      const key=looksLikePageNumber(s)?"\u0000page-number":furnNormalise(s);
+      if(!key) continue;
+      if(!bucket.has(key)) bucket.set(key,[]);
+      bucket.get(key).push(idx+1);
+      if(!originals.has(key))
+        originals.set(key,key.charCodeAt(0)===0?"(page numbers)":s);
+    }
+  }
+
+  const furniture=new Set(), candidates=[];
+  for(const [where,bucket] of [["opens",heads],["closes",feet]]){
+    clusterEdges(bucket,originals);
+    for(const [key,at] of bucket){
+      if(at.length<MIN_PAGE_EDGE_OCCURRENCES) continue;
+      const sorted=[...at].sort((a,b)=>a-b);
+      const gaps=[];
+      for(let i=1;i<sorted.length;i++) gaps.push(sorted[i]-sorted[i-1]);
+      candidates.push({text:originals.get(key),normal:key,lines:sorted,
+        isNumeric:key.charCodeAt(0)===0,gaps,cv:furnCV(gaps),
+        medianGap:gaps.length?furnMedian(gaps):0,accepted:true,
+        reason:`${where} ${at.length} of ${bounds.length-1} pages, at a page `+
+               `boundary the file states rather than one inferred from the text`});
+      for(const n of sorted) furniture.add(n);
+    }
+  }
+  return {furniture,candidates};
 }
 
 /* ---- footnotes ---------------------------------------------------------
@@ -2117,6 +2219,12 @@ function render(lines,regions,cfg,furniture,footnotes){
    ========================================================================= */
 
 class UnsupportedFormat extends Error{}
+/* A PDF this tool cannot read, with the reason attached. Thrown rather than
+   returning empty text, because empty text looks like a very short book and
+   the reader must be made to notice. */
+class UnreadablePDF extends Error{
+  constructor(e){ super(e.note); this.extraction=e; }
+}
 
 /* ---- minimal ZIP reader ---- */
 async function unzip(buf){
@@ -2200,6 +2308,116 @@ const MD_EMPH=/(\*{1,3}|~~|`+)(?=\S)([\s\S]+?)(?<=\S)\1/g;
 const MD_EMPH_US=/(?<![^\W_])(_{1,3})(?=\S)([\s\S]+?)(?<=\S)\1(?![^\W_])/g;
 const MD_MARKER=/^[ ]{0,3}(?:>+\s?|[-*+]\s+|\d{1,3}[.)]\s+)/gm;
 const MD_RULE=/^[ ]{0,3}(?:[-*_]\s?){3,}\s*$/gm;
+
+/* ---- PDF -----------------------------------------------------------------
+
+   The only part of this application that needs the network, and it needs it
+   once, on demand, and only if a PDF is opened. Everything else — TXT,
+   Markdown, DOCX, EPUB, HTML — still runs from one file with no connection.
+
+   **The text still never leaves this computer.** pdf.js is downloaded TO the
+   browser; the document is not uploaded anywhere. That distinction is the
+   whole privacy claim and it survives intact, but the honest statement is no
+   longer "this works offline" — it is "this works offline unless you open a
+   PDF", and the interface says so.
+
+   Mirrors corpusprep/pdf.py, with one difference that cannot be removed: the
+   two engines use different extraction libraries (pypdf and pdf.js), so the
+   text they produce from the same PDF is not identical. Every rule downstream
+   agrees; the input does not. See tools/check_parity.py.                    */
+
+const PDFJS_URL="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+const PDFJS_WORKER="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+/* Below this proportion of letters the extraction failed, however much came
+   out. Prose runs 70-80%; a PDF whose fonts carry no working character map
+   scores 0.0 and still returns hundreds of lines. Set low, because the cost
+   of a false alarm is a message and the cost of a miss is a corpus of control
+   characters. Unicode-aware: a Yoruba or Polish extraction is not less
+   readable for having characters outside ASCII. */
+const PDF_MIN_LETTER_RATIO=0.35;
+const PDF_MIN_CHARS_TO_JUDGE=200;
+const PDF_MIN_PAGES_WITH_TEXT=0.5;
+const PDF_LETTER=/[^\W\d_]/gu;
+
+let _pdfjs=null;
+function loadPdfJs(){
+  if(_pdfjs) return _pdfjs;
+  _pdfjs=new Promise((resolve,reject)=>{
+    if(window.pdfjsLib) return resolve(window.pdfjsLib);
+    const s=document.createElement("script");
+    s.src=PDFJS_URL;
+    s.onload=()=>{
+      if(!window.pdfjsLib) return reject(new Error("pdf.js loaded but did not register"));
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;
+      resolve(window.pdfjsLib);
+    };
+    s.onerror=()=>reject(new Error(
+      "PDF support needs one file from the internet (pdf.js) and it could not "+
+      "be fetched. Everything else in CorpusPrep works offline. Check the "+
+      "connection, or use the Python package, which reads PDFs without it."));
+    document.head.appendChild(s);
+  });
+  return _pdfjs;
+}
+
+function pdfLetterRatio(text){
+  if(!text) return 0;
+  return (text.match(PDF_LETTER)||[]).length/text.length;
+}
+
+async function pdfToText(buf){
+  const pdfjs=await loadPdfJs();
+  const doc=await pdfjs.getDocument({data:buf}).promise;
+  const lines=[]; const pageStarts=[]; let withText=0;
+
+  for(let i=1;i<=doc.numPages;i++){
+    pageStarts.push(lines.length);
+    let page;
+    try{ page=await doc.getPage(i); }catch(e){ continue; }
+    let tc;
+    try{ tc=await page.getTextContent(); }catch(e){ continue; }
+    /* pdf.js returns positioned fragments, not lines. Group by the vertical
+       coordinate of each item's transform, so a line of type becomes a line
+       of text. Rounded, because glyphs on one line differ by fractions. */
+    const rows=new Map();
+    for(const it of tc.items){
+      if(!it.str) continue;
+      const y=Math.round((it.transform&&it.transform[5]||0)*10)/10;
+      if(!rows.has(y)) rows.set(y,[]);
+      rows.get(y).push(it.str);
+    }
+    const ys=[...rows.keys()].sort((a,b)=>b-a);   // top of the page downwards
+    const text=ys.map(y=>rows.get(y).join("").replace(/\s+/g," ").trim())
+                 .filter(s=>s.length);
+    if(text.length) withText++;
+    lines.push(...text);
+  }
+
+  const joined=lines.join("\n");
+  const ratio=pdfLetterRatio(joined);
+  const n=doc.numPages;
+  const base={lines,pageStarts,pages:n,letterRatio:ratio};
+
+  if(n&&withText/n<PDF_MIN_PAGES_WITH_TEXT)
+    return {kind:"image",usable:false,...base,
+      note:`Only ${withText} of ${n} pages carry any text. This is a scan `+
+           `without an OCR layer, so there is nothing to extract. Running OCR `+
+           `on it first would produce a file this tool can read.`};
+
+  if(joined.length>=PDF_MIN_CHARS_TO_JUDGE&&ratio<PDF_MIN_LETTER_RATIO)
+    return {kind:"unmapped",usable:false,...base,
+      note:`This PDF has a text layer and it is not readable: only `+
+           `${(100*ratio).toFixed(1)}% of the extracted characters are `+
+           `letters, across ${n} pages. The fonts are embedded without a `+
+           `working character map, so the text comes out as placeholder `+
+           `codes. The page images are intact \u2014 running OCR on the file `+
+           `would recover the text.`};
+
+  return {kind:"text",usable:true,...base,
+    note:`${n} pages, ${lines.length.toLocaleString()} lines, `+
+         `${Math.round(100*ratio)}% letters.`};
+}
 
 function markdownToText(source){
   let text=source;
@@ -2325,16 +2543,19 @@ async function epubToText(buf){
 /* ---- dispatch ---- */
 async function extractFile(name,buf){
   const ext=(name.match(/\.[^.]+$/)||[""])[0].toLowerCase();
-  if(ext===".pdf") throw new UnsupportedFormat(
-    "PDF is not supported yet. PDF text extraction produces hyphenated "+
-    "line-breaks, hard-wrapped lines, running headers and stray page numbers "+
-    "which are the exact problems CorpusPrep cannot yet repair. Export to .docx or "+
-    ".txt first.");
   if(ext===".doc") throw new UnsupportedFormat(
     "Legacy .doc (Word 97-2003) is a binary format and is not supported. "+
     "Open it in Word and re-save as .docx.");
   if(ext===".docx") return docxToText(buf);
   if(ext===".epub") return epubToText(buf);
+  if(ext===".pdf"){
+    const e=await pdfToText(buf);
+    if(!e.usable) throw new UnreadablePDF(e);
+    return {text:e.lines.join("\n"),
+            meta:{container:"pdf",pdf_kind:e.kind,pdf_pages:e.pages,
+                  pdf_letter_ratio:e.letterRatio,page_starts:e.pageStarts,
+                  note:e.note}};
+  }
   if([".md",".markdown",".mdown",".mkd"].includes(ext)){
     let src; try{src=new TextDecoder("utf-8",{fatal:true}).decode(buf)}
     catch(e){src=new TextDecoder("windows-1252").decode(buf)}

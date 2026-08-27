@@ -2167,3 +2167,58 @@ is regular expressions and needs no DOM.
 conflating them hid the very thing being added. **This is the second time in
 three days that the parity harness has reported agreement on code it never
 executed.**
+
+
+---
+
+## 2026-08-25 — PDF in the browser, and the property it costs
+
+The Python package has read PDFs since this morning. The web application is
+where testers actually work, and it could not open one at all.
+
+### What it costs, stated plainly
+
+`pdf.js` is fetched from a CDN. **This is the first external dependency the
+application has ever had**, and "runs offline from one file" was a real claim,
+not decoration.
+
+It is loaded **lazily**, only when a PDF is opened. TXT, Markdown, DOCX, EPUB
+and HTML are unchanged: one file, no network, nothing fetched. The honest
+statement is no longer *this works offline* but *this works offline unless you
+open a PDF*, and the interface now says exactly that.
+
+**The privacy claim survives intact and the distinction matters.** pdf.js is
+downloaded *to* the browser; the document is not uploaded anywhere. A reader
+who cannot use the network at all still has every other format, and the Python
+package reads PDFs without it.
+
+### The two engines cannot agree, for the first time
+
+Python reads PDFs with `pypdf`, the browser with `pdf.js`. Different libraries,
+different text from the same file. **The parity harness therefore excludes PDF
+input**, and says why rather than quietly passing.
+
+That is a real gap in a check this project leans on, so something has to stand
+in its place. What is compared instead is the *judgement*: both engines must
+classify a PDF usable or unusable by the same three numbers. A browser
+accepting a file the package refuses would hand a researcher a corpus of
+control characters from one and an explanation from the other — which is worse
+than either being wrong alone.
+
+`test_both_engines_judge_pdfs_by_the_same_numbers` reads the constants out of
+the JavaScript source and compares them to the Python ones. Crude, and it
+fails if either drifts.
+
+### Line reconstruction
+
+`pdf.js` returns positioned fragments, not lines. They are grouped by the
+vertical coordinate of each item's transform, rounded, so a line of type
+becomes a line of text — and page order is top-down rather than the order the
+fragments happen to appear in the content stream.
+
+### Two constants that were nearly wrong
+
+`MAX_LEN` and `NEAR_DUPLICATE` do not exist in the JavaScript engine; they are
+`FURN_MAX_LEN` and `FURN_NEAR_DUPLICATE`. Mirroring the Python names produced
+a `ReferenceError` on the first run, which is the good failure — a silent
+`undefined` comparison would have accepted every line as furniture.

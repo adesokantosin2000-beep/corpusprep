@@ -66,7 +66,11 @@ can leave the corpus only because you chose to remove it.
 - Hierarchy: acts contain scenes, books contain chapters
 - Table-of-contents detection, so the body does not begin inside the contents
 - Gutenberg headers, licence text and transcriber notes
-- TXT, DOCX, EPUB and HTML import with encoding detection
+- TXT, Markdown, DOCX, EPUB, HTML and PDF import with encoding detection
+- Markdown link targets discarded and link text kept, because a URL is not
+  language: a tester's corpus was 45% URL before this existed
+- Page boundaries read from a PDF rather than inferred, which turns the most
+  fragile rule in the package into a fact
 - Five cleaning presets, or per-section selection
 - Running head, running foot and page number detection, off by default
 - Catchword detection for early modern printing
@@ -170,9 +174,14 @@ breaks. Run the other way round, de-hyphenation sees 0 of 180 breaks instead of
 
 ### Not yet implemented
 
-PDF import; repair of OCR characters, as opposed to identifying and reporting
-the damaged pages, which is done; and structure for collections whose parts are
-titled but neither numbered nor introduced by a division word. These are specified in
+Repair of OCR characters, as opposed to identifying and reporting the damaged
+pages, which is done; and structure for collections whose parts are titled but
+neither numbered nor introduced by a division word.
+
+**PDF is the one feature that needs the network**, and only in the browser:
+`pdf.js` is fetched once, on demand, the first time a PDF is opened. Every
+other format still runs from a single file with no connection, and the document
+itself is never uploaded. The Python package reads PDFs with no network at all. These are specified in
 [`design/design-spec.md`](design/design-spec.md) and scheduled in
 [`design/schedule-phase2.md`](design/schedule-phase2.md). They are listed in
 the application under *What this version can and cannot do*, marked as planned,

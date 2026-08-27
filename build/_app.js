@@ -64,8 +64,8 @@ const CAPABILITIES=[
    d:"Encoding, byte-order marks and line endings resolved on import. Markdown link targets are discarded and the link text kept, because a URL is not language."},
   {ready:1, t:"Records every decision in a log",
    d:"Markdown and JSON, including token and type counts, suitable for citation."},
-  {ready:0, t:"Reads PDF",
-   d:"Available in the Python package, not in this browser version. A PDF whose text layer is unreadable is refused with the reason rather than returned as noise."},
+  {ready:1, t:"Reads PDF",
+   d:"Page boundaries are taken from the file, so running heads and page numbers are found from a stated fact rather than an inferred one. A PDF whose text layer is unreadable is refused with the reason rather than returned as noise. This is the one feature that needs the internet: pdf.js is fetched once, on demand. Your document is never uploaded."},
   {ready:0, t:"Repairs OCR characters",
    d:"Broken ligatures, stray marks and mis-scanned characters. Damaged pages are currently identified and reported, not corrected."},
   {ready:0, t:"Detects titled sections without numbering",
@@ -174,13 +174,26 @@ async function loadText(name,buf){
     if(ex){
       const text=ex.text.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
       d={lines:text.split("\n"),enc:`utf-8 (from ${ex.meta.container})`,
-         hadBom:false,conf:1,newline:"\\n",repl:(text.match(/\uFFFD/g)||[]).length};
-      extraNotes.push(`Text extracted from ${ex.meta.container}. Formatting, images `+
-        `and footnotes were discarded. Paragraph structure was preserved.`);
+         hadBom:false,conf:1,newline:"\\n",repl:(text.match(/\uFFFD/g)||[]).length,
+         pageStarts:ex.meta.page_starts||null};
+      if(ex.meta.container==="pdf"){
+        extraNotes.push(`Read from PDF: ${ex.meta.note}`);
+        // The page boundaries are the gift of this format. Every other input
+        // makes the furniture rules infer where pages begin; a PDF states it.
+        extraNotes.push(`Page boundaries were taken from the file itself `+
+          `(${ex.meta.pdf_pages} pages), so running heads and page numbers are `+
+          `identified from a stated boundary rather than one inferred from the `+
+          `text.`);
+      } else {
+        extraNotes.push(`Text extracted from ${ex.meta.container}. Formatting, images `+
+          `and footnotes were discarded. Paragraph structure was preserved.`);
+      }
     } else d=decode(buf);
   }catch(err){
-    showError(err instanceof UnsupportedFormat?err.message:
-      `Could not read ${name}: ${err.message}`);
+    // An unreadable PDF is not an error in the tool; it is a fact about the
+    // file, and the reader needs the reason rather than a stack trace.
+    showError((err instanceof UnsupportedFormat||err instanceof UnreadablePDF)
+      ? err.message : `Could not read ${name}: ${err.message}`);
     return;
   }
 
@@ -188,7 +201,7 @@ async function loadText(name,buf){
   const tt=countTT(d.lines.join("\n"));
   // Detection, not removal. The result is shown for review and is removed
   // only if the reader ticks the box below the section list.
-  const fu=findFurnitureIn(d.lines,seg.regions);
+  const fu=findFurnitureIn(d.lines,seg.regions,d.pageStarts);
   DOC={name,...d,regions:seg.regions,notes:[...extraNotes,...seg.notes],
        furniture:fu.furniture,
        furnSeries:fu.candidates.filter(c=>c.accepted),
