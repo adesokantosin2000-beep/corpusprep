@@ -1974,3 +1974,121 @@ attached to a name that is about to appear on a thesis. **The findings are
 committed; the files are not.** Public-domain PDFs with the same properties are
 needed before any of this can be regression-tested, and the Internet Archive
 has scans with the same broken-font problem.
+
+
+---
+
+## 2026-08-25 — Furniture from a stated boundary rather than a guessed one
+
+Four more PDFs arrived, and the distribution is the finding before any rule is
+written:
+
+| kind | n |
+|---|---|
+| usable text | **2** |
+| unreadable text layer | 1 |
+| no text layer at all | 3 |
+| empty file | 1 |
+
+**Five of seven PDFs cannot be extracted.** Checked against a second library
+before trusting it — `pypdf` and `pdfplumber` both return zero characters on
+the image-only three, one image per page. Telling a researcher to re-OCR a file
+whose text was extractable would be a serious false refusal, and that was worth
+two minutes to rule out.
+
+This reframes what PDF support is *for*. The assumption was extraction. On this
+sample the more useful service is **triage**: telling a researcher in seconds
+which of their files need OCR before they lose an afternoon to one.
+
+### The rule the other ones wish they were
+
+Barthes' *The Death of the Author*, an 8-page extract, carries a running head
+on every page, alternating verso and recto:
+
+```
+The Death of the Author I 143      recto: essay title, page number
+144 I IMAGE - MUSIC - TEXT         verso: page number, book title
+```
+
+`find()` detects **none of them.** Eight pages gives too few repeats to clear
+`MIN_OCCURRENCES`, and with no ascending numeral series it cannot estimate a
+page length either.
+
+The information was in the file the whole time. **Every other format forces
+this package to reconstruct page boundaries from the text; a PDF states them.**
+So `find_edge_furniture` asks only *does this line open or close many pages* —
+no coefficient of variation, no page-length estimate, and no threshold that has
+to be defended against fixed-stanza verse. The inference that destroyed 63
+lines of a ballad collection in Week 2 is simply not performed.
+
+**7 of 8 page heads found, against 0.**
+
+Where boundaries are stated they are used *instead of* inference, not alongside
+it. A fact does not need corroboration from a guess, and running both would
+reintroduce the risk for the sake of a handful of extra lines.
+
+### The fifth time, in a rule written after noticing the fourth
+
+The first version found nothing on Barthes either, because OCR damage split
+both series into groups of one:
+
+```
+the death of the author i     p3, p5
+the death of the a uthor i    p7      A.uthor
+i image music text            p4
+i image mu ic text            p6      MU~IC
+i imagb music tbxt            p8      IMAGB, TBXT
+```
+
+This is the **fifth** time a rule has been right and had its groups split by
+OCR — and the second time in a rule written *after* the note saying the reflex
+should be automatic by now. Writing it down is evidently not the same as
+having learnt it.
+
+### Two things about clustering that were not obvious
+
+**Damaged copies drift further from each other than from the clean form.**
+
+```
+i image music text  vs  i image mu ic text   0.944
+i image music text  vs  i imagb music tbxt   0.889
+i image mu ic text  vs  i imagb music tbxt   0.833   <- below threshold
+```
+
+Comparing every candidate against a seed under-merges, because two damaged
+variants may fail to resemble each other while both resemble the original.
+Linkage through *any* member is required.
+
+**And one pass is not enough.** Seeded on `i imagb music tbxt`, the scan
+reaches `i image music text` at 0.889 but has already passed `i image mu ic
+text` at 0.833 — which becomes reachable at 0.944 only once the first has
+joined. Sweeping until a pass adds nothing is what makes this single linkage
+rather than a seeded comparison.
+
+No size guard here, unlike the line rule. That guard stops two genuinely
+distinct heads of similar frequency merging, and it is unnecessary when every
+candidate already sits at a stated page boundary — with it, nothing merges at
+all, since all five groups have one or two members.
+
+### The fixture invented a failure that no page has
+
+Two faults in the test, both mine, both worth recording because they are the
+fixture trap running backwards.
+
+Body lines written as `body line {i}.{j}` all normalise to `body line`, digits
+being stripped by design — so every page ended with an identical string and the
+rule correctly reported eight running *feet*. Real pages do not end in a fixed
+template. The fixture manufactured a failure, and it took a minute to see that
+the rule was right and the data was wrong.
+
+Then, damaging a *recto* page with a *verso* head, which is not a thing a
+scanner does, and which quietly moved a page between series.
+
+### Known imprecision, recorded rather than special-cased
+
+The recto group has four members and one of them is page 2's `The Death of the
+Author` — the essay's actual title on its opening page, not a running head. It
+is 0.958 similar to the head and merges. One line, reported for review, and
+furniture removal is off unless requested. Left as it is: a guard for "titles
+on opening pages" would be a rule about position guessing at intent, which is
+the kind of thing this package has been wrong about before.

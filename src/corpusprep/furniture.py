@@ -458,6 +458,25 @@ def find_in_document(doc) -> tuple[set[int], list[Candidate], float]:
         if r.label != "body"
         for i in range(r.start, r.end)
     }
+
+    # When the file states where its pages begin, use that and do not infer.
+    #
+    # Not a union with the inferred rule, deliberately. Inference is what
+    # marked 63 lines of a ballad collection as furniture, and running it
+    # alongside a rule that cannot make that mistake would reintroduce the risk
+    # for the sake of the handful of lines it might add. **A fact does not need
+    # corroboration from a guess.**
+    page_starts = (doc.meta or {}).get("page_starts")
+    if page_starts and len(page_starts) >= MIN_PAGE_EDGE_OCCURRENCES:
+        marked, cands = find_edge_furniture(doc.lines, page_starts)
+        marked = {n for n in marked if n not in skip}
+        for c in cands:
+            c.lines = [n for n in c.lines if n not in skip]
+        cands = [c for c in cands if c.lines]
+        gaps = [b - a for a, b in zip(page_starts, page_starts[1:])]
+        page_length = float(statistics.median(gaps)) if gaps else 0.0
+        return marked, cands, page_length, []
+
     return find(doc.lines, skip)
 
 
@@ -789,6 +808,170 @@ def _merge_prefix_variants(groups: dict) -> None:
     for k in absorbed:
         del groups[k]
     for v in groups.values():
+        v.sort()
+
+
+# ---------------------------------------------------------------------------
+# Furniture when the page boundaries are KNOWN
+# ---------------------------------------------------------------------------
+
+#: Fewest pages a line must open (or close) before it counts as furniture.
+#:
+#: Far lower than `MIN_OCCURRENCES`, and it can be, because the evidence is of
+#: a different kind. The line rules ask "does this recur at a regular
+#: interval?" and have to *infer* the interval from the text. Here the
+#: interval is not inferred: a PDF states where every page begins, so the
+#: question is only "does this recur **at page boundaries**", and three
+#: agreeing pages is a great deal of evidence for that.
+MIN_PAGE_EDGE_OCCURRENCES = 3
+
+
+def find_edge_furniture(lines: list[str], page_starts: list[int]
+                        ) -> tuple[set[int], list[Candidate]]:
+    """Running heads and feet, from known page boundaries rather than a guess.
+
+    **This is the rule the other ones wish they were.**
+
+    Every other input format forces `find()` to work out where pages begin, by
+    finding a series of numbers that counts upwards and treating its interval
+    as the page length. That inference is the most fragile thing in this
+    package: it is what marked 63 lines of a ballad collection as furniture in
+    Week 2, because a dialogue poem of fixed stanza length repeats `HE`, `SHE`
+    and two refrains at a perfectly constant interval.
+
+    A PDF simply says where the pages are. So there is nothing to infer, no
+    coefficient of variation, no page-length estimate, and no threshold that
+    has to be defended against verse. The question becomes trivial:
+
+        does this line recur at the top (or bottom) of many pages?
+
+    Barthes' *The Death of the Author*, an 8-page extract, is the case that
+    forced this. It carries running heads on every page, alternating::
+
+        The Death of the Author I 143       recto: essay title, page number
+        144 I IMAGE - MUSIC - TEXT          verso: page number, book title
+
+    `find()` detects **none of them**. Eight pages does not give enough repeats
+    to clear `MIN_OCCURRENCES`, and with no ascending numeral series it cannot
+    estimate a page length either. The information was in the file the whole
+    time; the rule was reconstructing it from the text and failing.
+
+    Verso and recto are grouped separately and each judged on its own, which
+    is how alternation is handled without a special case: neither series is a
+    majority of pages, and both are furniture.
+    """
+    if not page_starts or len(page_starts) < MIN_PAGE_EDGE_OCCURRENCES:
+        return set(), []
+
+    bounds = list(page_starts) + [len(lines)]
+    heads: dict[str, list[int]] = {}
+    feet: dict[str, list[int]] = {}
+    originals: dict[str, str] = {}
+
+    for a, b in zip(bounds, bounds[1:]):
+        content = [i for i in range(a, min(b, len(lines))) if lines[i].strip()]
+        if not content:
+            continue
+        for idx, bucket in ((content[0], heads), (content[-1], feet)):
+            s = lines[idx].strip()
+            if len(s) > MAX_LEN:
+                continue
+            # Page numbers group together as one series, as they do in the
+            # line rule: they are one piece of furniture, not forty.
+            key = "\x00page-number" if looks_like_page_number(s) else normalise(s)
+            if not key:
+                continue
+            bucket.setdefault(key, []).append(idx + 1)
+            originals.setdefault(key, "(page numbers)"
+                                 if key.startswith("\x00") else s)
+
+    marked: set[int] = set()
+    out: list[Candidate] = []
+    for where, bucket in (("opens", heads), ("closes", feet)):
+        _cluster_edges(bucket, originals)
+        for key, at in bucket.items():
+            if len(at) < MIN_PAGE_EDGE_OCCURRENCES:
+                continue
+            c = Candidate(text=originals[key], normal=key, lines=sorted(at),
+                          is_numeric=key.startswith("\x00"))
+            c.gaps = [y - x for x, y in zip(c.lines, c.lines[1:])]
+            c.cv = _cv(c.gaps)
+            c.median_gap = statistics.median(c.gaps) if c.gaps else 0.0
+            c.accepted = True
+            c.reason = (f"{where} {len(at)} of {len(bounds) - 1} pages, at a "
+                        f"page boundary the file states rather than one "
+                        f"inferred from the text")
+            marked.update(c.lines)
+            out.append(c)
+    return marked, out
+
+
+def _cluster_edges(bucket: dict[str, list[int]], originals: dict[str, str]) -> None:
+    """Fold OCR variants of the same running head together.
+
+    **The fifth time OCR damage has split a series this package was right
+    about**, and the second time in a rule written after the note saying the
+    reflex should be automatic by now. Barthes' eight pages carry two running
+    heads and produced five groups::
+
+        the death of the author i     p3, p5
+        the death of the a uthor i    p7      A.uthor
+        i image music text            p4
+        i image mu ic text            p6      MU~IC
+        i imagb music tbxt            p8      IMAGB, TBXT
+
+    Every group below the threshold; the rule finds nothing.
+
+    Unlike `_merge_near_duplicates`, this has **no size guard**. That guard
+    exists so two genuinely distinct running heads of similar frequency are
+    never combined, and it is unnecessary here for a specific reason: every
+    member of every group is already known to sit at a page boundary the file
+    states. The expensive mistake it protects against cannot happen when the
+    candidates are this constrained — and with the guard in place nothing
+    merges at all, since all five groups have one or two members.
+    """
+    keys = sorted(bucket, key=lambda k: (-len(bucket[k]), k))
+    absorbed: set[str] = set()
+    for i, big in enumerate(keys):
+        if big in absorbed or big.startswith("\x00"):
+            continue
+        # Single linkage: a variant joins the cluster if it resembles ANY
+        # member, not merely the seed.
+        #
+        # **Damaged copies drift further from each other than from the clean
+        # form**, and comparing only against a seed under-merges as a result.
+        # Barthes' three verso heads are the demonstration:
+        #
+        #     i image music text  vs  i image mu ic text   0.944
+        #     i image music text  vs  i imagb music tbxt   0.889
+        #     i image mu ic text  vs  i imagb music tbxt   0.833   <- below
+        #
+        # Seeded on the middle one, the third never joins and the group stays
+        # under the threshold. Every pair passes through the clean form, so
+        # linkage through any member finds all three.
+        # Repeated passes, not one. A single pass is still order-dependent:
+        # `i imagb music tbxt` reaches `i image music text` at 0.889 but not
+        # `i image mu ic text` at 0.833, and by the time the first has joined
+        # the cluster — putting the second within 0.944 of a member — the scan
+        # has already gone past it. Sweeping until a pass adds nothing is what
+        # makes this single linkage rather than a seeded comparison.
+        members = [big]
+        changed = True
+        while changed:
+            changed = False
+            for small in keys[i + 1:]:
+                if small in absorbed or small.startswith("\x00"):
+                    continue
+                if any(SequenceMatcher(None, m, small).ratio() >= NEAR_DUPLICATE
+                       for m in members):
+                    bucket[big].extend(bucket[small])
+                    absorbed.add(small)
+                    members.append(small)
+                    changed = True
+    for k in absorbed:
+        del bucket[k]
+        originals.pop(k, None)
+    for v in bucket.values():
         v.sort()
 
 

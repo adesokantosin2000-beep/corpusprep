@@ -1698,6 +1698,70 @@ def test_real_scan_from_internet_archive():
     check("but the book itself survives", "Kansas prairies" in out)
 
 
+def test_furniture_from_stated_page_boundaries():
+    """The rule the other ones wish they were.
+
+    Every other format makes `find()` work out where pages begin, by locating
+    a series of numbers that counts upwards and treating its interval as the
+    page length. That inference marked 63 lines of a ballad collection as
+    furniture in Week 2. A PDF states the boundaries, so there is nothing to
+    infer and no threshold to defend against verse.
+    """
+    from corpusprep.furniture import find_edge_furniture, find
+
+    # Eight pages with alternating verso/recto heads, damaged as OCR damages
+    # them. This is the shape of the Barthes extract that forced the rule.
+    pages = []
+    for i in range(8):
+        head = (f"The Death of the Author I {143 + i}" if i % 2
+                else f"{144 + i} I IMAGE - MUSIC - TEXT")
+        # Body text must be genuinely varied. The first version of this
+        # fixture used "body line {i}.{j}", which `normalise` strips digits
+        # from — so every page ended with the identical string "body line" and
+        # the rule dutifully reported eight running FEET as well. **The
+        # fixture invented a failure that no real page has**, which is the
+        # usual fixture trap running the other way.
+        words = ("the wind rose over the water", "he said nothing at all",
+                 "a lamp burned in the window", "they walked on together",
+                 "morning came without warning", "she folded the letter twice",
+                 "no one answered the door", "the road turned south again")
+        pages.append([head] + [f"{words[(i + j) % len(words)]} {j}"
+                               for j in range(6)])
+    # Damage three of the eight, differently, as a scanner does — each within
+    # the series it belongs to. The first version of this damaged a recto page
+    # with a verso head, which is not a thing that happens and which quietly
+    # moved a page from one series to the other.
+    pages[2][0] = "146 I IMAGE - MU~IC - TEXT"      # verso, damaged
+    pages[6][0] = "150 I IMAGB - MUSIC - TBXT"      # verso, damaged
+    pages[5][0] = "The Death of the A.uthor I 148"  # recto, damaged
+
+    lines, starts = [], []
+    for pg in pages:
+        starts.append(len(lines))
+        lines.extend(pg)
+
+    marked, cands = find_edge_furniture(lines, starts)
+    check("both alternating series found", len(cands) == 2,
+          f"{len(cands)} series: {[c.text for c in cands]}")
+    check("and every page head with them", len(marked) == 8, f"{len(marked)} of 8")
+
+    # The point of the whole exercise: inference cannot do this.
+    inferred, _, _, _ = find(lines)
+    check("where inference finds nothing", len(inferred) < len(marked),
+          f"inference found {len(inferred)}")
+
+
+def test_edge_furniture_needs_real_boundaries():
+    """No page boundaries, no rule. It must not invent them."""
+    from corpusprep.furniture import find_edge_furniture
+
+    lines = ["a line of ordinary prose here"] * 40
+    check("no boundaries means no furniture",
+          find_edge_furniture(lines, []) == (set(), []))
+    check("and too few boundaries likewise",
+          find_edge_furniture(lines, [0, 20]) == (set(), []))
+
+
 def test_a_pdf_that_extracts_nothing_readable_is_refused():
     """The failure that was not in the design, found on the first real PDF.
 
