@@ -144,6 +144,12 @@ class Document:
     #: rather than line numbers, because the line survives and its opening
     #: words do not.
     prefix_furniture: list = field(default_factory=list)
+    #: 1-based line numbers judged to be interface furniture: the labels an
+    #: application printed around text a person wrote. Kept apart from
+    #: `furniture` because the evidence is different — position within a
+    #: record, not interval on a page — and a reader deciding whether to trust
+    #: one should not have to untangle it from the other.
+    interface: set[int] = field(default_factory=set)
     #: Review decisions, keyed by (kind, content). Never by line number: see
     #: corpusprep.review for why position is the wrong identity.
     decisions: dict = field(default_factory=dict)
@@ -170,6 +176,9 @@ class Document:
     def with_prefix_furniture(self, edits: list) -> "Document":
         return replace(self, prefix_furniture=list(edits))
 
+    def with_interface(self, lines) -> "Document":
+        return replace(self, interface=set(lines))
+
     def with_note(self, note: str) -> "Document":
         return replace(self, notes=[*self.notes, note])
 
@@ -178,6 +187,9 @@ class Document:
     @property
     def text(self) -> str:
         return "\n".join(self.lines)
+
+    def is_interface(self, line_no: int) -> bool:
+        return line_no in self.interface
 
     def is_furniture(self, line_no: int) -> bool:
         """``line_no`` is 1-based, matching the numbering users see."""

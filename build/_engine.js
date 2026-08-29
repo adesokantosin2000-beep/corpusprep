@@ -46,8 +46,27 @@ const LICENCE_PHRASES=["project gutenberg","literary archive foundation","public
 /* Body headings — three tiers, most reliable first. Only the first tier that
    yields results is used, so a book with real chapter headings is never
    confused by stray numerals elsewhere. Mirrors segment.py. */
-const DIVISION_WORDS="CHAPTER|BOOK|PART|VOLUME|CANTO|SECTION|LETTER|ACT|SCENE|STAVE|"+
+const DIVISION_WORDS_EN="CHAPTER|BOOK|PART|VOLUME|CANTO|SECTION|LETTER|ACT|SCENE|STAVE|"+
   "EPISODE|FYTTE|MOVEMENT|INTERLUDE|LECTURE|SERMON|TALE|NIGHT";
+/* Every measured number in this package is English literary prose, and this
+   list was the sharpest edge of that: a German novel segmented as one
+   undivided body because `Kapitel` was not a word the tier had been told
+   about, and the log said "no structural headings found", which reads as a
+   fact about the book rather than about the tool.
+
+   A wordlist is only as wide as whoever wrote it. This does not make the
+   package multilingual; it stops it being confidently wrong about three more
+   languages than before. Mirrors segment.DIVISION_WORDS_OTHER.             */
+const DIVISION_WORDS_OTHER=
+  "KAPITEL|KAPITTEL|KAPITELET|HOOFDSTUK|TEIL|BAND|BUCH|AUFZUG|AUFTRITT|"+
+  "ABSCHNITT|BRIEF|DEEL|BOEK|BEDRIJF|"+
+  "CAP[IÍ]TULO|CAPITOLO|CAPITRE|CHAPITRE|LIVRE|LIBRO|PARTIE|PARTE|"+
+  "SEC[CÇ][IÃ]O|SEZIONE|ATTO|ACTE|ESCENA|SCENA|SC[EÈ]NE|CANTO|CARTA|"+
+  "KAPITOLA|ROZDZIA[ŁL]|CZ[ĘE][ŚS][ĆC]|ODDIEL|POGLAVLJE|DIO|"+
+  "ГЛАВА|ЧАСТЬ|КНИГА|ДЕЙСТВИЕ|ЯВЛЕНИЕ|РОЗДІЛ|ЧАСТИНА|ГЛАВА|"+
+  "LUKU|OSA|KAPITTEL|"+
+  "LIBER|PARS|CAPUT";
+const DIVISION_WORDS=DIVISION_WORDS_EN+"|"+DIVISION_WORDS_OTHER;
 const _CARDINAL="ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE|"+
   "THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY|"+
   "THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY|HUNDRED";
@@ -1911,7 +1930,16 @@ function reviewApply(breaks,decisions){
 const PR_WINDOW=6;
 const PR_MIN_RATE=0.45;
 const PR_MIN_SPAN=3;
+// Share of authorial-looking breaks a block needs to be protected by its
+// neighbours when it cannot carry itself. Half the standing threshold,
+// which is still seven times what hard-wrapped prose scores.
+const PR_CORROBORATE=PR_MIN_RATE/2;
 const PR_UNWRAPPED_P95=200;
+// Share of lines that must be blank before blank lines are suspected of
+// being line spacing rather than structure, and the share of text lines
+// that must stand alone between blanks for that suspicion to hold.
+const PR_SPACED_MIN_BLANK=0.40;
+const PR_SPACED_MIN_ALONE=0.80;
 
 const PR_CLOSERS=[".",",",";",":","!","?",'"',"'","’","”","--","—"];
 
@@ -1944,7 +1972,116 @@ function breakProfile(lines){
   return out;
 }
 
+// Lengths of the consecutive blank runs and text runs, in order.
+function prRuns(lines){
+  const blankRuns=[], textRuns=[], n=lines.length;
+  let i=0;
+  while(i<n){
+    const blank=!lines[i].trim();
+    let j=i;
+    while(j+1<n && (!lines[j+1].trim())===blank) j++;
+    (blank?blankRuns:textRuns).push(j-i+1);
+    i=j+1;
+  }
+  return {blankRuns,textRuns};
+}
+
+/* The blank-run length that is line spacing, or null for structure.
+
+   A blank line is a structural boundary only when blank lines are not the
+   norm. PDF extraction commonly puts one between every line of the file; at
+   that density, uniformly alternating, blanks are the typesetter's leading
+   rendered as whitespace and carry no structure at all.
+
+   Both tests are needed. Density alone would misread a poem printed as
+   three-line stanzas with three-line gaps, where the blanks ARE structure.
+
+   Mirrors protect.spacing_run().                                          */
+function spacingRun(lines){
+  const n=lines.length;
+  if(n<10) return null;
+  let blank=0;
+  for(const l of lines) if(!l.trim()) blank++;
+  if(blank/n<PR_SPACED_MIN_BLANK) return null;
+  const {blankRuns,textRuns}=prRuns(lines);
+  if(!blankRuns.length||!textRuns.length) return null;
+  let alone=0,total=0;
+  for(const r of textRuns){ total+=r; if(r===1) alone+=r }
+  if(alone/total<PR_SPACED_MIN_ALONE) return null;
+  // Modal run length; ties go to the one seen first, as statistics.mode does.
+  const tally=new Map();
+  for(const r of blankRuns) tally.set(r,(tally.get(r)||0)+1);
+  let mode=blankRuns[0],best=-1;
+  for(const [v,c] of tally) if(c>best){best=c;mode=v}
+  return mode;
+}
+
+/* Drop the spacing blanks, keeping longer runs as one blank line. Returns the
+   compacted lines and, for each, the index it came from in the original.   */
+function prDespace(lines,run){
+  const out=[],index=[],n=lines.length;
+  let i=0;
+  while(i<n){
+    if(lines[i].trim()){ out.push(lines[i]); index.push(i); i++; continue }
+    let j=i;
+    while(j+1<n && !lines[j+1].trim()) j++;
+    if((j-i+1)>run){
+      // A gap wider than the leading is a paragraph or stanza boundary. It
+      // must survive, or one protected seed extends over the whole file and
+      // prose is protected along with the verse.
+      out.push(""); index.push(i);
+    }
+    i=j+1;
+  }
+  return {out,index};
+}
+
+/* Find protected spans, seeing through line spacing first. Everything below
+   assumes a blank line means something; where blank lines are merely how the
+   file was extracted, they are removed before the rule runs and the spans are
+   mapped back afterwards.                                                  */
 function findProtected(lines,skip){
+  skip=skip||new Set();
+  const run=spacingRun(lines);
+  if(run===null) return findProtectedSpans(lines,skip);
+  const {out,index}=prDespace(lines,run);
+  const sub=new Set();
+  for(let k=0;k<index.length;k++) if(skip.has(index[k]+1)) sub.add(k+1);
+  return findProtectedSpans(out,sub).map(s=>({
+    start:index[s.start-1]+1, end:index[s.end-1]+1, reason:s.reason}));
+}
+
+// Blank-delimited blocks as 0-based inclusive index pairs.
+function prBlocks(lines){
+  const out=[]; let start=null;
+  for(let i=0;i<lines.length;i++){
+    if(lines[i].trim()){ if(start===null) start=i }
+    else if(start!==null){ out.push([start,i-1]); start=null }
+  }
+  if(start!==null) out.push([start,lines.length-1]);
+  return out;
+}
+
+/* Whether a block is protected firmly enough to vouch for its neighbour.
+   A single protected line is not a passage: the per-line judgements include
+   ones that never become a span, and letting those vouch for anything reached
+   three paragraphs of Jane Eyre in wrapped form.                           */
+function prIsStrong(prot,lines,block){
+  const [lo,hi]=block, body=[];
+  for(let k=lo;k<=hi;k++) if(lines[k].trim()) body.push(k);
+  if(!body.length) return false;
+  const yes=body.filter(k=>prot[k]).length;
+  return yes>=PR_MIN_SPAN && yes/body.length>=0.5;
+}
+
+// One side is enough: the first stanza of a poem has its title above it.
+function prFlanked(prot,lines,blocks,idx){
+  for(const j of [idx-1,idx+1])
+    if(j>=0&&j<blocks.length&&prIsStrong(prot,lines,blocks[j])) return true;
+  return false;
+}
+
+function findProtectedSpans(lines,skip){
   skip=skip||new Set();
   if(!isWrapped(lines)) return [];
 
@@ -1965,6 +2102,24 @@ function findProtected(lines,skip){
     for(let j=lo;j<=hi;j++) if(lines[j].trim()){ seen++; if(profile[j]) yes++ }
     if(seen&&yes/seen>=PR_MIN_RATE) prot[i]=true;
   }
+
+  /* A stanza is not judged in isolation from the poem it sits in.
+
+     The window stops at a blank line, so a stanza rhyming abab with the odd
+     lines unpunctuated carries only half its breaks and scores under the
+     threshold. The answer is not a lower threshold — 45% is what holds wrapped
+     prose at 3% — but the neighbouring block, which was evidence nobody was
+     using. Seeded once from what the rule found on its own, never iterated. */
+  const blocks=prBlocks(lines), joined=[];
+  for(let idx=0;idx<blocks.length;idx++){
+    const [lo,hi]=blocks[idx], body=[];
+    for(let k=lo;k<=hi;k++) if(lines[k].trim()) body.push(k);
+    if(!body.length||body.length<PR_MIN_SPAN||body.some(k=>prot[k])) continue;
+    if(body.filter(k=>profile[k]).length/body.length<PR_CORROBORATE) continue;
+    if(!prFlanked(prot,lines,blocks,idx)) continue;
+    for(const k of body) joined.push(k);
+  }
+  for(const k of joined) prot[k]=true;
 
   const indents=lines.filter(l=>l.trim())
     .map(l=>{const m=/^[ \t]+/.exec(l); return m?m[0].length:0});
@@ -2204,6 +2359,135 @@ function render(lines,regions,cfg,furniture,footnotes){
     paragraphsJoined},
     footnoteText:cfg.footnotes==="extract"&&paired.length
       ? paired.map(f=>"["+f.label+"]\t"+f.text).join("\n")+"\n" : null};
+}
+
+/* =========================================================================
+   INTERFACE FURNITURE
+
+   The labels an application printed, not the text a person wrote: `Like`,
+   `Reply`, `2 likes`, `View replies (4)`.
+
+   The obvious rule is a list of words and it destroys prose — all of those are
+   ordinary English, and a novel contains `Reply.` in dialogue. The
+   discriminating signal is position: an interface prints its controls AFTER
+   the thing they act on, so a control sits in the tail of its record with
+   nothing but other controls behind it, while a one-word comment sits at the
+   head however often it repeats. And a record is never all controls: something
+   was commented on, so the tail never eats the last line of the body.
+
+   Licensed by the document, not the line: nothing is called interface
+   furniture until the file itself looks like a scraped feed.
+
+   Mirrors src/corpusprep/interface.py.
+   ========================================================================= */
+
+const UI_MAX_LEN=24;
+const UI_MAX_WORDS=4;
+const UI_MIN_RECORDS_WITH=3;
+const UI_MIN_SHARE=0.20;
+const UI_MIN_RECORDS=5;
+
+const UI_HANDLE=/^\s*\[@?[\w.]+\]\(\S+\)\s*$|^\s*@[\w.]+\s*$/;
+const UI_RELTIME=/^\s*\[?\s*\d{1,3}\s*[smhdwy]\s*\]?(\(\S+\))?\s*$/i;
+
+function looksLikeHandle(l){ return UI_HANDLE.test(l) }
+function looksLikeRelativeTime(l){ return UI_RELTIME.test(l) }
+
+function uiNormalise(l){
+  return l.trim().toLowerCase().replace(/\d+/g,"#")
+          .replace(/^[^\p{L}\p{N}#]+|[^\p{L}\p{N}#]+$/gu,"");
+}
+
+function uiLabelShaped(l){
+  const t=l.trim();
+  return !!t && t.length<=UI_MAX_LEN && t.split(/\s+/).length<=UI_MAX_WORDS;
+}
+
+function uiRecords(lines){
+  let starts=[];
+  for(let i=0;i<lines.length;i++) if(looksLikeHandle(lines[i])) starts.push(i);
+  if(starts.length<UI_MIN_RECORDS){
+    starts=[];
+    for(let i=0;i<lines.length;i++) if(looksLikeRelativeTime(lines[i])) starts.push(i);
+  }
+  if(starts.length<UI_MIN_RECORDS) return [];
+  const out=[];
+  for(let i=0;i<starts.length;i++)
+    out.push([starts[i],(i+1<starts.length?starts[i+1]:lines.length)-1]);
+  return out;
+}
+
+function uiTrailing(lines,lo,hi,skip){
+  const body=[];
+  for(let k=lo;k<=hi;k++){
+    const l=lines[k];
+    if(l.trim()&&!looksLikeHandle(l)&&!looksLikeRelativeTime(l)) body.push(k);
+  }
+  const out=[];
+  for(let i=body.length-1;i>=0;i--){
+    const k=body[i];
+    if(skip.has(k+1)||!uiLabelShaped(lines[k])) break;
+    if(out.length+1>=body.length) break;   // a record is never all controls
+    out.push(k);
+  }
+  out.reverse();
+  return out;
+}
+
+function findInterface(lines,skip){
+  skip=skip||new Set();
+  const spans=uiRecords(lines);
+  if(spans.length<UI_MIN_RECORDS) return {lines:new Set(),series:[]};
+
+  const seen=new Map(), tails=[];
+  for(const [lo,hi] of spans){
+    const tail=uiTrailing(lines,lo,hi,skip);
+    tails.push(tail);
+    const keys=new Set(tail.map(k=>uiNormalise(lines[k])));
+    for(const key of keys){
+      if(!seen.has(key)) seen.set(key,{key,lines:[],records:0,reason:""});
+      seen.get(key).records++;
+    }
+    for(const k of tail) seen.get(uiNormalise(lines[k])).lines.push(k+1);
+  }
+
+  const floor=Math.max(UI_MIN_RECORDS_WITH,Math.round(UI_MIN_SHARE*spans.length));
+  const confirmed=new Map();
+  for(const [key,s] of seen) if(s.records>=floor){
+    s.reason=`ends ${s.records} of ${spans.length} records, after the text `+
+             `rather than among it`;
+    confirmed.set(key,s);
+  }
+  // An occasional control still keeps company with the ones that recur; a
+  // comment never does, because a comment is what those controls come after.
+  for(const [key,s] of seen){
+    if(confirmed.has(key)||s.records<UI_MIN_RECORDS_WITH) continue;
+    let company=0;
+    for(const tail of tails){
+      const keys=new Set(tail.map(k=>uiNormalise(lines[k])));
+      if(!keys.has(key)) continue;
+      for(const other of keys) if(confirmed.has(other)){ company++; break }
+    }
+    if(company===s.records){
+      s.reason=`ends ${s.records} of ${spans.length} records, always beside a `+
+               `control that ends most of them`;
+      confirmed.set(key,s);
+    }
+  }
+
+  const series=[...confirmed.values()].sort((a,b)=>
+    b.records-a.records||(a.key<b.key?-1:a.key>b.key?1:0));
+  const out=new Set();
+  for(const s of series) for(const n of s.lines) out.add(n);
+  return {lines:out,series};
+}
+
+function findInterfaceIn(lines,regions){
+  const skip=new Set();
+  for(const r of regions)
+    if(r.label==="pg_header"||r.label==="pg_licence")
+      for(let i=r.start;i<r.end;i++) skip.add(i+1);
+  return findInterface(lines,skip);
 }
 
 /* =========================================================================

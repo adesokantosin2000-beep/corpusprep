@@ -1,0 +1,14 @@
+# double_spaced_verse.txt — the verse lines, by construction.
+#
+# The file is one line of text, one blank line, throughout: the shape a PDF
+# text layer produces when it renders leading as whitespace. Between the two
+# Donne stanzas the gap is two blanks, which is the boundary the extraction
+# leaves for a real stanza break.
+#
+# One range, not two. A stanza gap belongs inside a protected passage — see
+# the block-extension note in protect.py — so the two stanzas of one poem are
+# a single span, and the blanks between them are inside it.
+#
+# Derived from the text of the fixture, not from running the detector over it.
+
+20-55

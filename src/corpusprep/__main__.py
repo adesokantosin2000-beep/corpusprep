@@ -17,6 +17,7 @@ from . import __version__
 from .document import count_tokens_types
 from .importer import load
 from .report import write as write_log
+from . import analyse
 from .segment import segment
 from .variants import BUILTIN, DEFAULT_SET, custom_variant, render, render_all
 
@@ -26,7 +27,7 @@ def _fmt(n: int) -> str:
 
 
 def cmd_inspect(args) -> int:
-    doc = segment(load(args.file))
+    doc = analyse(args.file)
     s = doc.stats()
 
     print(f"\nSource      : {doc.source_path.name}")
@@ -88,7 +89,16 @@ def cmd_inspect(args) -> int:
 
 
 def cmd_clean(args) -> int:
-    doc = segment(load(args.file))
+    # `analyse()`, not `segment(load())`.
+    #
+    # The CLI used the bare pair, so every rule that runs after segmentation —
+    # page furniture, catchwords, hyphen breaks, footnotes, interface
+    # furniture — was never looked for, and the log said so by saying nothing.
+    # `--drop-furniture` removed nothing because nothing had been marked. The
+    # web application always ran the full pass, so the two disagreed about the
+    # same file, which is the failure `check_parity.py` exists to prevent and
+    # could not see, because it compares engines rather than front ends.
+    doc = analyse(args.file)
     out_dir = Path(args.out)
     stem = Path(args.file).stem
 

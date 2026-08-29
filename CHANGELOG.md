@@ -1,5 +1,149 @@
 # Changelog
 
+## [Unreleased]
+
+Six faults, four of them silent, two rules the tool did not have, and a
+stabilisation pass over the parts that could not report on themselves.
+
+### Fixed
+- **Protected spans found 0 of 337 verse lines in a PDF of ten poems** (P1).
+  Extraction puts a blank line between every line of the file; every verse line
+  was judged alone, and one line is never enough evidence. Blank lines are now
+  read as line spacing rather than structure when they are the norm — at least
+  40% of the file, with at least 80% of text lines standing alone — and removed
+  before the rule runs. Runs longer than the modal one survive as boundaries,
+  or a single seed would extend across the whole file and protect the prose
+  with the verse
+- **Enjambed verse sitting under the threshold** (P3). A stanza rhyming *abab*
+  with the odd lines unpunctuated carries only half its breaks and scores
+  38–40% against a 45% threshold. It is now judged with the poem around it: a
+  block clearing half the threshold is protected when a firmly protected block
+  sits beside it, and the threshold is untouched. The first attempt vouched
+  from lone per-line judgements and protected three paragraphs of *Jane Eyre*;
+  a voucher must be most of a block, and the pass is never iterated
+- **The command line never ran half the rules** (P4). `clean` and `inspect`
+  used `segment(load())`, so page furniture, catchwords, hyphen breaks and
+  footnotes were never looked for. The log omitted them, which reads as "none
+  found", and `--drop-furniture` removed nothing because nothing had been
+  marked. The web application always ran the full pass, so the two front ends
+  disagreed about the same file. `check_parity.py` could not see it: it
+  compares engines, and both engines were right
+- **The interface test could not run, and had been wrong for four days** (P7).
+  `node_modules/jsdom` was committed with 161 of its 657 files, no
+  `package.json`, and `Document.js` truncated at 16,384 bytes, so
+  `tools/ui_test.js` exited with "jsdom not installed" and half the test
+  surface reported nothing. Completing the vendored copy at the same version
+  turned it on, and it immediately failed: it asserted that PDF reading was
+  still *planned*, four days after PDF reading shipped. The capability list was
+  right and the test was stale — in the opposite direction to the staleness it
+  was written to prevent
+- **A reload put the sign-in gate back up** (P8). Reported as "it logs the
+  users out"; it never did. The startup block filled the sign-in fields from
+  local storage and stopped, so `USER` stayed null and the gate reappeared with
+  the name already typed. The cost was not the second click: a reader who then
+  took the "Continue without signing in" door wrote every subsequent log
+  without its **Prepared by** line, which is the line that makes the log
+  citable. The session is now restored, with a **Sign out** control so the gate
+  stays reachable on a shared machine
+- **Every division word was English** (P5). `Kapitel`, `Глава` and `Kapitola`
+  were not words the heading tier knew, so a German, Russian or Czech book
+  segmented as one undivided body while the log said "no structural headings
+  found" — a sentence that reads as a fact about the book
+
+```
+protected lines            before    P1 fix    P3 fix
+LIT 201 metaphysical poems  0/337   276/337   302/337
+Beowulf.pdf              2626/3318 2626/3318 2907/3318
+pg9405_ballads.txt       1958/2533 1958/2533 2074/2533
+mixed_verse.txt            52/246    52/246    52/246
+every prose fixture             0         0         0
+```
+
+### Added
+- **Interface furniture**: `Like`, `Reply`, `2 likes`, `View replies (4)` —
+  the labels an application printed around text a person wrote. Found by
+  position rather than vocabulary, because every one of those words is ordinary
+  English: a control sits in the tail of its record, a one-word comment sits at
+  the head. Detected only when the file itself looks like a scraped feed, and
+  removed only by a variant setting `drop_interface`, which no built-in variant
+  does
+- **A log that speaks when nothing fires.** A run that removes nothing now
+  names each rule, what it looked for and why it declined, and says that these
+  rules are built for printed books — instead of reporting a zero
+- **An optional registration link**, on the sign-in card and under the
+  capability list. `REGISTER_URL` in `build/_app.js`, empty by default: with
+  nothing set, nothing renders, so a fork does not point its users at somebody
+  else's form. It is a link and stays one — the page transmits nothing, the URL
+  is never prefilled with what the reader typed, and `tools/ui_test.js` asserts
+  both, along with the absence of any `fetch`, `XMLHttpRequest`, `sendBeacon`
+  or submitting form anywhere in the page
+- **`docs/USING.md`**, for people preparing a corpus rather than maintaining
+  the tool: what each variant means, which file to keep, how to read the log,
+  what the tool will not do, and where it is weakest
+- Fixtures in German, Russian and Czech with region keys; measurement now
+  covers 7,733 content lines at 99.99%
+- `tools/make_interface_fixture.py`, `tools/make_multilingual_fixtures.py`
+- `tests/fixtures/double_spaced_verse.txt` and its key: Donne between
+  hard-wrapped *Jane Eyre*, set one line to a blank throughout
+- `test_double_spacing_does_not_change_the_answer`, which doubles
+  `mixed_verse.txt` and requires the same verdict on every line — an invariant
+  that cannot be satisfied by protecting more, or by protecting less
+- Parity compares interface furniture as well; `measure_rules.py` scores
+  protected spans over both verse fixtures, so the headline 100% is answerable
+  for the shape that broke it
+
+### Changed
+- The capability list now names the division words of other languages, the
+  interface-furniture rule, and what the empty-run log says. Page furniture and
+  catchwords now state that their measured figures come from generated
+  fixtures rather than hand-marked real ones — **a wording change, not a
+  behaviour change**: neither rule is altered, and neither was ever removed by
+  a preset
+- `docs/USING.md` labels every rule *Supported*, *Experimental* or *Future
+  work* by the evidence behind it, and says what each figure rests on
+
+### Known
+- The interface rule has met one corpus shape, and that shape is synthetic:
+  43% furniture, against about 3% in the corpus that prompted it
+- Chapter headings outside English work through a wordlist, which is only as
+  wide as whoever wrote it
+- A sonnet's closing couplet, set off as a two-line block with a 0% break rate,
+  is still unprotected. Below any floor; not reachable by this evidence
+- The web application detects interface furniture and reports it, but does not
+  yet offer a control to remove it
+- `node_modules` is committed to the repository, which is what lets the
+  development machine work offline, and is not listed in `.gitignore`.
+  Completing jsdom adds 496 files to the next commit. Whether to keep vendoring
+  it is a decision, not a defect
+
+## [0.11.0] - 2026-08-27
+
+- Read PDFs in the browser, and say what that costs
+
+## [0.10.0] - 2026-08-27
+
+- Read Markdown, because a tester's corpus was 45% URL
+
+## [0.9.0] - 2026-08-27
+
+- Take page boundaries from the file instead of guessing them
+
+## [0.8.0] - 2026-08-25
+
+- Read PDFs, and refuse the ones that only look readable
+- Add `tools/pdf_triage.py`: which files need OCR before anything else
+
+## [0.7.0] - 2026-08-25
+
+- Measure every rule, and say what each figure rests on
+  (`tools/measure_rules.py`)
+- Assert the stage order instead of commenting it
+
+> The five entries above were reconstructed on 28 August from the tag history.
+> They were written after the fact and are terser than the entries around them,
+> which is the cost of letting a changelog fall five releases behind. Detail
+> for these releases lives in the commits and in `design/`.
+
 ## [0.6.0] - 2026-08-24
 
 Integration across eleven real books, and the fault it found.

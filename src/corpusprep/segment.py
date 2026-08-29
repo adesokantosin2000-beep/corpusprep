@@ -160,10 +160,42 @@ SCAN_APPARATUS_PHRASES = [
 #: Division words. Case-insensitive, so "Chapter One" works as well as
 #: "CHAPTER ONE" — the original pattern was case-sensitive, which silently
 #: failed on the majority of real books.
-DIVISION_WORDS = (
+DIVISION_WORDS_EN = (
     "CHAPTER|BOOK|PART|VOLUME|CANTO|SECTION|LETTER|ACT|SCENE|STAVE|"
     "EPISODE|FYTTE|MOVEMENT|INTERLUDE|LECTURE|SERMON|TALE|NIGHT"
 )
+
+#: The same words in the languages the fixtures cover, plus the neighbours
+#: that share them.
+#:
+#: **Every measured number in this package is English literary prose**, and
+#: this list was the sharpest edge of that. A German novel segmented as one
+#: undivided body — not because the heading tier was uncertain, but because
+#: `Kapitel` was not a word it had ever been told about. The failure is silent:
+#: the log says "no structural headings found", which reads as a fact about
+#: the book rather than about the tool.
+#:
+#: Added from the fixtures in `tools/make_multilingual_fixtures.py` and the
+#: obvious cognates. This is a wordlist, and a wordlist is only as wide as
+#: whoever wrote it: it does not make the package multilingual, it stops it
+#: being confidently wrong about three more languages than before.
+DIVISION_WORDS_OTHER = (
+    # German, Dutch, Scandinavian
+    "KAPITEL|KAPITTEL|KAPITELET|HOOFDSTUK|TEIL|BAND|BUCH|AUFZUG|AUFTRITT|"
+    "ABSCHNITT|BRIEF|DEEL|BOEK|BEDRIJF|"
+    # Romance
+    "CAP[IÍ]TULO|CAPITOLO|CAPITRE|CHAPITRE|LIVRE|LIBRO|PARTIE|PARTE|"
+    "SEC[CÇ][IÃ]O|SEZIONE|ATTO|ACTE|ESCENA|SCENA|SC[EÈ]NE|CANTO|CARTA|"
+    # Slavic, Latin and Cyrillic alike
+    "KAPITOLA|ROZDZIA[ŁL]|CZ[ĘE][ŚS][ĆC]|ODDIEL|POGLAVLJE|DIO|"
+    "ГЛАВА|ЧАСТЬ|КНИГА|ДЕЙСТВИЕ|ЯВЛЕНИЕ|РОЗДІЛ|ЧАСТИНА|ГЛАВА|"
+    # Nordic and Finnish
+    "LUKU|OSA|KAPITTEL|"
+    # Classical, still used as division words in editions
+    "LIBER|PARS|CAPUT"
+)
+
+DIVISION_WORDS = f"{DIVISION_WORDS_EN}|{DIVISION_WORDS_OTHER}"
 
 _CARDINAL = (
     "ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE|"

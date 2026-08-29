@@ -2222,3 +2222,177 @@ fragments happen to appear in the content stream.
 `FURN_MAX_LEN` and `FURN_NEAR_DUPLICATE`. Mirroring the Python names produced
 a `ReferenceError` on the first run, which is the good failure — a silent
 `undefined` comparison would have accepted every line as furniture.
+
+---
+
+## 2026-08-28 — A blank line means something only when it is not the norm
+
+### The problem
+
+Every rule in this package that looks at layout treats a blank line as a
+boundary. That is right for a file a person typed and wrong for a file a PDF
+produced, where the extractor renders the leading between lines as whitespace
+and 55% of the file is blank.
+
+The cost was P1: protected spans found 0 of 337 verse lines in a book of poems,
+because each line was judged alone and one line is never enough evidence.
+
+### The decision
+
+Classify the blanks before reading them, at the point of use, and leave the
+rules alone.
+
+```
+blank lines >= 40% of the file          density
+text lines standing alone >= 80%        uniformity
+```
+
+Both are required. Density alone misreads three-line stanzas with three-line
+gaps, which are 50% blank and wholly structural. **Uniformity is the real
+signal**: leading falls between every line, a stanza break does not.
+
+### Why the modal run survives and the rest do not
+
+The obvious move — delete every blank line — is wrong, and the poems show why.
+The leading is one blank; a stanza break is two. Delete both and the file
+becomes a single block, one protected seed extends across all of it, and the
+prose is protected along with the verse. So only runs of the *modal* length go,
+and anything longer is kept as one blank line: still a boundary, just a
+narrower one.
+
+### Where it does not apply
+
+Deliberately at the point of use in `protect.py`, not in the importer. Changing
+the file on the way in would mean every later rule, every line number in every
+report, and the user's own view of their text all disagreeing with the file
+they supplied. The provenance of a line number is worth more than the
+convenience.
+
+### What it does not fix
+
+Beowulf, at 5% blank lines, is nowhere near the density test and did not move.
+Its missing 21% is the same symptom from a different cause — see P3.
+
+---
+
+## 2026-08-28 — A stanza is judged with the poem around it
+
+### The problem
+
+P3: verse rhyming *abab* with the odd lines unpunctuated carries only half its
+breaks, and a block's last line carries none, because nothing follows it to
+vouch for the break. An eight-line stanza scores 38% against a 45% threshold
+while the stanzas either side of it are protected.
+
+### Why not lower the threshold
+
+45% is the number that holds hard-wrapped prose at 3%. Prose protected is the
+error that cannot be recovered from: the paragraph is left in fragments and
+nothing in the output shows it happened. A threshold that admits this stanza
+admits prose somewhere else, and the somewhere else will not be noticed.
+
+### The decision
+
+Use the evidence that was going unused — the neighbouring block. A block that
+cannot carry itself is protected when it clears **half** the threshold and sits
+beside a firmly protected block. One side is enough: the first stanza of a poem
+has its title above it and the rest of the poem below.
+
+### The guard, which the first attempt lacked
+
+Corroboration vouched from the per-line judgements, which include lines that
+never become a span. A lone flagged line in wrapped *Jane Eyre* seeded the
+block beside it, which seeded the next — three paragraphs protected, and the
+reflow round trip fell from 99.5% to 98.5%.
+
+**A voucher must be most of a block and at least a span's worth.** And the pass
+is seeded once from what the primary rule found, never iterated: a block
+protected by corroboration does not go on to corroborate the next, or one
+stanza would carry protection to the end of the file.
+
+That the round-trip test caught it is the argument for having a measurement
+whose ground truth needs no judgement.
+
+---
+
+## 2026-08-28 — Interface furniture: position, not vocabulary
+
+### The problem
+
+A tester's corpus of comments was 45% URL by character; with those gone, about
+3% was `Like`, `Reply`, `2 likes`, `View replies (4)`. That is apparatus in
+exactly the sense a running head is apparatus, and nothing here removed it.
+
+### Why the obvious rule is wrong
+
+A list of words. Every one of them is ordinary English, and a novel contains
+the line `Reply.` in dialogue. This package has already learned twice that
+short lines and repeated lines both destroy prose; that is why page furniture
+is found by its *interval* rather than its appearance.
+
+### The discriminating signal
+
+**An interface prints its controls after the thing they act on.** A control
+sits in the tail of its record with nothing but other controls behind it. A
+one-word comment sits at the head, however often it repeats.
+
+Three guards, each earned:
+
+1. **Licensed by the document, not the line.** Nothing is called interface
+   furniture until the file looks like a scraped feed — handles, relative
+   timestamps, at least five records. The same shape as the ascending
+   page-number sequence page furniture requires before it will speak.
+2. **A record is never all controls.** Something was commented on, so the
+   trailing run stops before it eats the last line of the body. Without this a
+   one-word comment above the controls is indistinguishable from one, and the
+   fixture did not contain that shape.
+3. **Company admits the occasional label.** `See translation` ends five records
+   in forty and cannot clear the share on its own. It is admitted because every
+   time it appears it appears beside a control that ends most of them — which a
+   comment never does, being the thing those controls come after.
+
+### What it does not establish
+
+The fixture is synthetic and 43% furniture, against about 3% in the corpus that
+prompted it. The precision figure means the rule does not eat the comments in a
+file shaped like this one. It says nothing yet about a file shaped like hers.
+
+---
+
+## 2026-08-28 — Saying something when every rule declines
+
+A tester cleaned Instagram comments and the log told her two things: 0 tokens
+removed, and no structural headings found. Both true; neither useful. She could
+not tell whether the tool had examined her text and found nothing to do, or
+failed to read it at all.
+
+**Silence is not a result.** When nothing fires, the log now names each rule,
+what it looked for, and why it declined — and says plainly that these rules are
+built for printed books, so a born-digital file has nothing here to remove.
+That is a better answer than a zero, and it is the answer that tells her what
+is worth reporting back.
+
+The catalogue appears only in the empty case. A run with results already has
+content, and repeating it there would be noise.
+
+---
+
+## 2026-08-28 — Division words outside English
+
+Every measured number in this package is English literary prose, and the
+division wordlist was the sharpest edge of that. A German novel segmented as
+one undivided body — not because the heading tier was uncertain, but because
+`Kapitel` was not a word it had ever been told about. The failure is silent in
+the worst way: the log says "no structural headings found", which reads as a
+fact about the book.
+
+Widened from the three fixtures and the obvious cognates. **A wordlist is only
+as wide as whoever wrote it**, so this is not multilingual support; it is three
+fewer languages the tool is confidently wrong about. The limit is now stated in
+`docs/USING.md`, where a user meets it before it costs them anything, rather
+than left to be discovered.
+
+Region labelling, encoding, tokenising and the line-break rules needed no
+change: they were language-independent already, and the three fixtures score
+100% on region labelling.
+

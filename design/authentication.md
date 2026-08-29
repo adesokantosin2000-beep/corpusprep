@@ -100,3 +100,45 @@ The current split makes it a swap-in rather than a rewrite:
   does not change.
 - Keep the browser-only mode as an option. Institutions that cannot upload
   will need it, and it costs nothing to retain.
+
+---
+
+## 2026-08-29 — What was done instead
+
+Two of the four things asked for turned out to be separable from accounts
+altogether, and both are now in the page.
+
+**Knowing who uses it, and being able to tell them when it changes.** One
+optional link on the sign-in card and one in the sidebar, pointing at a form
+you own. `REGISTER_URL` in `build/_app.js`, empty by default — with nothing
+set, nothing renders, so a fork does not quietly point its users at somebody
+else's form.
+
+One link, not two. "Tell us you are using this" and "let me know about
+releases" are the same act, and asking twice for it halves the chance of
+getting either. The form carries the tick-box that separates them.
+
+Three rules the link must not break, and `tools/ui_test.js` holds each:
+
+- **It is a link.** The page transmits nothing, ever. The test asserts the
+  page contains no `fetch`, no `XMLHttpRequest`, no `sendBeacon`, and no form
+  with a `method`.
+- **It is not prefilled.** A URL carrying the name someone typed would send it
+  on click — a silent transmission wearing the clothes of a convenience. The
+  test types a name and asserts the URL is unchanged by it.
+- **It is optional and says so.** A researcher whose ethics approval or
+  institution forbids registering must lose nothing by ignoring it.
+
+**What this does not do.** It counts people who choose to be counted. That is
+a self-selected sample and not a usage figure, and it should never be
+presented as one. Nothing about it restricts access, and nothing about it
+verifies an address — verification lives at the hosting layer if it is ever
+wanted, in front of the page rather than inside it, and it would gate the
+convenient copy rather than the artefact, which is public by design and
+permanent on Zenodo.
+
+**Where it is shown, and why in two places.** The sign-in card is the wrong
+moment on its own — it asks before the reader knows whether they like the
+tool, and since 29 August a returning reader is signed in automatically and
+never sees that card again. So the same link sits under the capability list in
+the sidebar, where it stays reachable.

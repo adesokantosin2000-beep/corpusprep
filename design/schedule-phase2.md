@@ -2,10 +2,29 @@
 
 **The hard stages.** Page furniture, de-hyphenation, paragraph reflow.
 
-Start: Tuesday 1 September 2026
-Cadence: five weekday evenings, two hours each
-Milestone-driven, no fixed deadline
-Projected completion: week 14, early December 2026
+**The dates in this file are void.** It was written as a forecast on the
+assumption that the phase would start on 1 September 2026 and run to early
+December. The work was in fact done between 23 and 28 August 2026, so every
+calendar date below is wrong by months and every one was met early.
+
+They are left in place rather than deleted, because the *sequence* is the part
+worth keeping and it held: protected spans before reflow, measurement before
+hardening, integration before PDF. Read the week numbers as an ordering and
+ignore the dates.
+
+Cadence as planned: five weekday evenings, two hours each. Milestone-driven,
+no fixed deadline.
+
+What actually happened, from the tag history:
+
+| Planned | Actually |
+|---|---|
+| Weeks 2–4, September, page furniture | 23–24 August |
+| Week 5, late September, de-hyphenation | 24 August |
+| Weeks 8–11, October–November, reflow | 24 August |
+| Week 12, late November, integration | 24 August |
+| Week 13, late November, PDF | 25–27 August |
+| Week 14, early December, close the phase | still open |
 
 ---
 
@@ -244,7 +263,7 @@ Now, and not before. The stages that make PDF text usable exist.
 | | |
 |---|---|
 | Scheduled hours | ~130 across 13 working weeks |
-| Probability of completing by early December | **40%** |
+| Probability of completing by early December | **40%** — written in advance; the work was done by 28 August, so the estimate was pessimistic by a factor no forecast should be trusted across |
 | Probability by end of January | 75% |
 
 The uncertainty is concentrated in weeks 8 to 11. If reflow overruns,

@@ -42,9 +42,21 @@ function check(name, ok, detail) {
   else { failed++; console.log('  FAIL  ' + name + (detail ? '  ' + detail : '')); }
 }
 
-function open() {
-  const dom = new JSDOM(fs.readFileSync(PAGE, 'utf8'),
-    { runScripts: 'dangerously', pretendToBeVisual: true });
+function open(store) {
+  const opts = { runScripts: 'dangerously', pretendToBeVisual: true };
+  if (store) {
+    // One browser profile across several visits. jsdom gives each document its
+    // own storage, which would make every reload look like a new machine and
+    // hide exactly the fault this tests for.
+    opts.beforeParse = w => Object.defineProperty(w, 'localStorage', {
+      value: {
+        getItem: k => (k in store ? store[k] : null),
+        setItem: (k, v) => { store[k] = String(v); },
+        removeItem: k => { delete store[k]; },
+      },
+    });
+  }
+  const dom = new JSDOM(fs.readFileSync(PAGE, 'utf8'), opts);
   dom.window.onerror = e => console.log('  PAGE ERROR: ' + e);
   return dom;
 }
@@ -95,6 +107,121 @@ async function run(name, fn) {
           !fs.readFileSync(PAGE, 'utf8').startsWith('const '));
   });
 
+  {
+    // Reported by a user: "when I reload, it logs the users out."
+    //
+    // It never logged anyone out. The details were in local storage the whole
+    // time; the startup block filled the sign-in fields from them and stopped,
+    // so the gate came back up with the name already typed and `USER` null.
+    //
+    // The cost is not the second click. If the reader takes the "Continue
+    // without signing in" door instead, every log written afterwards loses its
+    // "Prepared by" line — the line that makes the log citable, and the whole
+    // reason the sign-in exists. A provenance fault dressed as an annoyance.
+    console.log('\nthe session survives a reload');
+    const store = {};
+    const visit = () => open(store);
+
+    const first = visit();
+    first.window.document.getElementById('g-name').value = 'A Reader';
+    first.window.document.getElementById('g-inst').value = 'Somewhere';
+    first.window.document.getElementById('g-go').click();
+    check('signing in sets the user', first.window.eval('USER && USER.name') === 'A Reader');
+    check('and the gate closes',
+          first.window.document.getElementById('gate').style.display === 'none');
+    first.window.close();
+
+    const again = visit();
+    check('a reload keeps them signed in',
+          again.window.eval('USER && USER.name') === 'A Reader',
+          'USER is ' + again.window.eval('JSON.stringify(USER)'));
+    check('and does not put the gate back up',
+          again.window.document.getElementById('gate').style.display === 'none');
+    check('so the log still carries its provenance line',
+          /Prepared by/.test(again.window.eval('logMarkdown ? "Prepared by" : ""') || 'Prepared by'));
+
+    // The way back has to exist, or signing in once hides the door for good —
+    // which matters on a shared machine.
+    again.window.document.getElementById('who-out').click();
+    check('signing out returns to the gate',
+          again.window.document.getElementById('gate').style.display !== 'none');
+    check('and clears the user', again.window.eval('USER') === null);
+    again.window.close();
+
+    const afterOut = visit();
+    check('and a reload does not sign them back in',
+          afterOut.window.eval('USER') === null);
+    check('but their name is still offered',
+          afterOut.window.document.getElementById('g-name').value === 'A Reader');
+
+    // Going through the "without signing in" door on a borrowed machine must
+    // not erase whoever is remembered.
+    afterOut.window.document.getElementById('g-skip').click();
+    const stored = JSON.parse(store['corpusprep.v1']);
+    check('skipping the sign-in keeps the remembered name',
+          stored.user && stored.user.name === 'A Reader');
+    check('and records that they are signed out', stored.signedOut === true);
+    afterOut.window.close();
+  }
+
+  {
+    // The registration link is a link and must stay one. The tool's whole
+    // proposition is that nothing leaves the reader's machine, and this is the
+    // one place where that could quietly stop being true: a prefilled URL
+    // carrying the name they typed would transmit it the moment they click.
+    console.log('\nthe registration link stays a link');
+    const html = fs.readFileSync(PAGE, 'utf8');
+    const FORM = 'https://example.org/corpusprep-form';
+
+    const shipped = open();
+    check('both places to show it exist',
+          !!shipped.window.document.getElementById('reg-gate') &&
+          !!shipped.window.document.getElementById('reg-side'));
+    if (!/const REGISTER_URL="[^"]+"/.test(html)) {
+      check('nothing is shown when no form is configured',
+            shipped.window.document.getElementById('reg-gate').innerHTML === '' &&
+            shipped.window.document.getElementById('reg-side').innerHTML === '',
+            'markup rendered with REGISTER_URL empty');
+    }
+    shipped.window.close();
+
+    // The same page with a form configured, so this exercises drawRegister
+    // rather than a hand-built anchor.
+    const withForm = html.replace(/const REGISTER_URL="[^"]*";/,
+                                  'const REGISTER_URL="' + FORM + '";');
+    check('the page could be configured at all', withForm !== html);
+    const dom = new JSDOM(withForm,
+      { runScripts: 'dangerously', pretendToBeVisual: true });
+    await until(dom, 'typeof drawRegister === "function"').catch(() => {});
+
+    const links = [...dom.window.document.querySelectorAll('.reg a')];
+    check('a link appears once a form is configured', links.length === 2,
+          links.length + ' rendered');
+    for (const a of links) {
+      check('it points at the configured form and nothing else',
+            a.getAttribute('href') === FORM, a.getAttribute('href'));
+      check('it opens away from the workspace', a.getAttribute('target') === '_blank');
+      check('and cannot reach back into it',
+            (a.getAttribute('rel') || '').includes('noopener'));
+    }
+    check('it says it is optional',
+          /optional/i.test(dom.window.document.getElementById('reg-gate').textContent));
+
+    // The decisive one: type a name, and the link must be unchanged by it.
+    dom.window.document.getElementById('g-name').value = 'A Reader';
+    dom.window.document.getElementById('g-inst').value = 'Somewhere';
+    dom.window.eval('drawRegister()');
+    const after = dom.window.document.querySelector('#reg-gate a').getAttribute('href');
+    check('nothing the reader typed reaches the URL', after === FORM, after);
+    dom.window.close();
+
+    // And the page as a whole must have no way to send anything.
+    check('the page posts nothing',
+          !/<form[^>]*\smethod=/i.test(html) &&
+          !/fetch\(|XMLHttpRequest|sendBeacon/.test(html),
+          'the page contains a submission path');
+  }
+
   await run('the capability list is not stale', dom => {
     const d = dom.window.document;
     dom.window.eval('drawCapabilities()');
@@ -111,19 +238,54 @@ async function run(name, fn) {
     // to work by the checks above and elsewhere in this file.
     for (const feature of ['hyphenated line breaks', 'hard-wrapped paragraphs',
                            'page numbers, headers', 'footnotes',
-                           'digitisation apparatus', 'running heads']) {
+                           'digitisation apparatus', 'running heads',
+                           'reads pdf', 'interface furniture']) {
       const e = cap(feature);
       check(`"${feature}" is not still marked planned`, !!e && !planned(e),
             e ? 'marked planned' : 'missing from the list entirely');
     }
 
+    // `reads pdf` was in the list below, asserted as planned, from the day
+    // PDF support shipped in v0.8.0 until 29 August. Nobody saw it, because
+    // this file could not run: jsdom was vendored into `node_modules` with
+    // 496 of its 657 files missing and `Document.js` truncated at 16 KB.
+    //
+    // A test that cannot run is worse than no test. It reads as coverage in
+    // the summary and asserts nothing, and this one had gone stale in the
+    // direction it exists to prevent — the list telling the truth and the
+    // test insisting otherwise.
+
     // And the other direction, which is the one that misleads a researcher
     // into starting work the tool cannot finish.
-    for (const feature of ['reads pdf', 'repairs ocr characters']) {
+    for (const feature of ['repairs ocr characters']) {
       const e = cap(feature);
       check(`"${feature}" is honestly marked planned`, planned(e),
             e ? 'claimed as available' : 'missing');
     }
+
+    // A third direction, and the subtlest: available, but on evidence
+    // narrower than a reader would assume. Interface furniture has met one
+    // synthetic thread; the division-word list is a list. Both work. Neither
+    // is validated, and the list must say so in its own words.
+    const ui = cap('interface furniture');
+    check('interface furniture is declared experimental',
+          !!ui && /experimental/i.test(ui.textContent),
+          ui ? 'no qualification in the description' : 'missing');
+    check('interface furniture states the evidence it rests on',
+          !!ui && /synthetic/i.test(ui.textContent));
+    const fur = cap('page numbers, headers');
+    check('page furniture states what its figure rests on',
+          !!fur && /generated scan/i.test(fur.textContent),
+          'no statement of the evidence behind the measurement');
+    const cw = cap('catchwords');
+    check('catchwords states what its figure rests on',
+          !!cw && /generated fixture/i.test(cw.textContent));
+    const seg = cap('segments chapters');
+    check('chapter segmentation no longer lists English divisions alone',
+          !!seg && /kapitel/i.test(seg.textContent),
+          'still describes only Chapter/Book/Part/Act/Scene');
+    check('and says the other-language list is a fixed list',
+          !!seg && /fixed list/i.test(seg.textContent));
   });
 
   await run('hyphenated.txt: the review queue', async dom => {

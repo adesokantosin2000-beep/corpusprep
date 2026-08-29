@@ -77,6 +77,13 @@ class Variant:
     # records. It becomes a candidate for a default once measured against real
     # OCR output.
     drop_furniture: bool = False
+    # Remove detected interface furniture: `Like`, `Reply`, `2 likes`.
+    #
+    # Off by default for the same reason as `drop_furniture`, and one more: the
+    # detector has met exactly one corpus shape. Every word it removes is
+    # ordinary English, so a false positive here deletes something a person
+    # wrote, and only the log would show it.
+    drop_interface: bool = False
     # What to do with footnotes: "retain", "remove" or "extract".
     #
     # Page furniture is an artefact of printing and nobody wants it. A footnote
@@ -109,6 +116,7 @@ class Variant:
             "keep": self.keep,
             "options": {
                 "strip_trailing_space": self.strip_trailing_space,
+                "drop_interface": self.drop_interface,
                 "collapse_blank_lines": self.collapse_blank_lines,
                 "max_blank_lines": self.max_blank_lines,
                 "collapse_inner_space": self.collapse_inner_space,
@@ -213,6 +221,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
     out: list[str] = []
     # STAGE regions
     furniture_removed = 0
+    interface_removed = 0
 
     # Only labels that were successfully paired may be stripped. An unpaired
     # marker is the case where the tool does not know what it is looking at,
@@ -235,6 +244,9 @@ def render(doc: Document, variant: Variant) -> VariantResult:
             line_no = region.start + offset + 1
             if variant.drop_furniture and doc.is_furniture(line_no):
                 furniture_removed += 1
+                continue
+            if variant.drop_interface and doc.is_interface(line_no):
+                interface_removed += 1
                 continue
             if line_no in note_lines:
                 notes_removed += 1
@@ -337,6 +349,7 @@ def render(doc: Document, variant: Variant) -> VariantResult:
         "regions_kept": len(kept),
         "regions_dropped": len(dropped),
         "furniture_removed": furniture_removed,
+        "interface_removed": interface_removed,
         "running_heads_stripped": prefix_heads,
         "footnotes_removed": len(paired),
         "footnote_lines_removed": notes_removed,

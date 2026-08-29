@@ -15,6 +15,10 @@ text, since a regular expression does that. It is that **every transformation
 is visible, reversible and documented**, so that a reviewer can ask what you
 removed and you can hand them a file.
 
+**Preparing a corpus rather than maintaining the tool?** Start with
+[`docs/USING.md`](docs/USING.md). It explains what each variant means, which
+file to keep, and how to read the log. This README is written for developers.
+
 ---
 
 ## Try it
@@ -274,7 +278,8 @@ node   tools/ui_test.js            # drives the built page in a real DOM
 placed ten lines wrong silently moves ten lines of prose into or out of the
 corpus.
 
-Current figure: **99.99% across 7,654 content lines, 1 misclassified.** The
+Current figure: **99.99% across 7,733 content lines, 1 misclassified**, in
+English, German, Russian and Czech. The
 single error and why it is left unfixed are recorded in
 [`tests/keys/BASELINE.md`](tests/keys/BASELINE.md).
 

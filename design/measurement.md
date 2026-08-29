@@ -14,10 +14,11 @@ them. `measure_rules.py` reads them.
 
 | Rule | Evidence | Precision | Recall | F1 |
 |---|---|---|---|---|
-| Region labelling | hand | **99.99%** over 7,654 lines | | |
+| Region labelling | hand | **99.99%** over 7,733 lines, four languages | | |
 | Page furniture | exact | 98.3% | 98.3% | 98.3% |
 | Catchwords | exact | 85.7% | 100.0% | 92.3% |
-| Protected spans | exact | 100.0% | 100.0% | 100.0% | ← and 0 of 337 on real verse |
+| Protected spans | exact | 100.0% | 100.0% | 100.0% | ← now over two fixtures; 302 of 337 on the real verse |
+| Interface furniture | exact | 100.0% | 100.0% | 100.0% | ← one synthetic corpus shape, and only one |
 | De-hyphenation | exact | 98.3% of decided | — | — |
 | Paragraph reflow | derived | 99.5% of paragraphs recovered | | |
 | Chapter segmentation | hand | 5 of 6 books exact | | |
@@ -158,3 +159,38 @@ It exists so that **a reader can see which claims rest on what**, and so that
 the next real text that breaks something has somewhere to be recorded. Every
 figure here is reproducible from the repository by someone who does not trust
 it.
+
+---
+
+## 28 August — what the protected-span figure now covers
+
+It read 100% while the rule found **0 of 337** verse lines in a real PDF. The
+fixture was set the way its author reads text; the PDF was not.
+
+`measure_rules.py` now scores protected spans over `mixed_verse.txt` *and*
+`double_spaced_verse.txt`, the same boundary problem in the shape extraction
+actually produces. The headline number is unchanged at 100%, and it is now
+answerable for the shape that broke it.
+
+On the real PDF the rule reaches 302 of 337. Of the 35 remaining, 33 are cover,
+contents, poem titles and bylines, which must not be protected; two are a
+sonnet's closing couplet whose own break rate is 0%.
+
+**Interface furniture enters the table at 100% and that figure is the weakest
+in it.** Its fixture is synthetic and 43% furniture, against about 3% in the
+corpus that prompted the rule. What the figure means is that the rule does not
+eat the comments in a file shaped like the generator's. It says nothing yet
+about a file shaped like a real one, and the generator cannot surprise anyone.
+
+## 28 August — the coverage that is still missing
+
+Region labelling now spans English, German, Russian and Czech, and scores 100%
+on each of the three new ones. **That is not non-English validation.** Those
+fixtures are original synthetic prose written for the purpose; they establish
+that import, encoding, tokenising, casing and the line-break rules work on
+non-ASCII text, and nothing about real literary corpora in those languages.
+
+Every figure in the table above still rests on English literary prose, with
+three synthetic exceptions that were written by the same hand as the rules. A
+German novel from a real scan remains the test that matters.
+
