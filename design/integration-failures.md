@@ -785,3 +785,53 @@ restore fault.
 **Three of the eight faults in this file are front-end faults, and all three
 were found by a person rather than by a test.**
 
+
+---
+
+## P9 — The recent-files list was three dead buttons — **FIXED**
+
+**Severity: moderate. A control that promises an action and has none is worse
+than no control: the reader concludes the tool is broken, and they are right
+to.**
+
+Reported by a user: *"it shows previous files but they are not clickable or
+deletable."*
+
+```html
+<button title="Reopen this file from disk to load it again">
+```
+
+There was no click handler anywhere in the file. The tooltip promised
+something the code had never been written to do, and the CSS said
+`cursor:default`, so the markup, the styling and the tooltip disagreed with
+each other in three directions at once.
+
+### Why the promise could not have been kept
+
+**A browser cannot reopen a file by name.** Nothing here ever held the file —
+only its name and token count, kept so a returning reader recognises what they
+worked on. Re-reading it requires the reader to choose it, which means the file
+picker.
+
+So the button opens the picker and the tooltip says so. The fix is to stop
+claiming a capability, not to build one: the claim was the fault.
+
+### The half that was simply missing
+
+There was no way to remove an entry, and that matters more than it looks. **A
+filename can itself be sensitive** — an informant's pseudonym, an unpublished
+title, a client's name. A reader on a shared machine has to be able to take it
+off the screen, and the tool held it on the screen with no way out.
+
+### Why it surfaced now
+
+It was reachable before, but the fix for P8 put returning readers straight into
+the workspace instead of the sign-in gate, so the list is now the first thing
+a returning reader sees. Fixing one fault made an older one visible, which is
+an argument for fixing them in the order users meet them rather than the order
+they were introduced.
+
+Twelve checks in `tools/ui_test.js`, including that the tooltip no longer says
+"reopen this file" — the wording is part of the fault, so it is part of the
+test.
+

@@ -157,11 +157,44 @@ function drawRecent(){
   }
   if(guide&&!DOC) guide.style.display="none"; // returning user: recents replace it
   $("#recent-wrap").style.display="";
-  $("#recent").innerHTML=list.map(r=>`
-    <button title="Reopen this file from disk to load it again">
-      <span class="t">${esc(r.name)}</span>
-      <span class="d">${r.tokens.toLocaleString()}</span>
-    </button>`).join("");
+  /* These were `<button>` elements with the tooltip "Reopen this file from
+     disk to load it again" and no click handler anywhere in the file. They
+     looked like controls, promised an action, and did nothing — and there was
+     no way to remove an entry either.
+
+     **A browser cannot reopen a file by name.** Nothing here ever held the
+     file: only its name and token count, so that a returning reader recognises
+     what they worked on. Re-reading it needs the reader to choose it, which is
+     the file picker. So the button now opens the picker and the tooltip says
+     that, rather than implying the tool can do something it cannot.
+
+     The list is per-machine and holds six entries. Removing one matters more
+     than it looks: the name of a file can itself be sensitive — an informant's
+     pseudonym, an unpublished title — and a reader on a shared machine needs
+     to be able to take it off the screen. */
+  $("#recent").innerHTML=list.map((r,i)=>`
+    <div class="rec-row">
+      <button data-open="${i}" title="Choose this file again — the browser cannot reopen it for you">
+        <span class="t">${esc(r.name)}</span>
+        <span class="d">${r.tokens.toLocaleString()}</span>
+      </button>
+      <button class="rec-x" data-forget="${i}"
+              title="Remove ${esc(r.name)} from this list" aria-label="Remove ${esc(r.name)} from this list">&times;</button>
+    </div>`).join("");
+
+  $$("#recent [data-open]").forEach(b=>b.onclick=()=>$("#file").click());
+  $$("#recent [data-forget]").forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    forgetRecent(+b.dataset.forget);
+  });
+}
+
+function forgetRecent(i){
+  const s=load_(), list=(s.recent||[]).slice();
+  if(i<0||i>=list.length) return;
+  list.splice(i,1);
+  save_({...s,recent:list});
+  drawRecent();
 }
 
 /* ---- sign in ---- */
