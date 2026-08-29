@@ -518,6 +518,13 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
     <div class="recent" id="recent"></div>
   </div>
 
+  <!-- The registration link, in the one part of the sidebar that is always on
+       screen. It was first placed inside the "what this version can and cannot
+       do" disclosure, which is closed by default AND sits inside the
+       onboarding block that disappears once a file is loaded — so it was
+       hidden twice over, in every state a returning reader is ever in. -->
+  <div class="reg" id="reg-side"></div>
+
   <div id="side" style="display:none">
     <h2>File</h2>
     <div class="meta" id="meta"></div>
@@ -570,7 +577,6 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
           <summary>What this version can and cannot do
             <span class="c" id="cap-count"></span></summary>
           <div class="caps" id="caps"></div>
-        <div class="reg" id="reg-side"></div>
         </details>
       </div>
 
