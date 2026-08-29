@@ -45,6 +45,13 @@ stabilisation pass over the parts that could not report on themselves.
   without its **Prepared by** line, which is the line that makes the log
   citable. The session is now restored, with a **Sign out** control so the gate
   stays reachable on a shared machine
+- **The recent-files list was three dead buttons** (P9). Each entry carried
+  the tooltip "Reopen this file from disk to load it again" and no click
+  handler anywhere in the file, and no entry could be removed. A browser cannot
+  reopen a file by name — nothing was ever held but the name and a token count
+  — so the button now opens the file picker and the tooltip says so. Each entry
+  also gets a remove control: a filename can itself be sensitive, and a reader
+  on a shared machine needs to be able to take it off the screen
 - **Every division word was English** (P5). `Kapitel`, `Глава` and `Kapitola`
   were not words the heading tier knew, so a German, Russian or Czech book
   segmented as one undivided body while the log said "no structural headings

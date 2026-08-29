@@ -222,6 +222,64 @@ async function run(name, fn) {
           'the page contains a submission path');
   }
 
+  {
+    // Reported by a user: the recent-files list "shows previous files but they
+    // are not clickable or deletable".
+    //
+    // They were `<button>` elements carrying the tooltip "Reopen this file from
+    // disk to load it again", with no click handler anywhere in the file. A
+    // control that promises an action and has none is worse than no control:
+    // the reader concludes the tool is broken, and they are not wrong.
+    console.log('\nthe recent-files list does what it looks like');
+    const store = {
+      'corpusprep.v1': JSON.stringify({
+        user: { name: 'A Reader', inst: '' },
+        recent: [{ name: 'informant_04.txt', tokens: 12000, at: Date.now() },
+                 { name: 'jane.txt', tokens: 188215, at: Date.now() - 1000 }],
+      }),
+    };
+    const dom = open(store);
+    const d = dom.window.document;
+
+    const rows = () => [...d.querySelectorAll('#recent .rec-row')];
+    check('both remembered files are listed', rows().length === 2,
+          rows().length + ' rows');
+    check('the list is shown at all',
+          d.getElementById('recent-wrap').style.display !== 'none');
+
+    const openBtn = d.querySelector('#recent [data-open]');
+    check('each entry has something to click', !!openBtn);
+    check('and something bound to the click', !!openBtn && !!openBtn.onclick,
+          'no handler: the button does nothing');
+    check('the tooltip does not promise what a browser cannot do',
+          !!openBtn && !/reopen this file/i.test(openBtn.getAttribute('title') || ''),
+          openBtn && openBtn.getAttribute('title'));
+
+    // Clicking must reach the file picker, which is the only way a browser can
+    // read a file again.
+    let picked = 0;
+    d.getElementById('file').click = () => { picked++; };
+    openBtn.click();
+    check('clicking opens the file picker', picked === 1, picked + ' calls');
+
+    // And an entry must come off the list. A filename can itself be sensitive.
+    const x = d.querySelector('#recent [data-forget]');
+    check('each entry has a remove control', !!x);
+    check('it is labelled for a screen reader',
+          !!x && /informant_04/.test(x.getAttribute('aria-label') || ''));
+    x.click();
+    check('removing takes the row away', rows().length === 1, rows().length + ' rows');
+    check('and the right one is gone',
+          !/informant_04/.test(d.getElementById('recent').textContent));
+    check('and it stays gone in storage',
+          !/informant_04/.test(store['corpusprep.v1']));
+
+    d.querySelector('#recent [data-forget]').click();
+    check('removing the last one hides the list',
+          d.getElementById('recent-wrap').style.display === 'none');
+    dom.window.close();
+  }
+
   await run('the capability list is not stale', dom => {
     const d = dom.window.document;
     dom.window.eval('drawCapabilities()');
