@@ -177,13 +177,21 @@ async function run(name, fn) {
     check('both places to show it exist',
           !!shipped.window.document.getElementById('reg-gate') &&
           !!shipped.window.document.getElementById('reg-side'));
-    if (!/const REGISTER_URL="[^"]+"/.test(html)) {
-      check('nothing is shown when no form is configured',
-            shipped.window.document.getElementById('reg-gate').innerHTML === '' &&
-            shipped.window.document.getElementById('reg-side').innerHTML === '',
-            'markup rendered with REGISTER_URL empty');
-    }
     shipped.window.close();
+
+    // Both branches, whichever one happens to be shipped. Testing only the
+    // state the repository is in today means coverage silently halves the day
+    // someone sets the constant — which is exactly what happened.
+    const blanked = html.replace(/const REGISTER_URL="[^"]*";/,
+                                 'const REGISTER_URL="";');
+    const empty = new JSDOM(blanked,
+      { runScripts: 'dangerously', pretendToBeVisual: true });
+    await until(empty, 'typeof drawRegister === "function"').catch(() => {});
+    check('nothing is shown when no form is configured',
+          empty.window.document.getElementById('reg-gate').innerHTML === '' &&
+          empty.window.document.getElementById('reg-side').innerHTML === '',
+          'markup rendered with REGISTER_URL empty');
+    empty.window.close();
 
     // The same page with a form configured, so this exercises drawRegister
     // rather than a hand-built anchor.
@@ -216,6 +224,16 @@ async function run(name, fn) {
     dom.window.close();
 
     // And the page as a whole must have no way to send anything.
+    // Whatever is shipped must be an https link to a response view. An /edit
+    // URL pasted here by mistake would hand every reader the power to rewrite
+    // the form.
+    const shippedUrl = (html.match(/const REGISTER_URL="([^"]*)"/) || [, ''])[1];
+    if (shippedUrl) {
+      check('the configured URL is https', /^https:\/\//.test(shippedUrl), shippedUrl);
+      check('and is not a form-editing URL', !/\/edit(\?|#|$)/.test(shippedUrl),
+            'an /edit URL would let any reader rewrite the form');
+    }
+
     check('the page posts nothing',
           !/<form[^>]*\smethod=/i.test(html) &&
           !/fetch\(|XMLHttpRequest|sendBeacon/.test(html),
