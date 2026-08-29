@@ -46,9 +46,20 @@ WINDOW = 6
 MIN_RATE = 0.45
 #: A protected run shorter than this is noise, not a passage.
 MIN_SPAN = 3
+#: Share of authorial-looking breaks a block needs to be protected *by its
+#: neighbours* when it cannot carry itself. Half the standing threshold, which
+#: is still seven times what hard-wrapped prose scores.
+CORROBORATE = MIN_RATE / 2
 #: Above this 95th-percentile line length the text is not hard-wrapped at all,
 #: so there is nothing to rejoin and nothing to protect.
 UNWRAPPED_P95 = 200
+#: Share of lines that must be blank before blank lines are suspected of being
+#: line spacing rather than structure.
+SPACED_MIN_BLANK = 0.40
+#: Share of text lines that must stand alone between blanks for that suspicion
+#: to hold. Alternating stanzas of three would clear the density test on their
+#: own; only uniform one-line-per-block layout is line spacing.
+SPACED_MIN_ALONE = 0.80
 
 _INDENT = re.compile(r"^[ \t]+")
 
@@ -111,7 +122,150 @@ def break_profile(lines: list[str]) -> list[bool]:
     return out
 
 
+def _runs(lines: list[str]) -> tuple[list[int], list[int]]:
+    """Lengths of the consecutive blank runs and text runs, in order."""
+    blank_runs: list[int] = []
+    text_runs: list[int] = []
+    n = len(lines)
+    i = 0
+    while i < n:
+        blank = not lines[i].strip()
+        j = i
+        while j + 1 < n and (not lines[j + 1].strip()) == blank:
+            j += 1
+        (blank_runs if blank else text_runs).append(j - i + 1)
+        i = j + 1
+    return blank_runs, text_runs
+
+
+def spacing_run(lines: list[str]) -> int | None:
+    """The blank-run length that is line spacing, or ``None`` for structure.
+
+    **A blank line is a structural boundary only when blank lines are not the
+    norm.** PDF extraction commonly puts one between every line of the file; at
+    that density, uniformly alternating, blanks are the typesetter's leading
+    rendered as whitespace and carry no structure at all.
+
+    Both tests are needed. Density alone would misread a poem printed as
+    three-line stanzas with three-line gaps, where the blanks *are* structure;
+    requiring that text lines stand alone is what separates leading from
+    stanza breaks.
+
+    Returns the modal blank-run length, which is the run to discard. Longer
+    runs are the real boundaries and survive.
+    """
+    n = len(lines)
+    if n < 10:
+        return None
+    blank = sum(1 for l in lines if not l.strip())
+    if blank / n < SPACED_MIN_BLANK:
+        return None
+    blank_runs, text_runs = _runs(lines)
+    if not blank_runs or not text_runs:
+        return None
+    alone = sum(r for r in text_runs if r == 1)
+    if alone / sum(text_runs) < SPACED_MIN_ALONE:
+        return None
+    return statistics.mode(blank_runs)
+
+
+def _despace(lines: list[str], run: int) -> tuple[list[str], list[int]]:
+    """Drop the spacing blanks, keeping longer runs as one blank line.
+
+    Returns the compacted lines and, for each of them, the index it came from
+    in the original, so spans can be reported in the caller's line numbers.
+    """
+    out: list[str] = []
+    index: list[int] = []
+    n = len(lines)
+    i = 0
+    while i < n:
+        if lines[i].strip():
+            out.append(lines[i])
+            index.append(i)
+            i += 1
+            continue
+        j = i
+        while j + 1 < n and not lines[j + 1].strip():
+            j += 1
+        if (j - i + 1) > run:
+            # A gap wider than the leading is a paragraph or stanza boundary.
+            # It must survive, or one protected seed extends over the whole
+            # file and prose is protected along with the verse.
+            out.append("")
+            index.append(i)
+        i = j + 1
+    return out, index
+
+
 def find(lines: list[str], skip: set[int] | None = None) -> list[Span]:
+    """Find protected spans, seeing through line spacing first.
+
+    Everything below assumes a blank line means something. Where blank lines
+    are merely how the file was extracted, they are removed before the rule
+    runs and the spans are mapped back afterwards, so the rule sees the text
+    as it was set rather than as it was extracted.
+    """
+    skip = skip or set()
+    run = spacing_run(lines)
+    if run is None:
+        return _find(lines, skip)
+    compact, index = _despace(lines, run)
+    sub_skip = {k + 1 for k, src in enumerate(index) if src + 1 in skip}
+    return [Span(start=index[s.start - 1] + 1,
+                 end=index[s.end - 1] + 1,
+                 reason=s.reason)
+            for s in _find(compact, sub_skip)]
+
+
+def _blocks(lines: list[str]) -> list[tuple[int, int]]:
+    """Blank-delimited blocks as 0-based inclusive index pairs."""
+    out: list[tuple[int, int]] = []
+    start: int | None = None
+    for i, line in enumerate(lines):
+        if line.strip():
+            if start is None:
+                start = i
+        elif start is not None:
+            out.append((start, i - 1))
+            start = None
+    if start is not None:
+        out.append((start, len(lines) - 1))
+    return out
+
+
+def _is_strong(protected: list[bool], lines: list[str],
+               block: tuple[int, int]) -> bool:
+    """Whether a block is protected firmly enough to vouch for its neighbour.
+
+    **A single protected line is not a passage.** The per-line judgements
+    include ones that never become a span, and letting those vouch for
+    anything is how corroboration reached three paragraphs of *Jane Eyre*: a
+    lone flagged line in wrapped prose seeded the block beside it, which seeded
+    the next. A voucher must be most of a block and at least a span's worth.
+    """
+    lo, hi = block
+    body = [k for k in range(lo, hi + 1) if lines[k].strip()]
+    if not body:
+        return False
+    yes = sum(1 for k in body if protected[k])
+    return yes >= MIN_SPAN and yes / len(body) >= 0.5
+
+
+def _flanked(protected: list[bool], lines: list[str],
+             blocks: list[tuple[int, int]], idx: int) -> bool:
+    """Whether the block at ``idx`` has a firmly protected block beside it.
+
+    One side is enough. The first stanza of a poem has its title above it and
+    the rest of the poem below, and it is as much part of the poem as the rest.
+    """
+    for j in (idx - 1, idx + 1):
+        if 0 <= j < len(blocks) and _is_strong(protected, lines, blocks[j]):
+            return True
+    return False
+
+
+def _find(lines: list[str], skip: set[int] | None = None) -> list[Span]:
     """Find spans whose line breaks look deliberate.
 
     Returns an empty list for text that is not hard-wrapped, and for prose,
@@ -150,6 +304,38 @@ def find(lines: list[str], skip: set[int] | None = None) -> list[Span]:
             continue
         if sum(window) / len(window) >= MIN_RATE:
             protected[i] = True
+
+    # A stanza is not judged in isolation from the poem it sits in.
+    #
+    # The window stops at a blank line, so a stanza that rhymes abab with the
+    # odd lines unpunctuated carries only half its breaks and scores under the
+    # threshold — 38% for an eight-line stanza, where the last line scores
+    # nothing because no line follows it to vouch for the break. Four such
+    # stanzas in ten poems were missed while the stanzas either side of them
+    # were protected.
+    #
+    # **The answer is not a lower threshold.** 45% is what holds wrapped prose
+    # at 3%, and prose protected is the error that cannot be recovered from.
+    # The evidence not being used is the neighbouring block, so that is what is
+    # added here: a block already flanked by protected verse needs only half
+    # the rate to join it.
+    #
+    # Seeded once from what the rule found on its own, never iterated. A block
+    # protected by corroboration does not go on to corroborate the next one, or
+    # a single stanza would carry protection to the end of the file.
+    blocks = _blocks(lines)
+    joined: list[int] = []
+    for idx, (lo, hi) in enumerate(blocks):
+        body = [k for k in range(lo, hi + 1) if lines[k].strip()]
+        if not body or len(body) < MIN_SPAN or any(protected[k] for k in body):
+            continue
+        if sum(profile[k] for k in body) / len(body) < CORROBORATE:
+            continue
+        if not _flanked(protected, lines, blocks, idx):
+            continue
+        joined += body
+    for k in joined:
+        protected[k] = True
 
     # Indentation corroborates but never decides on its own: a block quotation
     # of prose is indented too, and must still be reflowed.

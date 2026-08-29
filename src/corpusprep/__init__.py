@@ -101,6 +101,23 @@ def analyse(path: str | Path,
             f"own vocabulary; {len(undecided)} would need review."
         )
 
+    from .interface import find_in_document as find_interface
+    marked_ui, series = find_interface(doc)
+    if marked_ui:
+        doc = doc.with_interface(marked_ui)
+        doc.meta["interface"] = {
+            "lines": len(marked_ui),
+            "series": [
+                {"text": s.key, "occurrences": len(s.lines), "reason": s.reason}
+                for s in series
+            ],
+        }
+        doc.notes.append(
+            f"{len(marked_ui)} lines look like interface furniture "
+            f"(the labels an application printed, not text anyone wrote). "
+            f"Not removed unless requested."
+        )
+
     from .furniture import find_prefix_furniture
     edits = find_prefix_furniture(doc.lines)
     if edits:

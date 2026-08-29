@@ -105,13 +105,55 @@ def rule_catchwords():
 
 
 def rule_protected():
-    key, fx = KEYS / "mixed_verse.protected", FIXTURES / "mixed_verse.txt"
+    """Scored over both fixtures, and the second one is the point.
+
+    `mixed_verse.txt` scored 100% while the rule found 0 of 337 verse lines in
+    a real PDF, because the fixture was set the way its author reads text and
+    the PDF was not. `double_spaced_verse.txt` is the same boundary problem in
+    the shape extraction actually produces. Averaging them keeps the headline
+    number honest about both.
+    """
+    from corpusprep import protect
+
+    truth: set[int] = set()
+    found: set[int] = set()
+    offset = 0
+    seen = False
+    for stem in ("mixed_verse", "double_spaced_verse"):
+        key, fx = KEYS / f"{stem}.protected", FIXTURES / f"{stem}.txt"
+        if not (key.exists() and fx.exists()):
+            continue
+        seen = True
+        lines = fx.read_text(encoding="utf-8").splitlines()
+        # The two files are scored as one set, so their line numbers are shifted
+        # apart rather than collided.
+        truth |= {n + offset for n in read_lines(key)}
+        found |= {n + offset
+                  for n in protect.protected_lines(protect.find(lines))}
+        offset += len(lines) + 1
+    if not seen:
+        return None
+    return score_set(truth, found)
+
+
+def rule_interface():
+    """Scored against a synthetic thread, and that is a real limit.
+
+    The corpus this rule was built for is a tester's and cannot be shared, so
+    the fixture stands in for it. Its labels are the ones that corpus used, but
+    a generator cannot surprise anyone, and 43% of this file is furniture
+    against about 3% of hers. The precision figure means the rule does not eat
+    the comments in a file shaped like this one. It does not yet mean anything
+    about a file shaped like hers.
+    """
+    key = KEYS / "social_thread.interface"
+    fx = FIXTURES / "social_thread.txt"
     if not (key.exists() and fx.exists()):
         return None
-    from corpusprep import protect
+    from corpusprep import interface
     lines = fx.read_text(encoding="utf-8").splitlines()
-    return score_set(set(read_lines(key)),
-                     set(protect.protected_lines(protect.find(lines))))
+    found, _ = interface.find(lines)
+    return score_set(set(read_lines(key)), found)
 
 
 def rule_dehyphenate():
@@ -145,10 +187,11 @@ def rule_dehyphenate():
 
 RULES = [
     ("Region labelling",      "hand",    None,
-     "scored by tools/measure.py: 99.99% over 7,654 lines"),
+     "scored by tools/measure.py: 99.99% over 7,733 lines, four languages"),
     ("Page furniture",        "exact",   rule_furniture, ""),
     ("Catchwords",            "exact",   rule_catchwords, ""),
     ("Protected spans",       "exact",   rule_protected, ""),
+    ("Interface furniture",   "exact",   rule_interface, ""),
     ("De-hyphenation",        "exact",   rule_dehyphenate, ""),
     ("Paragraph reflow",      "derived", None,
      "round trip against Jane Eyre: 99.5% of paragraphs recovered exactly"),

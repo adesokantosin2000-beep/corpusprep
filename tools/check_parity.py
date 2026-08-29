@@ -54,7 +54,7 @@ const M=new Function(html.slice(eng,engEnd)+html.slice(fmt,fmtEnd)+
   '; return {segment,render,PRESETS,coverageGaps,countTT,extractFile,'+
   'findFurnitureIn,looksLikePageNumber,findCatchwords,findFootnotesIn,'+
   'findHyphenBreaksIn,findProtectedIn,reflowLines,protectedLines,'+
-  'findPrefixFurniture};')();
+  'findPrefixFurniture,findInterfaceIn};')();
 
 /* Must match formats.is_container() on the Python side. It did not when
    Markdown was added, so the harness read .md as plain text and reported a
@@ -116,6 +116,8 @@ const NEEDS_DOM=/\.(docx|epub|html|htm|xhtml)$/i;
       prefixes:M.findPrefixFurniture(lines).map(e=>e.line+":"+e.end).join(","),
       protected:M.findProtectedIn(lines,seg.regions)
         .map(s=>s.start+"-"+s.end).sort().join(","),
+      interface:[...M.findInterfaceIn(lines,seg.regions).lines]
+        .sort((a,b)=>a-b).join(","),
       hyphens:M.findHyphenBreaksIn(lines,seg.regions)
         .map(b=>b.line+":"+b.decision+":"+(b.decision==="join"?b.joined:b.hyphenated))
         .sort().join(","),
@@ -146,6 +148,7 @@ def run_python(files: list[Path]) -> dict:
     from corpusprep.reflow import reflow as reflow_lines
     from corpusprep.footnotes import find_in_document as find_footnotes
     from corpusprep.furniture import find_in_document
+    from corpusprep.interface import find_in_document as find_interface
 
     out = {}
     for f in files:
@@ -157,6 +160,7 @@ def run_python(files: list[Path]) -> dict:
         hy = sorted(f"{b.line}:{b.decision}:{b.resolved}"
                     for b in find_breaks(doc))
         pr = sorted(f"{s.start}-{s.end}" for s in find_protected(doc))
+        ui, _series = find_interface(doc)
         px = ",".join(f"{e.line}:{e.end}" for e in find_prefix(doc.lines))
         _r = reflow_lines(doc.lines, protected_lines(find_protected(doc)))
         rf = (f"{_r.blocks_joined}/{_r.blocks_kept}/"
@@ -172,6 +176,7 @@ def run_python(files: list[Path]) -> dict:
             "footnotes": ",".join(fn),
             "hyphens": ",".join(hy),
             "protected": ",".join(pr),
+            "interface": ",".join(str(i) for i in sorted(ui)),
             "prefixes": px,
             "reflowed": rf,
             "furniture_page": round(page, 1),
@@ -310,7 +315,7 @@ def main(argv: list[str]) -> int:
         # Compared separately, not merged. Two rules disagreeing in opposite
         # directions would cancel out in a union and read as agreement.
         for field in ("furniture", "catchwords", "footnotes", "hyphens",
-                      "protected", "prefixes"):
+                      "protected", "prefixes", "interface"):
             a = set(filter(None, py[name][field].split(",")))
             b = set(filter(None, js[name][field].split(",")))
             ok &= a == b

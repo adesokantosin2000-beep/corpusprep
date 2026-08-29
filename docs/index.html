@@ -57,6 +57,9 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
 .btn-primary:hover{background:var(--accent-dk);
   box-shadow:0 1px 2px rgba(28,26,23,.12),0 7px 20px -5px rgba(55,86,74,.42)}
 .btn-primary:active{transform:translateY(1px)}
+.reg{margin:14px 0 0;color:var(--muted);font-size:12.5px;line-height:1.6}
+.reg:empty{display:none}
+.reg a{color:var(--accent)}
 .linkish{background:none;border:0;color:var(--muted);font:inherit;font-size:12.5px;
   cursor:pointer;padding:0;margin-top:15px;text-decoration:underline;
   text-underline-offset:3px;text-decoration-color:var(--rule)}
@@ -422,6 +425,8 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
     <button class="btn-primary" id="g-go">Enter workspace</button>
     <button class="linkish" id="g-skip">Continue without signing in</button>
 
+    <div class="reg" id="reg-gate"></div>
+
     <div class="privacy">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#37564a"
            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -560,6 +565,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
           <summary>What this version can and cannot do
             <span class="c" id="cap-count"></span></summary>
           <div class="caps" id="caps"></div>
+        <div class="reg" id="reg-side"></div>
         </details>
       </div>
 
@@ -666,8 +672,27 @@ const LICENCE_PHRASES=["project gutenberg","literary archive foundation","public
 /* Body headings — three tiers, most reliable first. Only the first tier that
    yields results is used, so a book with real chapter headings is never
    confused by stray numerals elsewhere. Mirrors segment.py. */
-const DIVISION_WORDS="CHAPTER|BOOK|PART|VOLUME|CANTO|SECTION|LETTER|ACT|SCENE|STAVE|"+
+const DIVISION_WORDS_EN="CHAPTER|BOOK|PART|VOLUME|CANTO|SECTION|LETTER|ACT|SCENE|STAVE|"+
   "EPISODE|FYTTE|MOVEMENT|INTERLUDE|LECTURE|SERMON|TALE|NIGHT";
+/* Every measured number in this package is English literary prose, and this
+   list was the sharpest edge of that: a German novel segmented as one
+   undivided body because `Kapitel` was not a word the tier had been told
+   about, and the log said "no structural headings found", which reads as a
+   fact about the book rather than about the tool.
+
+   A wordlist is only as wide as whoever wrote it. This does not make the
+   package multilingual; it stops it being confidently wrong about three more
+   languages than before. Mirrors segment.DIVISION_WORDS_OTHER.             */
+const DIVISION_WORDS_OTHER=
+  "KAPITEL|KAPITTEL|KAPITELET|HOOFDSTUK|TEIL|BAND|BUCH|AUFZUG|AUFTRITT|"+
+  "ABSCHNITT|BRIEF|DEEL|BOEK|BEDRIJF|"+
+  "CAP[IÍ]TULO|CAPITOLO|CAPITRE|CHAPITRE|LIVRE|LIBRO|PARTIE|PARTE|"+
+  "SEC[CÇ][IÃ]O|SEZIONE|ATTO|ACTE|ESCENA|SCENA|SC[EÈ]NE|CANTO|CARTA|"+
+  "KAPITOLA|ROZDZIA[ŁL]|CZ[ĘE][ŚS][ĆC]|ODDIEL|POGLAVLJE|DIO|"+
+  "ГЛАВА|ЧАСТЬ|КНИГА|ДЕЙСТВИЕ|ЯВЛЕНИЕ|РОЗДІЛ|ЧАСТИНА|ГЛАВА|"+
+  "LUKU|OSA|KAPITTEL|"+
+  "LIBER|PARS|CAPUT";
+const DIVISION_WORDS=DIVISION_WORDS_EN+"|"+DIVISION_WORDS_OTHER;
 const _CARDINAL="ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE|"+
   "THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY|"+
   "THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY|HUNDRED";
@@ -2531,7 +2556,16 @@ function reviewApply(breaks,decisions){
 const PR_WINDOW=6;
 const PR_MIN_RATE=0.45;
 const PR_MIN_SPAN=3;
+// Share of authorial-looking breaks a block needs to be protected by its
+// neighbours when it cannot carry itself. Half the standing threshold,
+// which is still seven times what hard-wrapped prose scores.
+const PR_CORROBORATE=PR_MIN_RATE/2;
 const PR_UNWRAPPED_P95=200;
+// Share of lines that must be blank before blank lines are suspected of
+// being line spacing rather than structure, and the share of text lines
+// that must stand alone between blanks for that suspicion to hold.
+const PR_SPACED_MIN_BLANK=0.40;
+const PR_SPACED_MIN_ALONE=0.80;
 
 const PR_CLOSERS=[".",",",";",":","!","?",'"',"'","’","”","--","—"];
 
@@ -2564,7 +2598,116 @@ function breakProfile(lines){
   return out;
 }
 
+// Lengths of the consecutive blank runs and text runs, in order.
+function prRuns(lines){
+  const blankRuns=[], textRuns=[], n=lines.length;
+  let i=0;
+  while(i<n){
+    const blank=!lines[i].trim();
+    let j=i;
+    while(j+1<n && (!lines[j+1].trim())===blank) j++;
+    (blank?blankRuns:textRuns).push(j-i+1);
+    i=j+1;
+  }
+  return {blankRuns,textRuns};
+}
+
+/* The blank-run length that is line spacing, or null for structure.
+
+   A blank line is a structural boundary only when blank lines are not the
+   norm. PDF extraction commonly puts one between every line of the file; at
+   that density, uniformly alternating, blanks are the typesetter's leading
+   rendered as whitespace and carry no structure at all.
+
+   Both tests are needed. Density alone would misread a poem printed as
+   three-line stanzas with three-line gaps, where the blanks ARE structure.
+
+   Mirrors protect.spacing_run().                                          */
+function spacingRun(lines){
+  const n=lines.length;
+  if(n<10) return null;
+  let blank=0;
+  for(const l of lines) if(!l.trim()) blank++;
+  if(blank/n<PR_SPACED_MIN_BLANK) return null;
+  const {blankRuns,textRuns}=prRuns(lines);
+  if(!blankRuns.length||!textRuns.length) return null;
+  let alone=0,total=0;
+  for(const r of textRuns){ total+=r; if(r===1) alone+=r }
+  if(alone/total<PR_SPACED_MIN_ALONE) return null;
+  // Modal run length; ties go to the one seen first, as statistics.mode does.
+  const tally=new Map();
+  for(const r of blankRuns) tally.set(r,(tally.get(r)||0)+1);
+  let mode=blankRuns[0],best=-1;
+  for(const [v,c] of tally) if(c>best){best=c;mode=v}
+  return mode;
+}
+
+/* Drop the spacing blanks, keeping longer runs as one blank line. Returns the
+   compacted lines and, for each, the index it came from in the original.   */
+function prDespace(lines,run){
+  const out=[],index=[],n=lines.length;
+  let i=0;
+  while(i<n){
+    if(lines[i].trim()){ out.push(lines[i]); index.push(i); i++; continue }
+    let j=i;
+    while(j+1<n && !lines[j+1].trim()) j++;
+    if((j-i+1)>run){
+      // A gap wider than the leading is a paragraph or stanza boundary. It
+      // must survive, or one protected seed extends over the whole file and
+      // prose is protected along with the verse.
+      out.push(""); index.push(i);
+    }
+    i=j+1;
+  }
+  return {out,index};
+}
+
+/* Find protected spans, seeing through line spacing first. Everything below
+   assumes a blank line means something; where blank lines are merely how the
+   file was extracted, they are removed before the rule runs and the spans are
+   mapped back afterwards.                                                  */
 function findProtected(lines,skip){
+  skip=skip||new Set();
+  const run=spacingRun(lines);
+  if(run===null) return findProtectedSpans(lines,skip);
+  const {out,index}=prDespace(lines,run);
+  const sub=new Set();
+  for(let k=0;k<index.length;k++) if(skip.has(index[k]+1)) sub.add(k+1);
+  return findProtectedSpans(out,sub).map(s=>({
+    start:index[s.start-1]+1, end:index[s.end-1]+1, reason:s.reason}));
+}
+
+// Blank-delimited blocks as 0-based inclusive index pairs.
+function prBlocks(lines){
+  const out=[]; let start=null;
+  for(let i=0;i<lines.length;i++){
+    if(lines[i].trim()){ if(start===null) start=i }
+    else if(start!==null){ out.push([start,i-1]); start=null }
+  }
+  if(start!==null) out.push([start,lines.length-1]);
+  return out;
+}
+
+/* Whether a block is protected firmly enough to vouch for its neighbour.
+   A single protected line is not a passage: the per-line judgements include
+   ones that never become a span, and letting those vouch for anything reached
+   three paragraphs of Jane Eyre in wrapped form.                           */
+function prIsStrong(prot,lines,block){
+  const [lo,hi]=block, body=[];
+  for(let k=lo;k<=hi;k++) if(lines[k].trim()) body.push(k);
+  if(!body.length) return false;
+  const yes=body.filter(k=>prot[k]).length;
+  return yes>=PR_MIN_SPAN && yes/body.length>=0.5;
+}
+
+// One side is enough: the first stanza of a poem has its title above it.
+function prFlanked(prot,lines,blocks,idx){
+  for(const j of [idx-1,idx+1])
+    if(j>=0&&j<blocks.length&&prIsStrong(prot,lines,blocks[j])) return true;
+  return false;
+}
+
+function findProtectedSpans(lines,skip){
   skip=skip||new Set();
   if(!isWrapped(lines)) return [];
 
@@ -2585,6 +2728,24 @@ function findProtected(lines,skip){
     for(let j=lo;j<=hi;j++) if(lines[j].trim()){ seen++; if(profile[j]) yes++ }
     if(seen&&yes/seen>=PR_MIN_RATE) prot[i]=true;
   }
+
+  /* A stanza is not judged in isolation from the poem it sits in.
+
+     The window stops at a blank line, so a stanza rhyming abab with the odd
+     lines unpunctuated carries only half its breaks and scores under the
+     threshold. The answer is not a lower threshold — 45% is what holds wrapped
+     prose at 3% — but the neighbouring block, which was evidence nobody was
+     using. Seeded once from what the rule found on its own, never iterated. */
+  const blocks=prBlocks(lines), joined=[];
+  for(let idx=0;idx<blocks.length;idx++){
+    const [lo,hi]=blocks[idx], body=[];
+    for(let k=lo;k<=hi;k++) if(lines[k].trim()) body.push(k);
+    if(!body.length||body.length<PR_MIN_SPAN||body.some(k=>prot[k])) continue;
+    if(body.filter(k=>profile[k]).length/body.length<PR_CORROBORATE) continue;
+    if(!prFlanked(prot,lines,blocks,idx)) continue;
+    for(const k of body) joined.push(k);
+  }
+  for(const k of joined) prot[k]=true;
 
   const indents=lines.filter(l=>l.trim())
     .map(l=>{const m=/^[ \t]+/.exec(l); return m?m[0].length:0});
@@ -2824,6 +2985,135 @@ function render(lines,regions,cfg,furniture,footnotes){
     paragraphsJoined},
     footnoteText:cfg.footnotes==="extract"&&paired.length
       ? paired.map(f=>"["+f.label+"]\t"+f.text).join("\n")+"\n" : null};
+}
+
+/* =========================================================================
+   INTERFACE FURNITURE
+
+   The labels an application printed, not the text a person wrote: `Like`,
+   `Reply`, `2 likes`, `View replies (4)`.
+
+   The obvious rule is a list of words and it destroys prose — all of those are
+   ordinary English, and a novel contains `Reply.` in dialogue. The
+   discriminating signal is position: an interface prints its controls AFTER
+   the thing they act on, so a control sits in the tail of its record with
+   nothing but other controls behind it, while a one-word comment sits at the
+   head however often it repeats. And a record is never all controls: something
+   was commented on, so the tail never eats the last line of the body.
+
+   Licensed by the document, not the line: nothing is called interface
+   furniture until the file itself looks like a scraped feed.
+
+   Mirrors src/corpusprep/interface.py.
+   ========================================================================= */
+
+const UI_MAX_LEN=24;
+const UI_MAX_WORDS=4;
+const UI_MIN_RECORDS_WITH=3;
+const UI_MIN_SHARE=0.20;
+const UI_MIN_RECORDS=5;
+
+const UI_HANDLE=/^\s*\[@?[\w.]+\]\(\S+\)\s*$|^\s*@[\w.]+\s*$/;
+const UI_RELTIME=/^\s*\[?\s*\d{1,3}\s*[smhdwy]\s*\]?(\(\S+\))?\s*$/i;
+
+function looksLikeHandle(l){ return UI_HANDLE.test(l) }
+function looksLikeRelativeTime(l){ return UI_RELTIME.test(l) }
+
+function uiNormalise(l){
+  return l.trim().toLowerCase().replace(/\d+/g,"#")
+          .replace(/^[^\p{L}\p{N}#]+|[^\p{L}\p{N}#]+$/gu,"");
+}
+
+function uiLabelShaped(l){
+  const t=l.trim();
+  return !!t && t.length<=UI_MAX_LEN && t.split(/\s+/).length<=UI_MAX_WORDS;
+}
+
+function uiRecords(lines){
+  let starts=[];
+  for(let i=0;i<lines.length;i++) if(looksLikeHandle(lines[i])) starts.push(i);
+  if(starts.length<UI_MIN_RECORDS){
+    starts=[];
+    for(let i=0;i<lines.length;i++) if(looksLikeRelativeTime(lines[i])) starts.push(i);
+  }
+  if(starts.length<UI_MIN_RECORDS) return [];
+  const out=[];
+  for(let i=0;i<starts.length;i++)
+    out.push([starts[i],(i+1<starts.length?starts[i+1]:lines.length)-1]);
+  return out;
+}
+
+function uiTrailing(lines,lo,hi,skip){
+  const body=[];
+  for(let k=lo;k<=hi;k++){
+    const l=lines[k];
+    if(l.trim()&&!looksLikeHandle(l)&&!looksLikeRelativeTime(l)) body.push(k);
+  }
+  const out=[];
+  for(let i=body.length-1;i>=0;i--){
+    const k=body[i];
+    if(skip.has(k+1)||!uiLabelShaped(lines[k])) break;
+    if(out.length+1>=body.length) break;   // a record is never all controls
+    out.push(k);
+  }
+  out.reverse();
+  return out;
+}
+
+function findInterface(lines,skip){
+  skip=skip||new Set();
+  const spans=uiRecords(lines);
+  if(spans.length<UI_MIN_RECORDS) return {lines:new Set(),series:[]};
+
+  const seen=new Map(), tails=[];
+  for(const [lo,hi] of spans){
+    const tail=uiTrailing(lines,lo,hi,skip);
+    tails.push(tail);
+    const keys=new Set(tail.map(k=>uiNormalise(lines[k])));
+    for(const key of keys){
+      if(!seen.has(key)) seen.set(key,{key,lines:[],records:0,reason:""});
+      seen.get(key).records++;
+    }
+    for(const k of tail) seen.get(uiNormalise(lines[k])).lines.push(k+1);
+  }
+
+  const floor=Math.max(UI_MIN_RECORDS_WITH,Math.round(UI_MIN_SHARE*spans.length));
+  const confirmed=new Map();
+  for(const [key,s] of seen) if(s.records>=floor){
+    s.reason=`ends ${s.records} of ${spans.length} records, after the text `+
+             `rather than among it`;
+    confirmed.set(key,s);
+  }
+  // An occasional control still keeps company with the ones that recur; a
+  // comment never does, because a comment is what those controls come after.
+  for(const [key,s] of seen){
+    if(confirmed.has(key)||s.records<UI_MIN_RECORDS_WITH) continue;
+    let company=0;
+    for(const tail of tails){
+      const keys=new Set(tail.map(k=>uiNormalise(lines[k])));
+      if(!keys.has(key)) continue;
+      for(const other of keys) if(confirmed.has(other)){ company++; break }
+    }
+    if(company===s.records){
+      s.reason=`ends ${s.records} of ${spans.length} records, always beside a `+
+               `control that ends most of them`;
+      confirmed.set(key,s);
+    }
+  }
+
+  const series=[...confirmed.values()].sort((a,b)=>
+    b.records-a.records||(a.key<b.key?-1:a.key>b.key?1:0));
+  const out=new Set();
+  for(const s of series) for(const n of s.lines) out.add(n);
+  return {lines:out,series};
+}
+
+function findInterfaceIn(lines,regions){
+  const skip=new Set();
+  for(const r of regions)
+    if(r.label==="pg_header"||r.label==="pg_licence")
+      for(let i=r.start;i<r.end;i++) skip.add(i+1);
+  return findInterface(lines,skip);
 }
 
 /* =========================================================================
@@ -3232,7 +3522,7 @@ const CAPABILITIES=[
   {ready:1, t:"Detects front matter and back matter",
    d:"Title pages, prefaces, dramatis personae, contents, appendices and indexes."},
   {ready:1, t:"Segments chapters and sections",
-   d:"Chapter, Book, Part, Act and Scene divisions, numbered sections and bare numeral runs. Headings split across two lines, or welded to the front of a page in scanned text, are also found."},
+   d:"Chapter, Book, Part, Act and Scene divisions, numbered sections and bare numeral runs. Headings split across two lines, or welded to the front of a page in scanned text, are also found. The division words of several other languages are recognised too \u2014 Kapitel, Glava, Kapitola and their neighbours \u2014 from a fixed list, which is only as wide as the list: a language whose word is absent yields no structure and the report says so."},
   {ready:1, t:"Recovers chapters from running heads",
    d:"For scans where OCR destroyed every heading, the chapter titles are read from the head repeated on each page."},
   {ready:1, t:"Identifies publisher and licence apparatus",
@@ -3240,9 +3530,9 @@ const CAPABILITIES=[
   {ready:1, t:"Identifies digitisation apparatus",
    d:"Internet Archive and Google Books notices, and pages the scanner itself reports as unreadable."},
   {ready:1, t:"Identifies page numbers, headers and footers",
-   d:"Detected by regularity rather than appearance, so a refrain is never mistaken for a running head. Off unless requested; every line proposed for removal is listed with its grounds."},
+   d:"Detected by regularity rather than appearance, so a refrain is never mistaken for a running head. Its measured figure comes from a generated scan rather than a hand-marked real one, which is why no preset removes what it finds: off unless requested, with every line proposed for removal listed with its grounds."},
   {ready:1, t:"Detects catchwords",
-   d:"The early modern practice of printing the next page's first word at the foot of the page."},
+   d:"The early modern practice of printing the next page's first word at the foot of the page. Measured against a generated fixture only, where it produced three false positives, so read them before removing them."},
   {ready:1, t:"Detects footnotes",
    d:"Keep them, remove them, or extract them to a parallel file. A marker counts only when a note carries the same label, so stage directions are left alone."},
   {ready:1, t:"Rejoins hyphenated line breaks",
@@ -3253,8 +3543,10 @@ const CAPABILITIES=[
    d:"Retain or remove any section. Five presets are provided, or sections may be selected individually."},
   {ready:1, t:"Reads TXT, Markdown, DOCX, EPUB and HTML",
    d:"Encoding, byte-order marks and line endings resolved on import. Markdown link targets are discarded and the link text kept, because a URL is not language."},
+  {ready:1, t:"Detects interface furniture",
+   d:"Experimental. The labels an application prints around text a person wrote \u2014 Like, Reply, 2 likes, View replies. Found by position rather than by word, since all of those are ordinary English: a control sits after the text of a record, a one-word comment does not. Nothing is claimed unless the file itself is shaped like a scraped feed. Validated so far against one synthetic thread only; detected and reported, never removed."},
   {ready:1, t:"Records every decision in a log",
-   d:"Markdown and JSON, including token and type counts, suitable for citation."},
+   d:"Markdown and JSON, including token and type counts, suitable for citation. A run in which no rule fires says which rules were tried and why each declined, rather than reporting a zero."},
   {ready:1, t:"Reads PDF",
    d:"Page boundaries are taken from the file, so running heads and page numbers are found from a stated fact rather than an inferred one. A PDF whose text layer is unreadable is refused with the reason rather than returned as noise. This is the one feature that needs the internet: pdf.js is fetched once, on demand. Your document is never uploaded."},
   {ready:0, t:"Repairs OCR characters",
@@ -3269,6 +3561,18 @@ const TICK_ON=`<svg class="tick" width="14" height="14" viewBox="0 0 24 24" fill
 const TICK_OFF=`<svg class="tick" width="14" height="14" viewBox="0 0 24 24" fill="none"
   stroke="#a09a8e" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"
   stroke-dasharray="3 3"/></svg>`;
+
+function drawRegister(){
+  if(!REGISTER_URL) return;                    // nothing configured, nothing shown
+  const link=`<a href="${REGISTER_URL}" target="_blank" rel="noopener noreferrer">`;
+  const gate=$("#reg-gate");
+  if(gate) gate.innerHTML=
+    `Optional: ${link}tell us you are using CorpusPrep</a>, or ask to hear when `+
+    `it changes. Opens a form in a new tab. Nothing is sent from this page.`;
+  const side=$("#reg-side");
+  if(side) side.innerHTML=
+    `${link}Tell us you are using this</a> \u00b7 optional, opens in a new tab.`;
+}
 
 function drawCapabilities(){
   const ready=CAPABILITIES.filter(c=>c.ready).length;
@@ -3286,6 +3590,33 @@ function drawCapabilities(){
    Held on this machine only. No server exists, so nothing is transmitted;
    this is what provides continuity between sessions without uploading a
    single line of anyone's corpus. */
+/* ---- optional registration --------------------------------------------
+   Where to send someone who wants to say they are using this, or to hear when
+   it changes. One form serves both: splitting them into two links splits the
+   reader's attention and asks twice for the same thing.
+
+   **Empty by default, and nothing renders when it is empty**, so a fork of
+   this repository does not quietly point its users at somebody else's form.
+   Set it to the URL of a form you own — any service will do; the page only
+   ever links out to it.
+
+   Three rules this link must not break, because they are the tool's whole
+   proposition:
+
+     - It is a LINK. The page transmits nothing, ever. Not the reader's name,
+       not the file they opened, not the fact that they opened one.
+     - It is not prefilled. Prefilling would put whatever they typed into the
+       URL, so clicking would send it — a silent transmission wearing the
+       clothes of a convenience.
+     - It is optional and says so. A researcher who cannot register, because
+       their ethics approval or their institution says not to, must lose
+       nothing by ignoring it.
+
+   Suggested fields for the form: name, institution, email, what they are
+   preparing, and a tick-box for release announcements. The last one is what
+   turns "who is using it" into "who can be told when it changes".          */
+const REGISTER_URL="";
+
 const STORE="corpusprep.v1";
 function load_(){ try{return JSON.parse(localStorage.getItem(STORE))||{}}catch(e){return {}} }
 function save_(o){ try{localStorage.setItem(STORE,JSON.stringify(o))}catch(e){} }
@@ -3321,13 +3652,25 @@ function initials(n){
 }
 function enter(user){
   USER=user;
-  remember({user});
+  // A skipped sign-in must not overwrite a remembered one: the reader may be
+  // going through the door labelled "without signing in" on a borrowed
+  // machine, and their own name should still be there next time.
+  remember(user ? {user, signedOut:false} : {signedOut:true});
   $("#gate").style.display="none";
   $("#app").style.display="flex";
   $("#who").innerHTML = user
     ? `<span class="avatar">${esc(initials(user.name))}</span>
-       <span>${esc(user.name)}${user.inst?" · "+esc(user.inst):""}</span>`
-    : `<span>Not signed in</span>`;
+       <span>${esc(user.name)}${user.inst?" · "+esc(user.inst):""}</span>
+       <button class="linkish" id="who-out" title="Return to the sign-in screen">Sign out</button>`
+    : `<span>Not signed in</span>
+       <button class="linkish" id="who-out" title="Return to the sign-in screen">Sign in</button>`;
+  const out=$("#who-out");
+  if(out) out.onclick=()=>{
+    USER=null;
+    remember({signedOut:true});
+    $("#app").style.display="none";
+    $("#gate").style.display="";
+  };
   drawRecent();
   if(CFG) refreshPreview();
 }
@@ -3388,12 +3731,18 @@ async function loadText(name,buf){
     return;
   }
 
-  const seg=segment(d.lines);
+  let seg=segment(d.lines);
   const tt=countTT(d.lines.join("\n"));
   // Detection, not removal. The result is shown for review and is removed
   // only if the reader ticks the box below the section list.
   const fu=findFurnitureIn(d.lines,seg.regions,d.pageStarts);
+  const ui=findInterfaceIn(d.lines,seg.regions);
+  if(ui.lines.size) extraNotes=[...extraNotes,
+    `${ui.lines.size} lines look like interface furniture (the labels an `+
+    `application printed, not text anyone wrote). Detected, not removed: the `+
+    `log lists every one.`];
   DOC={name,...d,regions:seg.regions,notes:[...extraNotes,...seg.notes],
+       interface:ui.lines,interfaceSeries:ui.series,
        furniture:fu.furniture,
        furnSeries:fu.candidates.filter(c=>c.accepted),
        catchwords:fu.catchwords,catchwordMatches:fu.catchwordMatches,
@@ -3977,6 +4326,64 @@ function drawCompare(){
 }
 
 /* ---- log ---- */
+/* What to say when every rule declined.
+
+   A tester cleaned a corpus of Instagram comments and the page told her two
+   things: that 0 tokens had been removed, and that no structural headings were
+   found. Both were true and neither was useful. Silence is not a result.
+
+   Mirrors report.no_op_notes().                                            */
+function noOpNotes(){
+  const d=DOC,s=RESULT.stats;
+  const fired=RESULT.dropped.length||s.furnitureRemoved||s.headsStripped||
+              s.noteLines||s.hyphensJoined||s.hyphensFlagged||s.paragraphsJoined
+              ||(d.interface&&d.interface.size)||(d.furniture&&d.furniture.size);
+  if(fired) return [];
+  const text=d.lines.filter(l=>l.trim()).map(l=>l.replace(/\s+$/,"").length)
+                    .sort((a,b)=>a-b);
+  const med=text.length?text[Math.floor(text.length/2)]:0;
+  const labels=new Set(d.regions.map(r=>r.label));
+  const out=[];
+  if(!labels.has("pg_header")&&!labels.has("pg_licence"))
+    out.push("**No Project Gutenberg apparatus.** The header and licence "+
+      "blocks are matched verbatim, so this file did not come from Gutenberg, "+
+      "or came from it already stripped.");
+  out.push("**No structural headings.** Nothing matched `Chapter`, `Book`, "+
+    "`Part`, `Act`, `Scene`, `Letter`, a roman numeral or a bare ascending "+
+    "numeral standing on its own line. A text with no divisions is not a "+
+    "defective text; it means body-only and verbatim are necessarily the "+
+    "same file.");
+  if(!d.furniture||!d.furniture.size)
+    out.push("**No page furniture.** Running heads are found by their "+
+      "*interval*, which needs an ascending page-number sequence to establish "+
+      "a page length. Born-digital text has no pages, so this rule can never "+
+      "fire on it.");
+  if(!isWrapped(d.lines))
+    out.push("**Nothing to rejoin.** The text is not hard-wrapped (median "+
+      "line "+med+" characters, one line per paragraph), so reflow and "+
+      "protected spans had no question to answer.");
+  else
+    out.push("**Nothing to rejoin.** Lines are short (median "+med+" "+
+      "characters), which is the shape wrapped text has, but no block looked "+
+      "like one paragraph broken across several lines. Short lines that are "+
+      "each a whole utterance — a comment, a caption, a line of a transcript "+
+      "— are not wrapped, and rejoining them would be damage.");
+  out.push("**No word broken across a line.** De-hyphenation looks for a word "+
+    "ending in a hyphen at a line end; there were none.");
+  return out;
+}
+
+const NO_OP_CLOSING=
+  "**What this means for your corpus.** The rules here are built for printed "+
+  "books turned into text: Gutenberg files, PDF extractions, library scans. "+
+  "Their apparatus — running heads, page numbers, editorial front matter, "+
+  "hyphens at line ends — is what there is to remove. Text that was born "+
+  "digital has none of it, and the honest answer is that your file is already "+
+  "as clean as this tool can make it.\n\nIf your material carries a "+
+  "different kind of apparatus — interface labels, timestamps, usernames, "+
+  "boilerplate that repeats — that is worth reporting, because it is the sort "+
+  "of thing a rule can be built for and none of the rules here were.";
+
 function logMarkdown(){
   const d=DOC,s=RESULT.stats,b=RESULT.base;
   const delta=b.tokens?(100*(s.tokens-b.tokens)/b.tokens).toFixed(1):"0.0";
@@ -4000,6 +4407,27 @@ function logMarkdown(){
   m+=`| Characters | ${b.chars.toLocaleString()} | ${s.chars.toLocaleString()} | ${(100*(s.chars-b.chars)/b.chars).toFixed(1)}% |\n`;
   m+=`| Word tokens | ${b.tokens.toLocaleString()} | ${s.tokens.toLocaleString()} | ${delta}% |\n`;
   m+=`| Word types | ${b.types.toLocaleString()} | ${s.types.toLocaleString()} | n/a |\n\n`;
+  const quiet=noOpNotes();
+  if(quiet.length){
+    m+=`## Nothing was removed, and here is what was looked for\n\n`;
+    m+=`Every rule in this tool examined the text and declined. That is a `;
+    m+=`result, not a failure — but it is only useful if you can see what was `;
+    m+=`asked.\n\n`;
+    quiet.forEach(n=>m+=`- ${n}\n`);
+    m+=`\n${NO_OP_CLOSING}\n\n`;
+  }
+  if(d.interfaceSeries&&d.interfaceSeries.length){
+    m+=`### Interface furniture\n\n`;
+    m+=`${d.interface.size} lines look like labels an application printed `;
+    m+=`rather than text anyone wrote.\n\n`;
+    m+=`| Control | Times | Why it was judged furniture |\n|---|---|---|\n`;
+    d.interfaceSeries.forEach(x=>
+      m+=`| \`${x.key}\` | ${x.lines.length} | ${x.reason} |\n`);
+    m+=`\n**Detected, not removed.** Every word here is ordinary English, so `;
+    m+=`the rule declines entirely unless the file is shaped like a scraped `;
+    m+=`feed, and even then takes only lines sitting after the text of a `;
+    m+=`record rather than among it.\n\n`;
+  }
   m+=`## 4. Sections removed\n\n`;
   if(!RESULT.dropped.length) m+=`None.\n\n`;
   else{
@@ -4015,10 +4443,20 @@ function logMarkdown(){
 
 function drawLog(){
   const d=DOC,s=RESULT.stats,b=RESULT.base;
+  const quietNotes=noOpNotes();
   const dt=b.tokens?100*(s.tokens-b.tokens)/b.tokens:0;
   const dc=b.chars?100*(s.chars-b.chars)/b.chars:0;
   let h=`<div class="canvas-head"><h3>Preprocessing log</h3>
-    <p>A record of every decision taken, suitable for citation in a methods section.</p></div>
+    <p>A record of every decision taken, suitable for citation in a methods section.</p></div>`
+    +(quietNotes.length?`<div class="warn"><strong>Nothing was removed, and here
+      is what was looked for.</strong> Every rule examined the text and
+      declined.<ul>${quietNotes.map(n=>`<li>${esc(n.replace(/\*\*/g,"").replace(/[`*]/g,""))}</li>`).join("")}</ul>
+      The rules here are built for printed books turned into text. Text that was
+      born digital carries none of that apparatus, and your file is already as
+      clean as this tool can make it. If it carries a different kind — interface
+      labels, timestamps, usernames, boilerplate that repeats — that is worth
+      reporting.</div>`:"")
+    +`
 
    <h4>Provenance</h4><table>
    <tr><td class="lbl">Source</td><td>${esc(d.name)}</td></tr>
@@ -4118,12 +4556,26 @@ $$("nav button").forEach(b=>b.onclick=()=>{
   $("#tab-"+b.dataset.tab).classList.add("on");
 });
 
-/* ---- restore session ---- */
+/* ---- restore session ----
+   This filled the sign-in fields and stopped, so a reload put the gate back up
+   with the name typed in and `USER` still null. Nothing was lost — the details
+   were in local storage the whole time — but the reader had to sign in again
+   on every reload, and if they took the "Continue without signing in" door
+   instead, every log written afterwards silently lost its "Prepared by" line.
+   That line is the reason the sign-in exists: it is what makes the log a
+   document someone can cite. So this was a provenance fault wearing the
+   clothes of an annoyance.
+
+   `signedOut` is what keeps the gate reachable now that it is skipped by
+   default: without it, signing in once would hide the door for good, which
+   matters on a shared machine. */
 (function(){
   const s=load_();
   if(s.user){ $("#g-name").value=s.user.name||""; $("#g-inst").value=s.user.inst||""; }
   drawCapabilities();
+  drawRegister();
   drawRecent();
+  if(s.user&&!s.signedOut) enter(s.user);
 })();
 
 </script>

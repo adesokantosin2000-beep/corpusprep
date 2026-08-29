@@ -378,7 +378,7 @@ the two faults below are.
 
 ---
 
-## P1 — A rule that scores 100% found 0 of 337 verse lines — **NOT FIXED**
+## P1 — A rule that scores 100% found 0 of 337 verse lines — **FIXED**
 
 **Severity: highest. Maximum possible damage, on the material the rule exists
 to protect.**
@@ -432,6 +432,75 @@ Not confined to the extreme case. Beowulf, at 5% blank lines, protects 2,627
 of a possible 3,318 — losing 21% to the same cause without anything looking
 wrong.
 
+### The fix, 28 August
+
+**A blank line is a structural boundary only when blank lines are not the
+norm.** `spacing_run()` decides that before the rule runs; `_despace()` removes
+the leading; the spans come back in the caller's line numbers. The rule itself
+is untouched — it now sees the text as it was set rather than as it was
+extracted.
+
+Two tests, and the second is what makes it safe:
+
+```
+blank lines           >= 40% of the file
+text lines standing alone   >= 80% of them
+```
+
+Density alone would misread a poem printed as three-line stanzas with
+three-line gaps, which is 50% blank and every blank of it structure. Requiring
+that text lines stand *alone* is what separates leading from a stanza break.
+
+**Blank runs longer than the modal run survive.** This is not a detail. Delete
+every blank and one protected seed extends over the whole file, taking the
+prose with it — the one error this rule must never make. In the poems the
+leading is one blank and a stanza break is two, and only the leading goes.
+
+```
+                            before   after
+LIT 201 metaphysical poems    0/337  276/337
+mixed_verse.txt               52/246   52/246
+Beowulf.pdf                2626/3318 2626/3318
+Doctor Faustus             5995/5995 5995/5995
+pg9405_ballads.txt         1958/2533 1958/2533
+Jane Eyre, Emma, Frankenstein,
+The Prince, Treasure Island,
+King Solomon's Mines, Oz         0        0
+```
+
+Every prose file stayed at zero, and one fixture besides the poems moved:
+`drama_with_contents.txt`, a segmentation skeleton of one speech per line, now
+reads as fully protected drama. It is one-line blocks, which reflow leaves
+alone in either case, so nothing downstream changes — but it is the shape to
+watch, because a file of short one-line entries now compacts into one block.
+
+`tests/fixtures/double_spaced_verse.txt` is the fixture the failure earned:
+Donne between hard-wrapped Jane Eyre, set one line to a blank throughout. Its
+key was written by the generator, not by running the detector.
+
+The strongest test is not that fixture but the invariant behind it —
+`test_double_spacing_does_not_change_the_answer` doubles `mixed_verse.txt` and
+requires the same verdict on every line. It cannot be satisfied by protecting
+more, or by protecting less.
+
+### What the remaining 61 lines are
+
+Worth separating, because they are two different things:
+
+```
+337 text lines
+  276  protected
+   35  cover, contents, poem titles, bylines — correctly not protected
+   26  real verse, missed
+```
+
+The 26 are four stanzas scoring 38–40% against the 45% threshold, logged below
+as P3. They are not a spacing fault; single-spaced, they miss too.
+
+**Beowulf did not move.** At 5% blank lines it is nowhere near the density
+test, and rightly so. Its 21% is the same *symptom* from a different cause and
+is not addressed here.
+
 ---
 
 ## P2 — A 21,581-token "Introduction", and this time it is correct
@@ -457,3 +526,262 @@ is front-matter-sized; it simply happened to be correct here.
 
 Recorded so that the next large front-matter region is inspected rather than
 trusted.
+
+
+---
+
+## P3 — Enjambed verse sits just under the threshold — **FIXED**
+
+**Severity: moderate. Real verse left unprotected, but visibly and in whole
+stanzas rather than silently.**
+
+With P1 fixed, four stanzas in the metaphysical poems are still missed:
+
+```
+line  97   5 lines   40%
+line 119   5 lines   40%
+line 504   8 lines   38%
+line 640   8 lines   38%
+                     threshold 45%
+```
+
+All four rhyme *abab* with the odd lines unpunctuated, so only the even breaks
+carry both signals. Half of 100% is 50%, and the last line of a block scores
+nothing because nothing follows it to vouch for the break — which is what puts
+an eight-line stanza at 38%.
+
+**Do not answer this by lowering the threshold.** 45% is what keeps wrapped
+prose at 3%, and prose protected is the unrecoverable error.
+
+The evidence not being used is the *neighbouring stanzas*. Each of these sits
+in a poem whose other stanzas clear the threshold comfortably, and the window
+stops at the block edge by design (see P1). A passage-level second pass —
+extend a protected span to the adjacent blocks of the same poem — would use
+that evidence without touching the threshold. Not attempted.
+
+This is also the likeliest shape of Beowulf's missing 21%.
+
+### The fix, 28 August
+
+A stanza is judged with the poem around it. A block that cannot carry itself is
+protected if it clears **half** the threshold and has a firmly protected block
+beside it. The threshold is untouched.
+
+```
+                            before   P1 fix    P3 fix
+LIT 201 metaphysical poems    0/337  276/337   302/337
+Beowulf.pdf                2626/3318 2626/3318 2907/3318
+pg9405_ballads.txt         1958/2533 1958/2533 2074/2533
+mixed_verse.txt              52/246   52/246    52/246
+every prose fixture               0        0         0
+```
+
+Beowulf's loss falls from 21% to 12%. The poems' remaining 35 lines are 33 of
+cover, contents, titles and bylines — which must not be protected — and one
+two-line closing couplet whose own rate is 0%, below any floor.
+
+**The guard is what makes it safe, and the first attempt did not have it.**
+Corroboration first vouched from the per-line judgements, which include lines
+that never become a span. A lone flagged line in hard-wrapped *Jane Eyre*
+seeded the block beside it, which seeded the next: three paragraphs protected,
+reflow recovery down from 99.5% to 98.5%, caught by the round-trip test. A
+voucher must now be most of a block and at least a span's worth. Seeded once
+from the primary rule and never iterated, or one stanza would carry protection
+to the end of the file.
+
+
+---
+
+## P4 — The command line never ran half the rules — **FIXED**
+
+**Severity: high, and invisible. Every log the CLI ever wrote understated what
+was in the file.**
+
+`cmd_clean` and `cmd_inspect` called `segment(load(path))` rather than
+`analyse()`. Everything that runs after segmentation — page furniture,
+catchwords, hyphen breaks, footnotes — was never looked for, so:
+
+- the log's furniture section was absent, which reads as "none found"
+- `drop_furniture` removed nothing, because nothing had been marked
+- the web application, which always ran the full pass, disagreed with the
+  command line about the same file
+
+`analyse()`'s own docstring says it exists so that "callers cannot accidentally
+render a document whose furniture was never looked for", and the package's own
+front end was that caller.
+
+**`check_parity.py` could not have caught this.** It compares the two engines,
+and both engines were right. The fault was in a front end, and nothing compares
+front ends. Found only because a new rule was wired in and did not appear in
+the CLI's output.
+
+---
+
+## P5 — Every division word was English — **FIXED**
+
+**Severity: moderate, and silent in the worst way.**
+
+`Kapitel`, `Глава`, `Kapitola` were not words the heading tier had been told
+about, so a German, Russian or Czech book segmented as one undivided body. The
+log then said *no structural headings found*, which reads as a fact about the
+book rather than about the tool.
+
+Fixed by widening the wordlist, with fixtures in three languages
+(`tools/make_multilingual_fixtures.py`) whose keys are recorded as the
+generator writes them. Region labelling was already language-independent and
+scores 100% on all three; measurement now covers 7,733 content lines.
+
+**A wordlist is only as wide as whoever wrote it.** This does not make the
+package multilingual. It stops it being confidently wrong about three more
+languages than before, and the remaining exposure is stated in `docs/USING.md`
+rather than left for a user to discover.
+
+---
+
+## P6 — Interface furniture, and the fixture that nearly hid its fault
+
+**Severity: none outstanding. Recorded for the method.**
+
+The new rule scored 100% on its own generated fixture. It was wrong anyway, and
+a test written afterwards found it in one line: a one-word comment sitting
+directly above the controls — `Same`, then `Like`, then `Reply` — is inside the
+trailing run of every record it appears in, and no amount of counting
+afterwards can tell it from a control, because by then it looks exactly like
+one.
+
+The generator had not produced that shape because its comments were long. **A
+fixture only tests the failure modes its author thought of** — the third time
+that sentence has been written in this file.
+
+The fix is a structural fact rather than a threshold: a record is never all
+controls, because something was commented on, so the trailing run stops before
+it eats the last line of the body.
+
+
+---
+
+## P7 — The interface test could not run, and had been wrong for four days — **FIXED**
+
+**Severity: high. Half the test surface reported nothing, and what it would
+have reported was a contradiction of the shipped product.**
+
+`tools/ui_test.js` exited with `jsdom not installed` on the development
+machine. The cause was not a missing install. `node_modules` is committed to
+the repository so the machine can work offline, and the commit of jsdom was
+partial:
+
+```
+files in node_modules/jsdom, committed   161
+files in a complete jsdom 30.0.1         657
+package.json                             absent
+lib/generated/idl/Document.js            truncated at exactly 16,384 bytes
+```
+
+Every dependency in `node_modules` is at the version a fresh `npm install
+jsdom` produces today — tough-cookie 6.0.2, whatwg-url 17.1.0, parse5 8.0.1,
+undici 8.10.0 and the rest all match. Only jsdom's own tree was cut short.
+Without `package.json`, Node cannot resolve `require('jsdom')` at all, so the
+first symptom hid the second.
+
+Repaired by completing the same vendored copy at the same version. Nothing
+else in `node_modules` changed; one file's contents changed
+(`Document.js`, 16,384 → 147,768 bytes) and 496 were added.
+
+### What the test said once it could speak
+
+```
+39 passed, 1 failed
+FAIL  "reads pdf" is honestly marked planned    claimed as available
+```
+
+**The assertion was wrong, and the product was right.** PDF reading shipped in
+`v0.8.0` on 25 August and in the browser in `v0.11.0`; the capability list said
+so correctly, and the test still demanded it be marked *planned*. It had been
+failing since the day PDF support landed and nobody knew, because the runner
+could not start.
+
+The irony is exact. That check exists because the capability list once carried
+three shipped features as planned — *"it went stale in the direction that
+flatters"*, says the comment above it. The test then went stale in the
+opposite direction and would have held the list back to a claim that was no
+longer true.
+
+**A test that cannot run is worse than no test.** It occupies the place where
+coverage would be and asserts nothing, and the summary line that says how many
+tests passed does not count it.
+
+### The gap this sits in
+
+`check_parity.py` compares the two engines. `test_corpusprep.py` exercises the
+Python package. Neither touches a front end, which is where P4 lived and where
+this lived. Two of the seven faults in this file are front-end faults found by
+accident.
+
+Both front ends now have a runnable test: `tools/ui_test.js` for the page, and
+`test_cli_clean_runs_every_rule` for the command line — the latter verified by
+reverting the P4 fix and confirming it fails.
+
+
+---
+
+## P8 — A reload put the sign-in gate back up — **FIXED**
+
+**Severity: moderate, and mislabelled by its symptom. Reported as an
+annoyance; it was a provenance fault.**
+
+*"When I reload, it logs the users out."*
+
+It never logged anyone out. Nothing was lost. The startup block read the saved
+user out of local storage, filled the sign-in fields with it, and stopped:
+
+```js
+if (s.user) { $("#g-name").value = s.user.name || "";
+              $("#g-inst").value = s.user.inst || ""; }
+```
+
+The gate stayed up with the name already typed in and `USER` still `null`.
+Driven in a real DOM across two visits sharing one storage:
+
+```
+1. sign in           USER = A Reader     gate hidden
+2. reload            USER = null         gate shown, name field pre-filled
+   still in storage: {name: "A Reader", inst: "Somewhere"}
+```
+
+### Why this is not a cosmetic fault
+
+`USER` is what stamps **Prepared by:** onto every preprocessing log. That line
+is the reason the sign-in exists — `design/authentication.md` says so plainly:
+*"for a research tool that provenance line is worth more than the login screen
+itself: it makes the log a document someone can cite."*
+
+A reader who reloads and takes the "Continue without signing in" door — the
+faster of the two, and the obvious one when you have already signed in once —
+writes every subsequent log without that line, and nothing tells them. The
+symptom is a second click. The cost is unattributed logs.
+
+### The fix, and the door it had to keep open
+
+One line restores the session rather than the form. A `signedOut` flag and a
+**Sign out** control in the header keep the gate reachable, which matters on a
+shared machine: without them, signing in once would hide the door for good.
+
+Skipping the sign-in records `signedOut` but does **not** erase the remembered
+user, so going through that door on a borrowed machine does not cost the owner
+their name.
+
+Eleven checks in `tools/ui_test.js` cover the whole cycle — sign in, reload,
+sign out, reload, skip — verified by reverting the fix and confirming two of
+them fail.
+
+### Where it hid
+
+The same place as P4 and P7: a front end. The unit tests exercise the package,
+which has no session; the parity check compares engines, which have no
+session. `ui_test.js` opens the page — but it opened it *once*, and this fault
+only exists on the second visit. A test that never reloads cannot see a
+restore fault.
+
+**Three of the eight faults in this file are front-end faults, and all three
+were found by a person rather than by a test.**
+

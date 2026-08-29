@@ -11,6 +11,7 @@ reintroduces them.
 
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -1281,6 +1282,467 @@ def test_protected_spans_on_mixed_text():
           len(spans) == len({(s.start, s.end) for s in spans}))
     for s in spans:
         check(f"span {s.start}-{s.end} explains itself", "%" in s.reason)
+
+
+def test_line_spacing_is_not_structure():
+    """The P1 fault: verse a PDF double-spaced, which the rule could not see.
+
+    Extraction puts a blank line between every line of the file. Each verse
+    line was then judged alone, and one line is never enough evidence, so a
+    rule scoring 100% on `mixed_verse.txt` found none of it.
+    """
+    from corpusprep import protect as P
+
+    fx = FIXTURES / "double_spaced_verse.txt"
+    fk = Path(__file__).parent / "keys" / "double_spaced_verse.protected"
+    if not fx.exists() or not fk.exists():
+        print("  SKIP  double-spaced fixture not present")
+        return
+
+    truth = _ranges("double_spaced_verse.protected")
+    doc = segment(load(fx))
+    spans = P.find_in_document(doc)
+    found = P.protected_lines(spans)
+
+    check("the leading is recognised as leading",
+          P.spacing_run(doc.lines) == 1, f"got {P.spacing_run(doc.lines)}")
+    check("double-spaced: no prose protected", not (found - truth),
+          f"wrongly protected {sorted(found - truth)[:5]}")
+    check("double-spaced: no verse left unprotected", not (truth - found),
+          f"missed {sorted(truth - found)[:5]}")
+    check("double-spaced: one span for the poem", len(spans) == 1,
+          f"got {len(spans)}")
+
+
+def test_double_spacing_does_not_change_the_answer():
+    """The invariant the fix is really for.
+
+    The same text, set two ways, must be judged the same way. Comparing the
+    two directly is stronger than any threshold on either one, because it
+    cannot be satisfied by protecting more or by protecting less.
+    """
+    from corpusprep import protect as P
+
+    fx = FIXTURES / "mixed_verse.txt"
+    if not fx.exists():
+        return
+    lines = load(fx).lines
+
+    doubled: list[str] = []
+    where: dict[int, int] = {}          # original 1-based -> doubled 1-based
+    for n, line in enumerate(lines, 1):
+        doubled.append(line)
+        where[n] = len(doubled)
+        doubled.append("")
+
+    single = P.protected_lines(P.find(lines))
+    double = P.protected_lines(P.find(doubled))
+
+    text = [n for n, l in enumerate(lines, 1) if l.strip()]
+    before = {n for n in text if n in single}
+    after = {n for n in text if where[n] in double}
+
+    check("double-spacing protects nothing extra", not (after - before),
+          f"{len(after - before)} extra, e.g. {sorted(after - before)[:5]}")
+    check("double-spacing loses nothing", not (before - after),
+          f"{len(before - after)} lost, e.g. {sorted(before - after)[:5]}")
+
+
+def test_spacing_is_only_suspected_when_blanks_are_uniform():
+    """Density alone is not evidence. Three-line stanzas with three-line gaps
+    are 50% blank and every one of those blanks is structure."""
+    from corpusprep import protect as P
+
+    verse = ["Go and catch a falling star,",
+             "Get with child a mandrake root,",
+             "Tell me where all past years are,",
+             "Or who cleft the devil's foot,",
+             "Teach me to hear mermaids singing,",
+             "Or to keep off envy's stinging,",
+             "And find",
+             "What wind",
+             "Serves to advance an honest mind.",
+             "If thou be'st born to strange sights,",
+             "Things invisible to see,",
+             "Ride ten thousand days and nights."]
+
+    spaced: list[str] = []
+    for line in verse:
+        spaced += [line, ""]
+    stanzas: list[str] = []
+    for k in range(0, len(verse), 3):
+        stanzas += verse[k:k + 3] + ["", "", ""]
+
+    check("one blank between every line is leading",
+          P.spacing_run(spaced) == 1, f"got {P.spacing_run(spaced)}")
+    check("stanzas with matching gaps are structure",
+          P.spacing_run(stanzas) is None, f"got {P.spacing_run(stanzas)}")
+    check("a file with few blanks is structure",
+          P.spacing_run(verse + [""] + verse) is None)
+    check("too little text to judge",
+          P.spacing_run(["a", "", "b", ""]) is None)
+
+
+def test_a_wider_gap_still_bounds_a_span_when_double_spaced():
+    """Removing the leading must not remove the paragraph breaks with it.
+
+    If every blank went, one seed in the verse would extend over the whole
+    file and take the prose with it, which is the one error this rule must
+    never make.
+    """
+    from corpusprep import protect as P
+
+    fx = FIXTURES / "double_spaced_verse.txt"
+    if not fx.exists():
+        return
+    lines = load(fx).lines
+    found = P.protected_lines(P.find(lines))
+    text = [n for n, l in enumerate(lines, 1) if l.strip()]
+
+    check("the prose either side is left alone",
+          all(n not in found for n in text
+              if "possibility of taking a walk" in lines[n - 1]
+              or "dispensed from joining" in lines[n - 1]))
+    check("not everything is protected", len(found) < len(lines))
+
+
+def test_a_stanza_is_judged_with_the_poem_around_it():
+    """P3: enjambed verse scoring under the threshold on its own.
+
+    A stanza rhyming abab with the odd lines unpunctuated carries only half
+    its breaks, and its last line carries none because nothing follows it. The
+    poem around it is the evidence that was not being used.
+    """
+    from corpusprep import protect as P
+
+    poem = ["How vainly men themselves amaze",
+            "To win the palm, the oak, or bays,",
+            "And their uncessant labours see",
+            "Crown'd from some single herb or tree,",
+            "Whose short and narrow verged shade",
+            "Does prudently their toils upbraid;",
+            "While all flow'rs and all trees do close",
+            "To weave the garlands of repose.",
+            "",
+            "Fair Quiet, have I found thee here,",
+            "And Innocence, thy sister dear!",
+            "Mistaken long, I sought you then",
+            "In busy companies of men;",
+            "Your sacred plants, if here below,",
+            "Only among the plants will grow.",
+            "Society is all but rude,",
+            "To this delicious solitude."]
+
+    weak = [l for l in poem[:8] if l]
+    profile = P.break_profile(weak)
+    rate = sum(profile) / len(weak)
+    check("the stanza cannot carry itself", rate < P.MIN_RATE,
+          f"{rate:.0%} is not under {P.MIN_RATE:.0%}")
+    check("but it clears the corroboration floor", rate >= P.CORROBORATE,
+          f"{rate:.0%} is under {P.CORROBORATE:.0%}")
+
+    found = P.protected_lines(P.find(poem))
+    check("the poem protects both stanzas",
+          all(n in found for n in range(1, len(poem) + 1)),
+          f"missed {[n for n in range(1, len(poem) + 1) if n not in found]}")
+
+
+def test_corroboration_needs_a_passage_to_lean_on():
+    """The guard that keeps P3's fix out of prose.
+
+    The per-line judgements include lines that never become a span. Letting a
+    lone flagged line vouch for the block beside it reached three paragraphs
+    of Jane Eyre in wrapped form, and each one it took would have been left in
+    fragments for ever.
+    """
+    from corpusprep import protect as P
+
+    lines = ["x"] * 6
+    protected = [False] * 6
+    check("one protected line vouches for nothing",
+          not P._is_strong([True] + [False] * 5, lines, (0, 5)))
+    check("a mostly protected block vouches",
+          P._is_strong([True] * 4 + [False] * 2, lines, (0, 5)))
+    check("half a block is not enough on its own",
+          not P._is_strong([True, True, False, False, False, False],
+                           lines, (0, 5)))
+    check("an empty block vouches for nothing",
+          not P._is_strong(protected, ["", ""], (0, 1)))
+
+
+def test_a_run_that_does_nothing_says_what_it_looked_for():
+    """A tester cleaned Instagram comments and learned only that 0 tokens were
+    removed and no headings were found. Silence is not a result."""
+    from corpusprep import render_all, report
+
+    text = "\n\n".join([
+        "Love this!!", "Where did you get that jacket?", "same here honestly",
+        "The lighting in this one is unreal", "Can you do a tutorial",
+        "omg the shoes", "this made my day", "what camera do you use",
+        "your feed is so consistent", "been following since 2019",
+        "the colours here are unreal", "please drop the playlist",
+    ]) + "\n"
+
+    with tempfile.TemporaryDirectory() as d:
+        fx = Path(d) / "comments.txt"
+        fx.write_text(text, encoding="utf-8")
+        doc = segment(load(fx))
+        results = render_all(doc, list(BUILTIN))
+        notes = report.no_op_notes(doc, results)
+        md = report.build_markdown(doc, results)
+
+    check("a no-op run explains itself", len(notes) >= 4, f"{len(notes)} notes")
+    check("it names the headings it tried",
+          any("Chapter" in n for n in notes))
+    check("it explains why furniture could not fire",
+          any("page-number sequence" in n for n in notes))
+    check("it does not claim the lines are wrapped paragraphs",
+          any("whole utterance" in n or "not hard-wrapped" in n for n in notes))
+    check("and the log carries it", "Nothing was removed" in md)
+
+
+def test_a_run_that_does_something_stays_quiet_about_it():
+    """The explanation is for the empty case only. A run with results already
+    has content, and repeating the catalogue there would be noise."""
+    from corpusprep import render_all, report
+
+    fx = FIXTURES / "pg_marked.txt"
+    if not fx.exists():
+        return
+    doc = segment(load(fx))
+    results = render_all(doc, list(BUILTIN))
+    check("a run with results adds no catalogue",
+          report.no_op_notes(doc, results) == [])
+
+
+def test_interface_furniture_on_a_scraped_thread():
+    """`Like`, `Reply`, `2 likes` — apparatus an application printed."""
+    from corpusprep import interface as I
+
+    fx = FIXTURES / "social_thread.txt"
+    fk = Path(__file__).parent / "keys" / "social_thread.interface"
+    if not fx.exists() or not fk.exists():
+        print("  SKIP  social thread fixture not present")
+        return
+
+    truth = _ranges("social_thread.interface")
+    lines = fx.read_text(encoding="utf-8").splitlines()
+    found, series = I.find(lines)
+
+    check("no comment text removed", not (found - truth),
+          f"wrongly removed {[lines[n - 1] for n in sorted(found - truth)][:4]}")
+    check("no label left behind", not (truth - found),
+          f"missed {[lines[n - 1] for n in sorted(truth - found)][:4]}")
+    check("every series explains itself", all("records" in s.reason for s in series))
+    check("the occasional label is admitted by its company",
+          any("beside a control" in s.reason for s in series))
+
+
+def test_interface_furniture_never_fires_on_a_book():
+    """The error this rule must never make.
+
+    Every word it removes is ordinary English. A novel containing the line
+    `Reply.` in dialogue must come through untouched, and the guard is that
+    the file has to look like a scraped feed before the rule speaks at all.
+    """
+    from corpusprep import interface as I
+
+    for name in ("CBronte_Jane.txt", "romeo_juliet.txt", "pg1232_prince.txt",
+                 "pg9405_ballads.txt", "scanned_novel.txt", "mixed_verse.txt",
+                 "early_modern.txt"):
+        fx = FIXTURES / name
+        if not fx.exists():
+            continue
+        doc = segment(load(fx))
+        found, series = I.find_in_document(doc)
+        check(f"{name} has no interface furniture", not found and not series,
+              f"{len(found)} lines")
+
+
+def test_a_repeated_one_word_comment_is_not_a_control():
+    """Position, not vocabulary. A control comes after the text of a record;
+    a one-word comment is the text."""
+    from corpusprep import interface as I
+
+    lines: list[str] = []
+    for i in range(8):
+        lines += [f"[user_{i}](https://example.com/user_{i}/)",
+                  f" [{i + 2} w](https://example.com/c/{i}/)",
+                  "Same",                 # a comment, at the head
+                  "Like", "Reply",        # controls, at the tail
+                  ""]
+    found, series = I.find(lines)
+    keys = {s.key for s in series}
+    check("the controls are found", {"like", "reply"} <= keys, f"got {keys}")
+    check("the repeated comment is not", "same" not in keys)
+    check("and none of its lines were taken",
+          not any(lines[n - 1].strip() == "Same" for n in found))
+
+
+def test_a_short_thread_is_declined():
+    """Three records cannot tell a control from a coincidence."""
+    from corpusprep import interface as I
+
+    lines: list[str] = []
+    for i in range(3):
+        lines += [f"[user_{i}](https://example.com/user_{i}/)",
+                  f" [{i + 2} w](https://example.com/c/{i}/)",
+                  "a comment of some length that is clearly prose",
+                  "Like", "Reply", ""]
+    found, series = I.find(lines)
+    check("too few records to speak", not found and not series)
+
+
+def test_the_cli_runs_every_rule():
+    """`clean` used `segment(load())`, so page furniture, catchwords, hyphen
+    breaks, footnotes and interface furniture were never looked for, and the
+    log reported none of them."""
+    from corpusprep import analyse
+
+    fx = FIXTURES / "scanned_novel.txt"
+    if not fx.exists():
+        return
+    doc = analyse(fx)
+    check("analyse marks furniture the bare pair would miss", bool(doc.furniture))
+    check("and records it for the log", bool(doc.meta.get("furniture")))
+
+
+def test_division_headings_are_found_outside_english():
+    """A German novel used to segment as one undivided body.
+
+    Not because the heading tier was uncertain, but because `Kapitel` was not
+    a word it had been told about — and the log said "no structural headings
+    found", which reads as a fact about the book rather than about the tool.
+    """
+    from corpusprep.segment import is_chapter_heading
+
+    for fixture, title in (("de_kapitel.txt", "Kapitel I"),
+                           ("ru_glava.txt", "Глава I"),
+                           ("cs_kapitola.txt", "Kapitola I")):
+        fx = FIXTURES / fixture
+        if not fx.exists():
+            continue
+        doc = segment(load(fx))
+        chapters = [r for r in doc.regions if r.kind == "chapter"]
+        check(f"{fixture} segments into chapters", len(chapters) == 2,
+              f"got {len(chapters)}")
+        check(f"{fixture} names them from the text",
+              chapters and chapters[0].title == title,
+              f"got {chapters[0].title if chapters else None!r}")
+        check(f"{fixture} covers every line", doc.coverage_gaps() == [])
+
+    check("Kapitel is a heading", is_chapter_heading("Kapitel I"))
+    check("Глава is a heading", is_chapter_heading("Глава II"))
+    check("Kapitola is a heading", is_chapter_heading("Kapitola III"))
+    check("but a sentence starting with one is not",
+          not is_chapter_heading("Kapitel eines Buches, das niemand las, und "
+                                 "das nun in der Ecke liegt und verstaubt"))
+
+
+def test_non_ascii_text_survives_the_pipeline():
+    """Umlauts, ß, Cyrillic and Czech diacritics through every stage."""
+    from corpusprep import analyse, render_all, BUILTIN
+
+    for fixture, probe in (("de_kapitel.txt", "verblaßte"),
+                           ("ru_glava.txt", "незнакомца"),
+                           ("cs_kapitola.txt", "třicet")):
+        fx = FIXTURES / fixture
+        if not fx.exists():
+            continue
+        doc = analyse(fx)
+        results = {r.variant.name: r for r in render_all(doc, list(BUILTIN))}
+        body = results["body-only"]
+        check(f"{fixture} keeps its characters", probe in body.text,
+              f"{probe!r} missing")
+        check(f"{fixture} drops the Gutenberg apparatus",
+              "Project Gutenberg" not in body.text)
+        check(f"{fixture} loses no body tokens to encoding",
+              body.stats["word_tokens"] > 0)
+
+
+def _cli(*args) -> tuple[int, str, str]:
+    """Run the real command, the way a user runs it."""
+    import subprocess
+
+    root = Path(__file__).resolve().parent.parent
+    env = dict(os.environ, PYTHONPATH=str(root / "src"), PYTHONIOENCODING="utf-8")
+    proc = subprocess.run([sys.executable, "-m", "corpusprep", *args],
+                          cwd=root, env=env, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace", timeout=300)
+    return proc.returncode, proc.stdout, proc.stderr
+
+
+def test_cli_clean_runs_every_rule():
+    """End-to-end through `python -m corpusprep clean`, not through the API.
+
+    P4: `clean` and `inspect` called `segment(load())` rather than `analyse()`,
+    so page furniture, catchwords, hyphen breaks and footnotes were never
+    looked for. The log omitted them, which reads as "none found", and
+    `--drop-furniture` removed nothing because nothing had been marked.
+
+    **`check_parity.py` could not have caught it.** It compares the two
+    engines, and both engines were right; the fault was in a front end, and
+    nothing exercised one. This test is small on purpose — it does not
+    re-measure any rule. It establishes that the user-facing command path
+    reaches them at all.
+    """
+    fx = FIXTURES / "scanned_novel.txt"
+    if not fx.exists():
+        print("  SKIP  scanned_novel fixture not present")
+        return
+
+    with tempfile.TemporaryDirectory() as d:
+        code, out, err = _cli("clean", str(fx), "--out", d)
+        check("the command exits cleanly", code == 0, f"exit {code}: {err[:200]}")
+        log = Path(d) / "scanned_novel_log.md"
+        check("a log is written", log.exists())
+        if not log.exists():
+            return
+        text = log.read_text(encoding="utf-8")
+        check("the log reports page furniture", "### Page furniture" in text,
+              "furniture section missing: the CLI is not running the full pass")
+        check("and names the running head it found", "Detected, not removed" in text)
+        check("the variants were written",
+              (Path(d) / "scanned_novel__body-only.txt").exists())
+
+
+def test_cli_clean_reports_interface_furniture():
+    """The same path, for the rule that has no page furniture to find.
+
+    `scanned_novel.txt` is a page-imaged novel and produces the *page*
+    furniture section; only a file shaped like a scraped feed produces the
+    *interface* one. Both go through the same front end, so both are checked
+    here rather than one standing in for the other.
+    """
+    fx = FIXTURES / "social_thread.txt"
+    if not fx.exists():
+        print("  SKIP  social thread fixture not present")
+        return
+
+    with tempfile.TemporaryDirectory() as d:
+        code, out, err = _cli("clean", str(fx), "--out", d)
+        check("the command exits cleanly", code == 0, f"exit {code}: {err[:200]}")
+        log = Path(d) / "social_thread_log.md"
+        check("a log is written", log.exists())
+        if not log.exists():
+            return
+        text = log.read_text(encoding="utf-8")
+        check("the log reports interface furniture",
+              "### Interface furniture" in text,
+              "interface section missing: the CLI is not running the full pass")
+        check("and says it was not removed", "Detected, not removed" in text)
+
+
+def test_cli_inspect_runs_every_rule():
+    """`inspect` had the same fault and needs the same guard."""
+    fx = FIXTURES / "scanned_novel.txt"
+    if not fx.exists():
+        return
+    code, out, err = _cli("inspect", str(fx))
+    check("inspect exits cleanly", code == 0, f"exit {code}: {err[:200]}")
+    check("inspect reports the furniture it found",
+          "furniture" in out.lower(),
+          "no mention of furniture in inspect output")
 
 
 def test_prose_is_never_protected():

@@ -124,7 +124,7 @@ exists cannot be quietly repaired later.
 Claim only what has been measured, and the measurements are in the repository
 rather than in this file, so a reviewer can check them.
 
-**Measured.** Region labelling is 99.99% accurate over 7,654 hand-marked
+**Measured.** Region labelling is 99.99% accurate over 7,733 hand-marked
 content lines across five texts (`tools/measure.py`). Paragraph reflow recovers
 99.5% of *Jane Eyre*'s paragraphs from a hard-wrapped copy, with the remainder
 reported rather than guessed. Structural segmentation was checked against
