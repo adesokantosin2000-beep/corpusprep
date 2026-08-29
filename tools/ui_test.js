@@ -86,6 +86,24 @@ function until(dom, expr, ms = 8000) {
   });
 }
 
+/* Whether an element is actually on screen, as far as a DOM without layout
+   can tell: no ancestor hidden, and no ancestor a closed <details>.
+
+   jsdom computes no layout, so `offsetParent` and `getBoundingClientRect` are
+   useless here and a test that checks only "does the element exist" passes on
+   an element nobody can see. The registration link existed in the markup and
+   was invisible in every state a returning reader is ever in — inside a
+   disclosure that is closed by default, inside an onboarding block that
+   disappears once a file is loaded. Existence is not visibility. */
+function reachable(el) {
+  for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+    if (n.style && n.style.display === 'none') return false;
+    if (n.hidden) return false;
+    if (n.tagName === 'DETAILS' && !n.hasAttribute('open')) return false;
+  }
+  return true;
+}
+
 async function run(name, fn) {
   console.log('\n' + name);
   const dom = open();
@@ -214,6 +232,18 @@ async function run(name, fn) {
     }
     check('it says it is optional',
           /optional/i.test(dom.window.document.getElementById('reg-gate').textContent));
+
+    // Placement, which is the half that was wrong. A returning reader is
+    // signed in automatically and never sees the gate, so the sidebar copy is
+    // the only one they can ever meet — and it has to be reachable without
+    // opening a disclosure or loading a file first.
+    check('the sidebar link is reachable before any file is loaded',
+          reachable(dom.window.document.getElementById('reg-side')),
+          'hidden by an ancestor: display:none, [hidden], or a closed <details>');
+    check('and is not buried in the capability disclosure',
+          !dom.window.document.querySelector('details #reg-side'));
+    check('and not inside the onboarding block that vanishes on load',
+          !dom.window.document.querySelector('#welcome #reg-side'));
 
     // The decisive one: type a name, and the link must be unchanged by it.
     dom.window.document.getElementById('g-name').value = 'A Reader';
