@@ -27,13 +27,27 @@ Open **[the web application](https://adesokantosin2000-beep.github.io/corpusprep
 a browser. Nothing to install. Your text is processed locally and never
 transmitted anywhere.
 
-Or use the Python package, which requires no dependencies beyond the standard
-library:
+Or use the Python package. No dependencies beyond the standard library, except
+for reading PDFs.
 
 ```bash
-python -m corpusprep inspect  mytext.txt          # show how it segments
-python -m corpusprep clean    mytext.txt --out cleaned
-python -m corpusprep list-variants
+pip install -e .            # from this folder, once
+pip install -e ".[pdf]"     # if you need to read PDFs
+
+corpusprep inspect  mytext.txt          # show how it segments
+corpusprep clean    mytext.txt --out cleaned
+corpusprep list-variants
+```
+
+`python -m corpusprep …` works identically once installed. Without installing,
+the package sits in `src/`, where Python will not find it — set `PYTHONPATH`
+for the session instead:
+
+```bash
+PYTHONPATH=src python -m corpusprep inspect mytext.txt     # macOS, Linux
+```
+```powershell
+$env:PYTHONPATH="src"; python -m corpusprep inspect mytext.txt   # Windows
 ```
 
 ---

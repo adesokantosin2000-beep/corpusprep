@@ -1745,6 +1745,52 @@ def test_cli_inspect_runs_every_rule():
           "no mention of furniture in inspect output")
 
 
+def test_the_documented_commands_are_runnable():
+    """The README's quickstart told every new reader to run a command that
+    could not work.
+
+    The package lives in `src/corpusprep`, which Python cannot find from the
+    repository root, and there was no packaging to put it on the path. So
+
+        python -m corpusprep inspect mytext.txt
+
+    — the first line of the quickstart, under the heading "Try it" — answered
+    "No module named corpusprep" from the day it was written. Nobody noticed,
+    because everyone working on the repository already had `PYTHONPATH` set.
+
+    This does not run pip. It checks the two things that made the instruction
+    false: that packaging exists and points at `src`, and that no code block
+    invites the reader to run the command without first saying how.
+    """
+    import re
+
+    root = Path(__file__).resolve().parent.parent
+    proj = root / "pyproject.toml"
+    check("packaging exists", proj.exists(),
+          "without it, `pip install -e .` cannot work and src/ stays hidden")
+    if proj.exists():
+        text = proj.read_text(encoding="utf-8")
+        check("and it declares the src layout", 'where = ["src"]' in text)
+        check("and takes its version from the one place that defines it",
+              "corpusprep._version.__version__" in text)
+        check("and keeps PDF support optional",
+              "[project.optional-dependencies]" in text and "pypdf" in text,
+              "a linguist who never opens a PDF should install nothing")
+
+    for doc in ("README.md", "docs/USING.md"):
+        f = root / doc
+        if not f.exists():
+            continue
+        for block in re.findall(r"```[a-z]*\n(.*?)```", f.read_text(encoding="utf-8"),
+                                re.S):
+            if not re.search(r"^\s*(python -m )?corpusprep ", block, re.M):
+                continue
+            check(f"{doc} says how to make the command work",
+                  "pip install" in block or "PYTHONPATH" in block,
+                  "a block invites `corpusprep …` with no install and no "
+                  "PYTHONPATH: it will answer 'No module named corpusprep'")
+
+
 def test_prose_is_never_protected():
     """The error this rule must never make.
 

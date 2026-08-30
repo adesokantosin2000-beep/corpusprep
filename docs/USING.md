@@ -34,8 +34,18 @@ the text with it removed — **as a separate file, with the original untouched.*
 ## The five minutes that matter
 
 ```bash
-python -m corpusprep inspect  mybook.txt      # what did it find?
-python -m corpusprep clean    mybook.txt --out cleaned
+pip install -e .                          # from the CorpusPrep folder, once
+pip install -e ".[pdf]"                   # only if you will read PDFs
+
+corpusprep inspect  mybook.txt            # what did it find?
+corpusprep clean    mybook.txt --out cleaned
+```
+
+If you would rather not install anything, the package still runs from the
+folder — it lives in `src/`, so Python needs telling where to look:
+
+```powershell
+$env:PYTHONPATH="src"; python -m corpusprep inspect mybook.txt
 ```
 
 `inspect` prints the structure it found and changes nothing. **Read it before

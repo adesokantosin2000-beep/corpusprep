@@ -1,0 +1,52 @@
+# Packaging, so that the commands the README prints are commands that work.
+#
+# The package lives in `src/corpusprep`, which Python cannot find from the
+# repository root. `python -m corpusprep inspect mytext.txt` — the first line
+# of the README's own quickstart — answered "No module named corpusprep" for
+# every reader who tried it, from the day the README was written.
+#
+# Nothing here changes the package. It says where it is, so that
+# `pip install -e .` puts it on the path and the documented commands become
+# true. Running without installing still works: set PYTHONPATH=src.
+#
+# No runtime dependencies, deliberately. Everything except PDF reading uses the
+# standard library alone, and PDF reading is an extra rather than a
+# requirement, so a linguist who never opens a PDF installs nothing.
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "corpusprep"
+dynamic = ["version"]
+description = "Corpus preparation for linguists: prepare a source text for analysis, and retain a record of every editorial decision taken."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Tosin Adesokan" }]
+keywords = ["corpus linguistics", "text preparation", "digital humanities"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: Linguistic",
+]
+dependencies = []
+
+[project.optional-dependencies]
+pdf = ["pypdf>=4"]
+
+[project.urls]
+Homepage = "https://adesokantosin2000-beep.github.io/corpusprep/"
+Repository = "https://github.com/adesokantosin2000-beep/corpusprep"
+
+[project.scripts]
+corpusprep = "corpusprep.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "corpusprep._version.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

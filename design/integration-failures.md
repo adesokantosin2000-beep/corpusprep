@@ -902,3 +902,56 @@ engines and both were right; the unit tests exercise a package with no
 network and no DOM. **Five of the ten faults in this file are front-end
 faults.** The interface test can now run, and it holds all of them.
 
+
+---
+
+## P11 — The quickstart could not be run — **FIXED**
+
+**Severity: high, and it is the first thing anyone does.**
+
+```bash
+python -m corpusprep inspect  mytext.txt          # show how it segments
+```
+
+That is the first line under **Try it** in the README. It answers `No module
+named corpusprep`, and always has. The package is at `src/corpusprep`, Python
+cannot find it from the repository root, and there was no `pyproject.toml`,
+`setup.py` or `setup.cfg` to put it on the path.
+
+**Nobody noticed because nobody could.** Everyone working on this repository
+already had `PYTHONPATH=src` set, in a shell or an editor, before they ever
+read the README — the one document written for people who have not got that.
+The test suite could not see it either: `tests/test_corpusprep.py` puts `src`
+on `sys.path` in its third line, and the CLI smoke test added for P4 sets
+`PYTHONPATH` in the environment it hands to the subprocess. Every path into the
+code went round the fault.
+
+Fixed with packaging rather than by rewording, so the documented command
+becomes true instead of being replaced by a longer one:
+
+```
+pip install -e .          →  corpusprep inspect mytext.txt
+pip install -e ".[pdf]"   →  and PDFs too
+```
+
+No runtime dependencies. PDF reading is an extra, so a linguist who never
+opens a PDF installs nothing. Running without installing is still supported
+and now documented — `PYTHONPATH=src` — because a researcher on a managed
+machine may not be able to install anything.
+
+The guard is a documentation-truth test: any fenced block in `README.md` or
+`docs/USING.md` that invites the reader to run `corpusprep …` must also say
+how to make it work. It checks the instruction, not the code, because the code
+was never wrong.
+
+### The pattern, for the last time in this file
+
+P4 was the CLI never running half the rules. P7 was a test that could not
+start. P8, P9 and P10 were the interface. This is the documentation. **Six of
+the eleven faults here are in the layer between the engine and the person**,
+and the engine was right in every one of them.
+
+Measurement, parity and unit tests all point inward. Nothing pointed at the
+first five minutes of a stranger's experience, and that is where the faults
+were.
+

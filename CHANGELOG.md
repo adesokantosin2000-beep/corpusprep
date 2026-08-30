@@ -61,6 +61,16 @@ stabilisation pass over the parts that could not report on themselves.
   `PDFJS_TIMEOUT_MS` is twenty seconds, and the message names the likely cause.
   **It was never the size of the book:** the engine is linear, and 16 MB — six
   teen novels in one file — segments in 3.4 seconds
+- **The README documented a command that could not work** (P11). The package
+  lives in `src/corpusprep`, which Python cannot find from the repository
+  root, and there was no packaging to put it on the path — so
+  `python -m corpusprep inspect mytext.txt`, the first line of the quickstart
+  under "Try it", answered "No module named corpusprep" from the day it was
+  written. Nobody noticed, because everyone working on the repository already
+  had `PYTHONPATH` set. `pyproject.toml` added, no runtime dependencies, with
+  PDF support as an optional extra; the README and `docs/USING.md` corrected;
+  and a test that fails if any code block invites the reader to run the
+  command without saying how to make it work
 - **Every division word was English** (P5). `Kapitel`, `Глава` and `Kapitola`
   were not words the heading tier knew, so a German, Russian or Czech book
   segmented as one undivided body while the log said "no structural headings
