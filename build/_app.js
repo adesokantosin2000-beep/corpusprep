@@ -672,7 +672,29 @@ document.addEventListener("change",e=>{
 });
 
 function showError(msg){ const e=$("#err"); e.textContent=msg; e.style.display=""; }
-function handleFile(f){ if(f) f.arrayBuffer().then(b=>loadText(f.name,b)); }
+/* Reading a file used to happen in silence. A PDF is parsed page by page and
+   a large one takes a while, so the page sat there looking broken while it
+   worked — and looking identical to a page that had genuinely stalled. A
+   reader cannot tell "slow" from "hung" unless the tool says which it is. */
+function loading(msg){
+  const el=$("#load-note");
+  if(!el) return;
+  if(msg===null){ el.hidden=true; el.textContent=""; return; }
+  el.hidden=false; el.textContent=msg;
+}
+
+function handleFile(f){
+  if(!f) return;
+  const mb=f.size/1048576;
+  loading(`Reading ${f.name} (${mb<0.1?"<0.1":mb.toFixed(1)} MB)\u2026`);
+  if(/\.pdf$/i.test(f.name))
+    loading(`Reading ${f.name} (${mb.toFixed(1)} MB). A PDF is parsed page by `+
+            `page, so a long one takes a moment. The first PDF of a session `+
+            `also fetches pdf.js.`);
+  f.arrayBuffer()
+    .then(b=>loadText(f.name,b))
+    .finally(()=>loading(null));
+}
 
 /* ---- sidebar ---- */
 function drawMeta(){

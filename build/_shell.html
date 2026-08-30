@@ -57,6 +57,7 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
 .btn-primary:hover{background:var(--accent-dk);
   box-shadow:0 1px 2px rgba(28,26,23,.12),0 7px 20px -5px rgba(55,86,74,.42)}
 .btn-primary:active{transform:translateY(1px)}
+.loading{margin:10px 0 0;font-size:12.5px;color:var(--accent);line-height:1.5}
 .reg{margin:14px 0 0;color:var(--muted);font-size:12.5px;line-height:1.6}
 .reg:empty{display:none}
 .reg a{color:var(--accent)}
@@ -483,6 +484,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
     <div class="fmts">TXT · Markdown · DOCX · EPUB · HTML · PDF</div>
     <p class="after">The text is read in place, segmented, and presented for review.
       Nothing is uploaded, and the source file is not modified.</p>
+    <p class="loading" id="load-note" hidden></p>
   </div>
   <input type="file" id="file" accept=".txt,.md,.markdown,.docx,.epub,.html,.htm,.xhtml,.pdf">
   <div id="err" class="err" style="display:none"></div>

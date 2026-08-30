@@ -2612,6 +2612,10 @@ const MD_RULE=/^[ ]{0,3}(?:[-*_]\s?){3,}\s*$/gm;
 
 const PDFJS_URL="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
 const PDFJS_WORKER="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+/* How long to wait for that download before giving up. A constant so a test
+   can shorten it: a stalled load is the case that matters and it cannot be
+   observed by waiting twenty seconds in a test suite. */
+const PDFJS_TIMEOUT_MS=20000;
 
 /* Below this proportion of letters the extraction failed, however much came
    out. Prose runs 70-80%; a PDF whose fonts carry no working character map
@@ -2636,6 +2640,22 @@ function loadPdfJs(){
       window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;
       resolve(window.pdfjsLib);
     };
+    /* `onerror` fires when the request FAILS. It does not fire when the
+       request stalls — a captive portal that accepts the connection and
+       answers nothing, a proxy that black-holes the host, a connection that
+       drops mid-transfer. In those cases neither handler ever runs, this
+       promise never settles, and the page waits for ever with nothing on
+       screen. That is the shape of "it just hangs".
+
+       So: a deadline. Twenty seconds is far longer than a 300 KB file needs
+       on any usable connection, and far shorter than for ever. */
+    const timer=setTimeout(()=>reject(new Error(
+      "PDF support needs one file from the internet (pdf.js) and the download "+
+      "did not finish within 20 seconds. The connection may be blocked by a "+
+      "proxy or a captive portal. Everything else in CorpusPrep works offline, "+
+      "and the Python package reads PDFs without this file.")),PDFJS_TIMEOUT_MS);
+    const settle=f=>(...a)=>{clearTimeout(timer);return f(...a)};
+    resolve=settle(resolve); reject=settle(reject);
     s.onerror=()=>reject(new Error(
       "PDF support needs one file from the internet (pdf.js) and it could not "+
       "be fetched. Everything else in CorpusPrep works offline. Check the "+

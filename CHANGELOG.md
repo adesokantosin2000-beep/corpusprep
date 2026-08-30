@@ -52,6 +52,15 @@ stabilisation pass over the parts that could not report on themselves.
   — so the button now opens the file picker and the tooltip says so. Each entry
   also gets a remove control: a filename can itself be sensitive, and a reader
   on a shared machine needs to be able to take it off the screen
+- **"I loaded a PDF and it's hanging"** (P10). Two faults under one word.
+  Reading a file happened in silence, so a slow read and a dead one looked
+  identical; the page now names the file, its size, and why a PDF takes
+  longer. And the pdf.js download had no deadline — `onerror` fires when a
+  request fails, not when it stalls, so a captive portal or a black-holing
+  proxy left a promise that never settled and a page that waited for ever.
+  `PDFJS_TIMEOUT_MS` is twenty seconds, and the message names the likely cause.
+  **It was never the size of the book:** the engine is linear, and 16 MB — six
+  teen novels in one file — segments in 3.4 seconds
 - **Every division word was English** (P5). `Kapitel`, `Глава` and `Kapitola`
   were not words the heading tier knew, so a German, Russian or Czech book
   segmented as one undivided body while the log said "no structural headings

@@ -835,3 +835,70 @@ Twelve checks in `tools/ui_test.js`, including that the tooltip no longer says
 "reopen this file" — the wording is part of the fault, so it is part of the
 test.
 
+
+---
+
+## P10 — "I loaded a PDF and it's hanging" — **FIXED**
+
+**Severity: high for the format that most needs the tool. Half the world's
+corpora arrive as PDF.**
+
+Two separate faults wore the same word.
+
+### Reading happened in silence
+
+`handleFile` went straight to `loadText` with nothing on screen. A PDF is
+parsed page by page and a long one takes a while, so a slow read looked
+exactly like a dead one. **A reader cannot tell "slow" from "hung" unless the
+tool says which it is** — and the tool said nothing at all until the whole
+file was done.
+
+The page now names the file, its size in MB, and, for a PDF, why a PDF takes
+longer.
+
+### The download had no deadline
+
+```js
+s.onerror = () => reject(...)
+```
+
+`onerror` fires when a request *fails*. It does not fire when a request
+*stalls* — a captive portal that accepts the connection and answers nothing, a
+proxy that black-holes the host, a connection that drops mid-transfer. In
+those cases neither handler ever runs, the promise never settles, and the page
+waits for ever.
+
+That is the literal shape of "it just hangs", and pdf.js is the only thing in
+CorpusPrep that comes off the network.
+
+`PDFJS_TIMEOUT_MS`, twenty seconds: far longer than a 300 KB file needs on any
+usable connection, far shorter than for ever. The message names the likely
+cause and says the rest of the tool works offline.
+
+### It is not the size of the book
+
+Measured on the built engine, Jane Eyre repeated up to sixteen times:
+
+```
+lines     chars    segment  furniture  protect  hyphen  total
+ 4,083     1.0M      656ms      211ms     14ms   157ms  1,070ms
+16,332     4.1M      600ms      136ms     51ms   453ms  1,254ms
+65,328    16.4M    1,069ms      256ms    187ms 1,811ms  3,364ms
+```
+
+**Linear, with no term that blows up.** Sixteen megabytes — sixteen novels in
+one file — segments in three and a half seconds. Nothing in the text pipeline
+imposes a ceiling worth writing down; the limits that exist are the browser's
+memory and the PDF library's parsing speed, in that order.
+
+So there is no size guard, and adding one would refuse files the tool can
+handle. What was missing was not a limit but a sentence saying what it was
+doing.
+
+### Where it hid
+
+The same place as P4, P7, P8 and P9: a front end. `check_parity.py` compares
+engines and both were right; the unit tests exercise a package with no
+network and no DOM. **Five of the ten faults in this file are front-end
+faults.** The interface test can now run, and it holds all of them.
+
