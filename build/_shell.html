@@ -57,6 +57,17 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
 .btn-primary:hover{background:var(--accent-dk);
   box-shadow:0 1px 2px rgba(28,26,23,.12),0 7px 20px -5px rgba(55,86,74,.42)}
 .btn-primary:active{transform:translateY(1px)}
+.cite{margin:26px 0 0;padding:18px 20px;border:1px solid var(--hair);
+  border-radius:4px;background:var(--paper,#fbfaf7)}
+.cite h4{font-family:var(--serif);font-size:15px;font-weight:500;margin:0 0 6px}
+.cite .why{color:var(--muted);font-size:12.5px;line-height:1.6;margin:0 0 14px}
+.cite pre{margin:0;padding:11px 13px;border:1px solid var(--hair);border-radius:3px;
+  background:#fff;font:12px/1.6 var(--mono,ui-monospace,monospace);
+  white-space:pre-wrap;word-break:break-word;color:var(--ink)}
+.cite .row{display:flex;align-items:baseline;gap:10px;margin:14px 0 5px}
+.cite .row b{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);font-weight:600}
+.cite .note{color:var(--muted);font-size:12px;line-height:1.6;margin:14px 0 0}
 .loading{margin:10px 0 0;font-size:12.5px;color:var(--accent);line-height:1.5}
 .reg{margin:14px 0 0;color:var(--muted);font-size:12.5px;line-height:1.6}
 .reg:empty{display:none}
@@ -626,6 +637,10 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
         when cleaning is run.</p>
       </div>
       <div class="log" id="logview"></div>
+      <!-- The moment a reader has a log in hand is the moment they are about
+           to write a methods section. That is where the citation belongs, not
+           only in a file in the repository they may never open. -->
+      <div class="cite" id="cite"></div>
     </div>
 
   </div></div>

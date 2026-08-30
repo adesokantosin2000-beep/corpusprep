@@ -106,6 +106,12 @@ every prose fixture             0         0         0
 - **A log that speaks when nothing fires.** A run that removes nothing now
   names each rule, what it looked for and why it declined, and says that these
   rules are built for printed books — instead of reporting a zero
+- **The citation, in the application**, beneath the log — because the moment
+  someone has a log in hand is the moment they are about to write a methods
+  section. Reference and BibTeX, both carrying the version actually running,
+  both copyable. It prints the **concept** DOI and says so: the page cannot
+  verify that a release was archived for this build, and a version DOI that
+  resolves to different code than the reader ran is worse than none
 - **An optional registration link**, on the sign-in card and under the
   capability list. `REGISTER_URL` in `build/_app.js`, empty by default: with
   nothing set, nothing renders, so a fork does not point its users at somebody
