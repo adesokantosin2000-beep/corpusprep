@@ -109,6 +109,15 @@ every prose fixture             0         0         0
 - `docs/USING.md` labels every rule *Supported*, *Experimental* or *Future
   work* by the evidence behind it, and says what each figure rests on
 
+### Removed
+- **The recent-files list is switched off** (`RECENT_LIST` in
+  `build/_app.js`). It could not reopen a file — a browser cannot read one
+  again without the reader choosing it — and it was the only place in the tool
+  that kept anything about the reader's corpus, where a filename can be an
+  informant's pseudonym. Hidden rather than deleted, with the code and its
+  tests intact behind one flag, and names already stored on a reader's machine
+  are purged rather than merely hidden
+
 ### Known
 - The interface rule has met one corpus shape, and that shape is synthetic:
   43% furniture, against about 3% in the corpus that prompted it

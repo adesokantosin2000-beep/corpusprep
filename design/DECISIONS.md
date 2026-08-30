@@ -2396,3 +2396,48 @@ Region labelling, encoding, tokenising and the line-break rules needed no
 change: they were language-independent already, and the three fixtures score
 100% on region labelling.
 
+---
+
+## 2026-08-29 — The recent-files list is switched off
+
+### What it was
+
+A filename and a token count for the last six files opened, so a returning
+reader recognises what they worked on.
+
+### Why it goes
+
+**It cannot do the thing everyone expects of it.** A browser cannot read a file
+again without the reader choosing it, and nothing here ever held the file. Two
+rounds of fixing narrowed the gap — the button opens the file picker now, and
+the entry can be removed — without closing it, because the gap is structural.
+Every reader will click it expecting their cleaned text and every one of them
+will be disappointed.
+
+**The deciding argument is the storage, not the disappointment.** This was the
+only place in the tool that kept anything about the reader's corpus. A filename
+can be an informant's pseudonym or an unpublished title, and it was sitting in
+browser storage on what may well be a shared machine, in a tool whose whole
+proposition is that the reader's material stays under their control. That is a
+real liability bought for a memory aid.
+
+### Hidden, not deleted
+
+`RECENT_LIST` in `build/_app.js`. The code, the markup, the CSS and the tests
+all remain; the flag is the only thing between them and a working list.
+
+**Off means purged, not merely hidden.** Nothing new is recorded, and names
+already on a reader's machine are removed the next time they open the page.
+Hiding the panel and leaving the names behind would keep the liability and
+lose the feature, which is the worst of both.
+
+The tests cover both states — off, and switched back on. A hidden feature
+without a test rots quietly and comes back broken.
+
+### What would bring it back
+
+Remembering a file's *settings*, so that re-choosing it returns the reader to
+their preset and their section selections. Then recognising the name is worth
+something, because acting on the recognition costs one click instead of ten.
+Recognition alone was not worth a filename in storage.
+

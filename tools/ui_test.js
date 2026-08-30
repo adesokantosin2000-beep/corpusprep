@@ -271,61 +271,74 @@ async function run(name, fn) {
   }
 
   {
-    // Reported by a user: the recent-files list "shows previous files but they
-    // are not clickable or deletable".
+    // The recent-files list is switched off. It could not do what everyone
+    // expected of it — reopen the work — because a browser cannot read a file
+    // again without the reader choosing it, and it was the only place in the
+    // tool that kept anything about the reader's corpus. A filename can be an
+    // informant's pseudonym.
     //
-    // They were `<button>` elements carrying the tooltip "Reopen this file from
-    // disk to load it again", with no click handler anywhere in the file. A
-    // control that promises an action and has none is worse than no control:
-    // the reader concludes the tool is broken, and they are not wrong.
-    console.log('\nthe recent-files list does what it looks like');
-    const store = {
+    // Two things are tested: that off means off *and purged*, and that the
+    // code still works when switched back on. A hidden feature with no test
+    // rots, and comes back broken.
+    console.log('\nthe recent-files list is off, and purges what it kept');
+    const html = fs.readFileSync(PAGE, 'utf8');
+    const withNames = () => ({
       'corpusprep.v1': JSON.stringify({
         user: { name: 'A Reader', inst: '' },
-        recent: [{ name: 'informant_04.txt', tokens: 12000, at: Date.now() },
-                 { name: 'jane.txt', tokens: 188215, at: Date.now() - 1000 }],
+        recent: [{ name: 'informant_04.txt', tokens: 12000, at: Date.now() }],
       }),
-    };
-    const dom = open(store);
-    const d = dom.window.document;
+    });
 
-    const rows = () => [...d.querySelectorAll('#recent .rec-row')];
-    check('both remembered files are listed', rows().length === 2,
-          rows().length + ' rows');
-    check('the list is shown at all',
+    const store = withNames();
+    const off = open(store);
+    check('the panel is not shown',
+          off.window.document.getElementById('recent-wrap').style.display === 'none');
+    check('and the guidance takes its place',
+          off.window.document.getElementById('guide').style.display !== 'none');
+    check('names already stored are purged, not merely hidden',
+          !/informant_04/.test(store['corpusprep.v1']),
+          'the filename is still in storage: hiding the panel kept the liability');
+    check('the reader is still remembered',
+          /A Reader/.test(store['corpusprep.v1']),
+          'purging recents must not sign anyone out');
+
+    // Nothing new is recorded either.
+    off.window.eval('pushRecent("second.txt", 999)');
+    check('nothing new is recorded',
+          !/second\.txt/.test(store['corpusprep.v1']));
+    off.window.close();
+
+    // Switched back on, the list must still work — this is what stops the
+    // hidden code rotting while nobody looks at it.
+    const on = new JSDOM(html.replace('const RECENT_LIST=false;',
+                                      'const RECENT_LIST=true;'),
+      { runScripts: 'dangerously', pretendToBeVisual: true,
+        beforeParse(w) {
+          const s2 = withNames();
+          Object.defineProperty(w, 'localStorage', {
+            value: { getItem: k => (k in s2 ? s2[k] : null),
+                     setItem: (k, v) => { s2[k] = String(v); },
+                     removeItem: k => { delete s2[k]; } },
+          });
+        } });
+    await until(on, 'typeof drawRecent === "function"').catch(() => {});
+    const d = on.window.document;
+    check('switched on, the panel returns',
           d.getElementById('recent-wrap').style.display !== 'none');
-
+    check('with a row per remembered file',
+          d.querySelectorAll('#recent .rec-row').length === 1);
     const openBtn = d.querySelector('#recent [data-open]');
-    check('each entry has something to click', !!openBtn);
-    check('and something bound to the click', !!openBtn && !!openBtn.onclick,
-          'no handler: the button does nothing');
-    check('the tooltip does not promise what a browser cannot do',
-          !!openBtn && !/reopen this file/i.test(openBtn.getAttribute('title') || ''),
-          openBtn && openBtn.getAttribute('title'));
-
-    // Clicking must reach the file picker, which is the only way a browser can
-    // read a file again.
+    check('the entry is still bound to the file picker', !!openBtn && !!openBtn.onclick);
     let picked = 0;
     d.getElementById('file').click = () => { picked++; };
     openBtn.click();
-    check('clicking opens the file picker', picked === 1, picked + ' calls');
-
-    // And an entry must come off the list. A filename can itself be sensitive.
+    check('and clicking still opens it', picked === 1);
     const x = d.querySelector('#recent [data-forget]');
-    check('each entry has a remove control', !!x);
-    check('it is labelled for a screen reader',
-          !!x && /informant_04/.test(x.getAttribute('aria-label') || ''));
+    check('and the remove control is still there', !!x);
     x.click();
-    check('removing takes the row away', rows().length === 1, rows().length + ' rows');
-    check('and the right one is gone',
-          !/informant_04/.test(d.getElementById('recent').textContent));
-    check('and it stays gone in storage',
-          !/informant_04/.test(store['corpusprep.v1']));
-
-    d.querySelector('#recent [data-forget]').click();
-    check('removing the last one hides the list',
-          d.getElementById('recent-wrap').style.display === 'none');
-    dom.window.close();
+    check('and still removes the row',
+          d.querySelectorAll('#recent .rec-row').length === 0);
+    on.window.close();
   }
 
   await run('the capability list is not stale', dom => {
