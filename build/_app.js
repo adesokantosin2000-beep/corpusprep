@@ -944,6 +944,81 @@ function drawCompare(){
   a.onscroll=sync(a,b); b.onscroll=sync(b,a);
 }
 
+/* ---- citation ----------------------------------------------------------
+   Two DOIs, and they are not interchangeable. The CONCEPT DOI always resolves
+   to the newest release; the VERSION DOI is minted per release and pins the
+   exact code that produced a result. `design/` argues, correctly, that a
+   methods section needs the second — an analysis run against v0.5.0 is not
+   reproducible against v0.6.0, because v0.5.0 was silently dropping 5,500
+   words of Frankenstein.
+
+   **So this page does not print a version DOI it cannot verify.** It knows the
+   version it is running and it knows the concept DOI; it does not know whether
+   a release was archived for this particular build. Printing one anyway would
+   hand a researcher a DOI that resolves to different code than they ran, which
+   is worse than printing none — it is a citation that looks right and is not.
+
+   It prints the version it is, the concept DOI, and one sentence telling the
+   reader where the version DOI lives. */
+const CONCEPT_DOI="10.5281/zenodo.22083931";
+const CITE_AUTHOR="Adesokan, T.";
+const CITE_TITLE="CorpusPrep: corpus preparation for linguists";
+
+function citationText(){
+  const v=typeof CORPUSPREP_VERSION!=="undefined"?CORPUSPREP_VERSION:"";
+  const y=new Date().getFullYear();
+  return `${CITE_AUTHOR} (${y}). ${CITE_TITLE} (version ${v}) `+
+         `[Computer software]. Zenodo. https://doi.org/${CONCEPT_DOI}`;
+}
+
+function citationBibtex(){
+  const v=typeof CORPUSPREP_VERSION!=="undefined"?CORPUSPREP_VERSION:"";
+  const y=new Date().getFullYear();
+  return `@software{adesokan_corpusprep,\n`+
+         `  author    = {Adesokan, Tosin},\n`+
+         `  title     = {{${CITE_TITLE}}},\n`+
+         `  version   = {${v}},\n`+
+         `  year      = {${y}},\n`+
+         `  publisher = {Zenodo},\n`+
+         `  doi       = {${CONCEPT_DOI}},\n`+
+         `  url       = {https://doi.org/${CONCEPT_DOI}}\n}`;
+}
+
+function drawCite(){
+  const el=$("#cite");
+  if(!el) return;
+  const v=typeof CORPUSPREP_VERSION!=="undefined"?CORPUSPREP_VERSION:"unknown";
+  el.innerHTML=`
+    <h4>Citing this run</h4>
+    <p class="why">You ran <b>version ${esc(v)}</b>. Record it: the tool's
+      behaviour changes between releases, and an analysis run against one
+      version is not reproducible against another.</p>
+    <div class="row"><b>Reference</b>
+      <button class="linkish" data-copy="apa">Copy</button></div>
+    <pre id="cite-apa">${esc(citationText())}</pre>
+    <div class="row"><b>BibTeX</b>
+      <button class="linkish" data-copy="bib">Copy</button></div>
+    <pre id="cite-bib">${esc(citationBibtex())}</pre>
+    <p class="note">The DOI above is the <b>concept DOI</b>, which always
+      resolves to the newest release. For a methods section, prefer the
+      <b>version DOI</b> of the release matching ${esc(v)} — it resolves to a
+      frozen copy of the code that produced your results and cannot move. It is
+      shown on that release's page in the archive. See
+      <code>docs/CITING.md</code>.</p>`;
+  $$("#cite [data-copy]").forEach(b=>b.onclick=async()=>{
+    const text=b.dataset.copy==="apa"?citationText():citationBibtex();
+    try{
+      // Not every browser and not every context grants the clipboard. A copy
+      // button that silently does nothing is worse than one that admits it.
+      await navigator.clipboard.writeText(text);
+      b.textContent="Copied";
+    }catch(e){
+      b.textContent="Select and copy";
+    }
+    setTimeout(()=>{b.textContent="Copy"},2000);
+  });
+}
+
 /* ---- log ---- */
 /* What to say when every rule declined.
 
@@ -1063,6 +1138,7 @@ function logMarkdown(){
 function drawLog(){
   const d=DOC,s=RESULT.stats,b=RESULT.base;
   const quietNotes=noOpNotes();
+  drawCite();
   const dt=b.tokens?100*(s.tokens-b.tokens)/b.tokens:0;
   const dc=b.chars?100*(s.chars-b.chars)/b.chars:0;
   let h=`<div class="canvas-head"><h3>Preprocessing log</h3>

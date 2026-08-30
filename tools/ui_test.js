@@ -406,6 +406,44 @@ async function run(name, fn) {
     quick.window.close();
   }
 
+  await run('the citation is where the methods section gets written', async dom => {
+    // AntConc — the most cited tool in this field — puts its citation on the
+    // page people download from. Ours lived only in docs/CITING.md, which a
+    // reader has no reason to open. The moment someone has a log in hand is
+    // the moment they are about to write a methods section.
+    await load(dom, 'pg_marked.txt');
+    dom.window.eval('runClean ? runClean() : null');
+    dom.window.eval('drawCite()');
+    const d = dom.window.document, cite = d.getElementById('cite');
+    check('there is a citation block', !!cite && !!cite.textContent.trim());
+    if (!cite) return;
+
+    const version = dom.window.eval('CORPUSPREP_VERSION');
+    check('it names the version actually running',
+          cite.textContent.includes(version), 'version ' + version + ' missing');
+    check('and says why the version matters',
+          /not reproducible|behaviour changes/i.test(cite.textContent));
+    check('it offers a reference and BibTeX',
+          !!d.getElementById('cite-apa') && !!d.getElementById('cite-bib'));
+    check('the BibTeX carries the same version',
+          d.getElementById('cite-bib').textContent.includes(version));
+
+    // The honest part. The page knows its version and the concept DOI; it does
+    // not know whether a release was archived for this build, so it must not
+    // print a version DOI it cannot verify — that is a citation that looks
+    // right and resolves to different code than the reader ran.
+    check('it prints the concept DOI',
+          /10\.5281\/zenodo\.22083931/.test(cite.textContent));
+    check('and does not pass it off as the version DOI',
+          /concept DOI/i.test(cite.textContent) && /version DOI/i.test(cite.textContent),
+          'the two must be distinguished, or the reader cites the wrong one');
+    check('and sends the reader to the right one for a methods section',
+          /methods section/i.test(cite.textContent));
+
+    const copy = d.querySelector('#cite [data-copy]');
+    check('copying is offered', !!copy && !!copy.onclick);
+  });
+
   await run('the capability list is not stale', dom => {
     const d = dom.window.document;
     dom.window.eval('drawCapabilities()');

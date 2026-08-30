@@ -14,9 +14,28 @@ your methods section.
 
 ## Current release
 
+**This page said "version 0.6.0" while the software reported 0.11.0**, in a
+document whose own argument is that the version is not a formality. Corrected
+on 29 August, and the correction is more interesting than the typo:
+
+`10.5281/zenodo.22083932` is the version DOI **for 0.6.0**, because 0.6.0 is
+the last release that was archived. Versions 0.7.0 to 0.11.0 were tagged in git
+and never released to the archive, so **they have no version DOI at all**. A
+reader running 0.9.0 has nothing frozen to cite.
+
+That is a gap to close at `v1.0` — cut a release, let the archive mint a DOI,
+and record it here — not a gap to paper over by printing a DOI that resolves to
+different code than the reader ran. A citation that looks right and is not is
+worse than none.
+
+Until then, cite the archived release you can actually point at, and state the
+version you ran alongside it:
+
 > Adesokan, T. (2026). *CorpusPrep: corpus preparation for linguists*
 > (version 0.6.0) [Computer software]. Zenodo.
 > https://doi.org/10.5281/zenodo.22083932
+
+The application shows this, with the version you are running, in the Log tab.
 
 BibTeX:
 
