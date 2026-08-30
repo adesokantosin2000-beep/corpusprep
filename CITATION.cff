@@ -22,6 +22,7 @@ identifiers:
 date-released: 2026-08-24
 license: MIT
 repository-code: "https://github.com/adesokantosin2000-beep/corpusprep"
+url: "https://corpusprep.org"
 abstract: >-
   CorpusPrep prepares source texts for corpus analysis: the stage before
   AntConc or WordSmith Tools, both of which assume a clean corpus. Every line

@@ -88,7 +88,8 @@ unprotected. Below any floor, not reachable by this evidence.
    folder, follow the README exactly as written. Record hesitations, not only
    errors — P9 was a hesitation before it was a bug. Everything found on 29
    August came from this and nothing else.
-2. **Send it to the tester**, with the four questions in task #12. She is the
+2. **Send it to the tester**, with the four questions in
+   `design/tester-questions.md`. She is the
    only available source of real evidence for the two rules marked
    *Experimental*, and no amount of work here can substitute for it.
 3. **Tag `v1.0-rc`.** Not `v1.0`. An rc is what you hand people before you
