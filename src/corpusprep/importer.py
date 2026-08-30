@@ -81,6 +81,25 @@ def load(path: str | Path) -> Document:
     """
     path = Path(path)
 
+    # Check the file is there before asking what kind of file it is.
+    #
+    # Without this, a path that does not exist reached the PDF reader and came
+    # back as `UnreadablePDF: This file could not be opened as a PDF: [Errno 2]
+    # No such file or directory`. That names the wrong problem. A reader who
+    # mistypes a path is told their PDF is broken, and goes looking for a fault
+    # in a file rather than in the path they typed.
+    if not path.exists():
+        raise FileNotFoundError(
+            f"No file at {path}. Check the path — on Windows, dragging the "
+            f"file into the terminal pastes it correctly, and a path "
+            f"containing spaces needs quotation marks around it."
+        )
+    if path.is_dir():
+        raise IsADirectoryError(
+            f"{path} is a folder, not a file. CorpusPrep reads one text at a "
+            f"time; name the file inside it."
+        )
+
     if path.suffix.lower() == ".pdf":
         return _load_pdf(path)
 
