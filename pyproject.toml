@@ -39,7 +39,7 @@ dependencies = []
 pdf = ["pypdf>=4"]
 
 [project.urls]
-Homepage = "https://adesokantosin2000-beep.github.io/corpusprep/"
+Homepage = "https://corpusprep.org"
 Repository = "https://github.com/adesokantosin2000-beep/corpusprep"
 
 [project.scripts]

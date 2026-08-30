@@ -23,7 +23,7 @@ file to keep, and how to read the log. This README is written for developers.
 
 ## Try it
 
-Open **[the web application](https://adesokantosin2000-beep.github.io/corpusprep/)** in
+Open **[corpusprep.org](https://corpusprep.org)** in
 a browser. Nothing to install. Your text is processed locally and never
 transmitted anywhere.
 
