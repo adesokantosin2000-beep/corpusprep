@@ -57,6 +57,7 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
 .btn-primary:hover{background:var(--accent-dk);
   box-shadow:0 1px 2px rgba(28,26,23,.12),0 7px 20px -5px rgba(55,86,74,.42)}
 .btn-primary:active{transform:translateY(1px)}
+.loading{margin:10px 0 0;font-size:12.5px;color:var(--accent);line-height:1.5}
 .reg{margin:14px 0 0;color:var(--muted);font-size:12.5px;line-height:1.6}
 .reg:empty{display:none}
 .reg a{color:var(--accent)}
@@ -483,6 +484,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
     <div class="fmts">TXT · Markdown · DOCX · EPUB · HTML · PDF</div>
     <p class="after">The text is read in place, segmented, and presented for review.
       Nothing is uploaded, and the source file is not modified.</p>
+    <p class="loading" id="load-note" hidden></p>
   </div>
   <input type="file" id="file" accept=".txt,.md,.markdown,.docx,.epub,.html,.htm,.xhtml,.pdf">
   <div id="err" class="err" style="display:none"></div>
@@ -3249,6 +3251,10 @@ const MD_RULE=/^[ ]{0,3}(?:[-*_]\s?){3,}\s*$/gm;
 
 const PDFJS_URL="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
 const PDFJS_WORKER="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+/* How long to wait for that download before giving up. A constant so a test
+   can shorten it: a stalled load is the case that matters and it cannot be
+   observed by waiting twenty seconds in a test suite. */
+const PDFJS_TIMEOUT_MS=20000;
 
 /* Below this proportion of letters the extraction failed, however much came
    out. Prose runs 70-80%; a PDF whose fonts carry no working character map
@@ -3273,6 +3279,22 @@ function loadPdfJs(){
       window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;
       resolve(window.pdfjsLib);
     };
+    /* `onerror` fires when the request FAILS. It does not fire when the
+       request stalls — a captive portal that accepts the connection and
+       answers nothing, a proxy that black-holes the host, a connection that
+       drops mid-transfer. In those cases neither handler ever runs, this
+       promise never settles, and the page waits for ever with nothing on
+       screen. That is the shape of "it just hangs".
+
+       So: a deadline. Twenty seconds is far longer than a 300 KB file needs
+       on any usable connection, and far shorter than for ever. */
+    const timer=setTimeout(()=>reject(new Error(
+      "PDF support needs one file from the internet (pdf.js) and the download "+
+      "did not finish within 20 seconds. The connection may be blocked by a "+
+      "proxy or a captive portal. Everything else in CorpusPrep works offline, "+
+      "and the Python package reads PDFs without this file.")),PDFJS_TIMEOUT_MS);
+    const settle=f=>(...a)=>{clearTimeout(timer);return f(...a)};
+    resolve=settle(resolve); reject=settle(reject);
     s.onerror=()=>reject(new Error(
       "PDF support needs one file from the internet (pdf.js) and it could not "+
       "be fetched. Everything else in CorpusPrep works offline. Check the "+
@@ -4164,7 +4186,29 @@ document.addEventListener("change",e=>{
 });
 
 function showError(msg){ const e=$("#err"); e.textContent=msg; e.style.display=""; }
-function handleFile(f){ if(f) f.arrayBuffer().then(b=>loadText(f.name,b)); }
+/* Reading a file used to happen in silence. A PDF is parsed page by page and
+   a large one takes a while, so the page sat there looking broken while it
+   worked — and looking identical to a page that had genuinely stalled. A
+   reader cannot tell "slow" from "hung" unless the tool says which it is. */
+function loading(msg){
+  const el=$("#load-note");
+  if(!el) return;
+  if(msg===null){ el.hidden=true; el.textContent=""; return; }
+  el.hidden=false; el.textContent=msg;
+}
+
+function handleFile(f){
+  if(!f) return;
+  const mb=f.size/1048576;
+  loading(`Reading ${f.name} (${mb<0.1?"<0.1":mb.toFixed(1)} MB)\u2026`);
+  if(/\.pdf$/i.test(f.name))
+    loading(`Reading ${f.name} (${mb.toFixed(1)} MB). A PDF is parsed page by `+
+            `page, so a long one takes a moment. The first PDF of a session `+
+            `also fetches pdf.js.`);
+  f.arrayBuffer()
+    .then(b=>loadText(f.name,b))
+    .finally(()=>loading(null));
+}
 
 /* ---- sidebar ---- */
 function drawMeta(){

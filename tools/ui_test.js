@@ -341,6 +341,71 @@ async function run(name, fn) {
     on.window.close();
   }
 
+  {
+    // Reported by a user: "i loaded a pdf now and it's hanging".
+    //
+    // Two separate things wore that one word. Reading a file happened in
+    // silence, so a slow read and a dead one looked identical; and the pdf.js
+    // download had no deadline, so a stalled request — a captive portal that
+    // accepts the connection and answers nothing — left a promise that never
+    // settled and a page that waited for ever.
+    console.log('\nloading says what it is doing, and gives up eventually');
+    const html = fs.readFileSync(PAGE, 'utf8');
+
+    const dom = open();
+    await until(dom, 'typeof handleFile === "function"').catch(() => {});
+    const note = dom.window.document.getElementById('load-note');
+    check('there is somewhere to say what is happening', !!note);
+    check('and it says nothing before a file is chosen', !!note && note.hidden);
+
+    // handleFile only reads name, size and arrayBuffer.
+    const fake = (name, bytes) => ({
+      name, size: bytes,
+      arrayBuffer: () => new Promise(() => {}),   // never settles: mid-read
+    });
+
+    dom.window.handleFile(fake('big.pdf', 40 * 1048576));
+    check('a PDF read announces itself', !note.hidden && /big\.pdf/.test(note.textContent),
+          JSON.stringify(note.textContent));
+    check('and says why a PDF is slow',
+          /page by page/i.test(note.textContent), note.textContent);
+    check('and warns about the one download it needs',
+          /pdf\.js/i.test(note.textContent));
+    check('and states the size, so a huge file is recognisable as huge',
+          /40\.0 MB/.test(note.textContent), note.textContent);
+
+    dom.window.handleFile(fake('jane.txt', 1048576));
+    check('a plain text read announces itself too',
+          /jane\.txt/.test(note.textContent));
+    check('without the PDF explanation',
+          !/page by page/i.test(note.textContent));
+    dom.window.close();
+
+    // The stalled download. jsdom fetches no external scripts, so appending
+    // one fires neither onload nor onerror — which is exactly the stall this
+    // guards against. Shorten the deadline so the test can watch it fire.
+    const quick = new JSDOM(html.replace('const PDFJS_TIMEOUT_MS=20000;',
+                                         'const PDFJS_TIMEOUT_MS=40;'),
+      { runScripts: 'dangerously', pretendToBeVisual: true });
+    await until(quick, 'typeof loadPdfJs === "function"').catch(() => {});
+    let settled = null;
+    quick.window.eval(`
+      window.__pdfResult = null;
+      loadPdfJs().then(() => { window.__pdfResult = "resolved"; },
+                       e => { window.__pdfResult = "rejected: " + e.message; });`);
+    await until(quick, 'window.__pdfResult !== null', 4000)
+      .catch(() => {});
+    settled = quick.window.__pdfResult;
+    check('a stalled pdf.js download gives up instead of waiting for ever',
+          typeof settled === 'string' && settled.startsWith('rejected'),
+          settled === null ? 'never settled: the page would hang' : String(settled));
+    check('and the reason names the likely cause',
+          /proxy|captive portal/i.test(settled || ''), String(settled));
+    check('and says the rest of the tool still works offline',
+          /offline/i.test(settled || ''));
+    quick.window.close();
+  }
+
   await run('the capability list is not stale', dom => {
     const d = dom.window.document;
     dom.window.eval('drawCapabilities()');
