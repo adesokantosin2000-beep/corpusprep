@@ -141,16 +141,61 @@ function load_(){ try{return JSON.parse(localStorage.getItem(STORE))||{}}catch(e
 function save_(o){ try{localStorage.setItem(STORE,JSON.stringify(o))}catch(e){} }
 function remember(patch){ save_({...load_(),...patch}); }
 
+/* ---- recent files: off ------------------------------------------------
+   The list holds a filename and a token count so a returning reader
+   recognises what they last worked on. It cannot do the thing everyone
+   expects of it — reopen the work — because a browser cannot read a file
+   again without the reader choosing it, and nothing here ever held the file.
+
+   Every reader will click it expecting their cleaned text back, and every one
+   of them will be disappointed. That is not a fault to fix; it is what the
+   feature is.
+
+   The deciding argument is not the disappointment, it is the storage. **This
+   is the only place in the tool that keeps anything about the reader's
+   corpus.** A filename can be an informant's pseudonym or an unpublished
+   title, and it was sitting in browser storage on what may well be a shared
+   machine, in a tool whose whole proposition is that the reader's material
+   stays under their control.
+
+   Hidden rather than deleted: the code, the markup and the tests all remain,
+   and this flag is the only thing between them and a working list. If a
+   version ever remembers a file's *settings* — so that re-choosing it returns
+   the reader to their preset and selections — the recognition becomes worth
+   something and this can come back.
+
+   Off means off: nothing new is recorded, and anything already stored on a
+   reader's machine is purged the next time they open the page. Hiding the
+   panel while leaving the names behind would keep the liability and lose the
+   feature, which is the worst of both. */
+const RECENT_LIST=false;
+
 function pushRecent(name,tokens){
+  if(!RECENT_LIST) return;
   const s=load_(), list=(s.recent||[]).filter(r=>r.name!==name);
   list.unshift({name,tokens,at:Date.now()});
   save_({...s,recent:list.slice(0,6)});
   drawRecent();
 }
 function drawRecent(){
+  if(!RECENT_LIST){
+    // Purge on sight, not merely hide. A reader who used an earlier version
+    // has filenames stored on this machine and never agreed to keep them.
+    const s=load_();
+    if(s.recent) save_({...s,recent:undefined});
+    const wrap=$("#recent-wrap");
+    if(wrap) wrap.style.display="none";
+    const g=$("#guide");
+    if(g&&!DOC) g.style.display="";
+    return;
+  }
   const list=load_().recent||[];
   const guide=$("#guide");
   if(!list.length){
+    // Emptied, not just hidden. Hiding the wrapper left the last row sitting
+    // in the DOM, where a stylesheet change or a screen reader would still
+    // find the filename it was supposed to have forgotten.
+    $("#recent").innerHTML="";
     $("#recent-wrap").style.display="none";
     if(guide&&!DOC) guide.style.display="";   // first run: guidance fills the space
     return;
