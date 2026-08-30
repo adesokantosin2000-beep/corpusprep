@@ -71,6 +71,16 @@ stabilisation pass over the parts that could not report on themselves.
   PDF support as an optional extra; the README and `docs/USING.md` corrected;
   and a test that fails if any code block invites the reader to run the
   command without saying how to make it work
+- **A mistyped path was reported as a broken PDF, in a traceback** (P12).
+  `load()` never checked the file was there, so a path that did not exist
+  reached the PDF reader and came back as "This file could not be opened as a
+  PDF: [Errno 2] No such file or directory" — naming the wrong problem, and
+  sending a reader to look for a fault in a file rather than in the path they
+  typed. It arrived as a Python traceback, which is a message addressed to
+  whoever wrote the program. Missing files, folders, locked files, declined
+  formats and unreadable PDFs are now reported in a sentence with exit code 2;
+  every other failure keeps its traceback, because that is the report worth
+  having
 - **Every division word was English** (P5). `Kapitel`, `Глава` and `Kapitola`
   were not words the heading tier knew, so a German, Russian or Czech book
   segmented as one undivided body while the log said "no structural headings

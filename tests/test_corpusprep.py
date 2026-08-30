@@ -1791,6 +1791,49 @@ def test_the_documented_commands_are_runnable():
                   "PYTHONPATH: it will answer 'No module named corpusprep'")
 
 
+def test_a_bad_path_is_reported_not_raised():
+    """A reader who mistypes a path got a Python traceback ending in
+    `UnreadablePDF: This file could not be opened as a PDF: [Errno 2] No such
+    file or directory`.
+
+    Two faults in one line. The tool named the wrong problem — the PDF was
+    fine, the path was wrong — and it said so in a traceback, which is a
+    message addressed to whoever wrote the program. Everyone else reads the
+    last line, sees the word Error, and stops.
+    """
+    code, out, err = _cli("clean", "C:\\path\\to\\nothing.pdf", "--out",
+                          tempfile.gettempdir())
+    check("a missing file exits with a code, not a crash", code == 2,
+          f"exit {code}")
+    check("and says the file is missing", "No file at" in err, err[:160])
+    check("and does not blame the PDF", "could not be opened as a PDF" not in err)
+    check("and shows no traceback", "Traceback" not in err, err[:160])
+    check("and says how to get the path right",
+          "quotation marks" in err or "dragging" in err)
+
+    with tempfile.TemporaryDirectory() as d:
+        code, out, err = _cli("inspect", d)
+        check("a folder is reported as a folder", code == 2 and "folder" in err,
+              f"exit {code}: {err[:120]}")
+        check("without a traceback either", "Traceback" not in err)
+
+
+def test_a_real_fault_keeps_its_traceback():
+    """The catch is narrow on purpose. Only failures a reader can cause are
+    turned into messages; a fault in this program keeps its traceback, because
+    that is the report worth having."""
+    import inspect as _inspect
+    from corpusprep import __main__ as m
+
+    src = _inspect.getsource(m.main)
+    check("the handler names its exceptions rather than catching everything",
+          "except Exception" not in src and "except:" not in src,
+          "a bare except would swallow the bugs worth reporting")
+    for name in ("FileNotFoundError", "IsADirectoryError", "PermissionError",
+                 "UnsupportedFormat", "UnreadablePDF"):
+        check(f"{name} is handled", name in src)
+
+
 def test_prose_is_never_protected():
     """The error this rule must never make.
 

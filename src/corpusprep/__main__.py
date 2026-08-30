@@ -182,7 +182,23 @@ def main(argv=None) -> int:
     pl.set_defaults(func=cmd_list)
 
     args = p.parse_args(argv)
-    return args.func(args)
+
+    # A traceback is a message to whoever wrote the program. Everyone else
+    # reads the last line, sees the word Error, and stops.
+    #
+    # Only the failures a reader can actually cause are caught here — a missing
+    # file, a folder, a locked file, a format we decline, a PDF we cannot read.
+    # Anything else is a fault in this program and keeps its traceback, because
+    # that is the report worth having.
+    from .formats import UnsupportedFormat
+    from .importer import UnreadablePDF
+
+    try:
+        return args.func(args)
+    except (FileNotFoundError, IsADirectoryError, PermissionError,
+            UnsupportedFormat, UnreadablePDF) as e:
+        print(f"\nerror: {e}\n", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
