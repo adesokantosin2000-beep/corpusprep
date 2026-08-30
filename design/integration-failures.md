@@ -955,3 +955,41 @@ Measurement, parity and unit tests all point inward. Nothing pointed at the
 first five minutes of a stranger's experience, and that is where the faults
 were.
 
+
+---
+
+## P12 — A mistyped path was reported as a broken PDF — **FIXED**
+
+**Severity: moderate. It sends the reader to look in the wrong place, which
+costs more than the fault itself.**
+
+A reader pasted a placeholder path from an instruction and got:
+
+```
+corpusprep.importer.UnreadablePDF: This file could not be opened as a PDF:
+[Errno 2] No such file or directory: 'C:\path\to\yourbook.pdf'
+```
+
+Two faults in one line.
+
+**It named the wrong problem.** `load()` never checked the file was there, so a
+path that did not exist fell through to the PDF reader and was diagnosed as a
+broken PDF. The PDF was fine. A reader who trusts that message goes looking for
+a fault in their file, opens it in a viewer, sees it is perfectly readable, and
+concludes the tool cannot read PDFs.
+
+**It arrived as a traceback.** A traceback is a message addressed to whoever
+wrote the program. Everyone else reads the last line, sees the word Error, and
+stops.
+
+Existence and folder checks now come before the format question, and the CLI
+turns the failures a reader can actually cause — missing file, folder, locked
+file, declined format, unreadable PDF — into a sentence with exit code 2. The
+missing-file message says how to get a Windows path right, because that is the
+next thing the reader needs.
+
+**The catch is narrow on purpose.** Anything else keeps its traceback: a fault
+in this program is worth reporting in full, and a bare `except` would swallow
+exactly the reports that are worth having. A test asserts that nobody ever
+replaces it with one.
+
