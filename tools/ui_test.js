@@ -444,6 +444,43 @@ async function run(name, fn) {
     check('copying is offered', !!copy && !!copy.onclick);
   });
 
+  await run('the page reads as prose a person wrote', async dom => {
+    // Reported: too many em dashes in the text on the site. Counted before
+    // fixing: one in build/_app.js at the start of the week, twenty-six by the
+    // end. Almost all of them were added while writing the newer panels, and
+    // the tic is recognisable enough that a reader notices it before they
+    // notice what the sentence says.
+    //
+    // Comments are exempt. This is about what a visitor reads.
+    dom.window.eval('drawCapabilities(); drawRegister();');
+    try { dom.window.eval('drawCite()'); } catch (e) { /* needs a document */ }
+
+    const visible = node => {
+      if (node.nodeType === 3) return node.nodeValue;
+      if (node.nodeType !== 1) return '';
+      if (node.tagName === 'SCRIPT' || node.tagName === 'STYLE') return '';
+      let out = '';
+      for (const c of node.childNodes) out += visible(c) + ' ';
+      return out;
+    };
+    const text = visible(dom.window.document.body);
+    const dashes = (text.match(/—/g) || []).length;
+    check('no em dashes in the text on screen', dashes === 0,
+          dashes + ' found: ' +
+          (text.match(/[^.!?]*—[^.!?]*/g) || []).slice(0, 3)
+            .map(x => x.replace(/\s+/g, ' ').trim().slice(0, 70)).join(' | '));
+
+    // And the author's own name is not standing in the box where a stranger
+    // is meant to type theirs.
+    const name = dom.window.document.getElementById('g-name');
+    check('the name field does not suggest somebody else',
+          !!name && !/adesokan/i.test(name.getAttribute('placeholder') || ''),
+          name && name.getAttribute('placeholder'));
+
+    check('the page has an icon for the browser tab',
+          !!dom.window.document.querySelector('link[rel="icon"]'));
+  });
+
   await run('the capability list is not stale', dom => {
     const d = dom.window.document;
     dom.window.eval('drawCapabilities()');
