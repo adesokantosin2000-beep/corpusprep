@@ -41,7 +41,7 @@ const CAPABILITIES=[
   {ready:1, t:"Detects front matter and back matter",
    d:"Title pages, prefaces, dramatis personae, contents, appendices and indexes."},
   {ready:1, t:"Segments chapters and sections",
-   d:"Chapter, Book, Part, Act and Scene divisions, numbered sections and bare numeral runs. Headings split across two lines, or welded to the front of a page in scanned text, are also found. The division words of several other languages are recognised too \u2014 Kapitel, Glava, Kapitola and their neighbours \u2014 from a fixed list, which is only as wide as the list: a language whose word is absent yields no structure and the report says so."},
+   d:"Chapter, Book, Part, Act and Scene divisions, numbered sections and bare numeral runs. Headings split across two lines, or welded to the front of a page in scanned text, are also found. The division words of several other languages are recognised too, including Kapitel, Glava and Kapitola, from a fixed list. That list is only as wide as its entries: a language whose word is absent yields no structure, and the report says so."},
   {ready:1, t:"Recovers chapters from running heads",
    d:"For scans where OCR destroyed every heading, the chapter titles are read from the head repeated on each page."},
   {ready:1, t:"Identifies publisher and licence apparatus",
@@ -63,7 +63,7 @@ const CAPABILITIES=[
   {ready:1, t:"Reads TXT, Markdown, DOCX, EPUB and HTML",
    d:"Encoding, byte-order marks and line endings resolved on import. Markdown link targets are discarded and the link text kept, because a URL is not language."},
   {ready:1, t:"Detects interface furniture",
-   d:"Experimental. The labels an application prints around text a person wrote \u2014 Like, Reply, 2 likes, View replies. Found by position rather than by word, since all of those are ordinary English: a control sits after the text of a record, a one-word comment does not. Nothing is claimed unless the file itself is shaped like a scraped feed. Validated so far against one synthetic thread only; detected and reported, never removed."},
+   d:"Experimental. The labels an application prints around text a person wrote: Like, Reply, 2 likes, View replies. Found by position rather than by word, since all of those are ordinary English. A control sits after the text of a record; a one-word comment does not. Nothing is claimed unless the file itself is shaped like a scraped feed. Validated so far against one synthetic thread only; detected and reported, never removed."},
   {ready:1, t:"Records every decision in a log",
    d:"Markdown and JSON, including token and type counts, suitable for citation. A run in which no rule fires says which rules were tried and why each declined, rather than reporting a zero."},
   {ready:1, t:"Reads PDF",
@@ -219,7 +219,7 @@ function drawRecent(){
      to be able to take it off the screen. */
   $("#recent").innerHTML=list.map((r,i)=>`
     <div class="rec-row">
-      <button data-open="${i}" title="Choose this file again — the browser cannot reopen it for you">
+      <button data-open="${i}" title="Choose this file again. The browser cannot reopen it for you.">
         <span class="t">${esc(r.name)}</span>
         <span class="d">${r.tokens.toLocaleString()}</span>
       </button>
@@ -1001,8 +1001,8 @@ function drawCite(){
     <pre id="cite-bib">${esc(citationBibtex())}</pre>
     <p class="note">The DOI above is the <b>concept DOI</b>, which always
       resolves to the newest release. For a methods section, prefer the
-      <b>version DOI</b> of the release matching ${esc(v)} — it resolves to a
-      frozen copy of the code that produced your results and cannot move. It is
+      <b>version DOI</b> of the release matching ${esc(v)}. That one resolves to
+      a frozen copy of the code that produced your results and cannot move. It is
       shown on that release's page in the archive. See
       <code>docs/CITING.md</code>.</p>`;
   $$("#cite [data-copy]").forEach(b=>b.onclick=async()=>{
@@ -1060,8 +1060,8 @@ function noOpNotes(){
     out.push("**Nothing to rejoin.** Lines are short (median "+med+" "+
       "characters), which is the shape wrapped text has, but no block looked "+
       "like one paragraph broken across several lines. Short lines that are "+
-      "each a whole utterance — a comment, a caption, a line of a transcript "+
-      "— are not wrapped, and rejoining them would be damage.");
+      "each a whole utterance, such as a comment, a caption or a line "+
+      "of a transcript, are not wrapped, and rejoining them would be damage.");
   out.push("**No word broken across a line.** De-hyphenation looks for a word "+
     "ending in a hyphen at a line end; there were none.");
   return out;
@@ -1070,12 +1070,13 @@ function noOpNotes(){
 const NO_OP_CLOSING=
   "**What this means for your corpus.** The rules here are built for printed "+
   "books turned into text: Gutenberg files, PDF extractions, library scans. "+
-  "Their apparatus — running heads, page numbers, editorial front matter, "+
-  "hyphens at line ends — is what there is to remove. Text that was born "+
+  "What there is to remove is their apparatus: running heads, page numbers, "+
+  "editorial front matter, hyphens at line ends. Text that was born "+
   "digital has none of it, and the honest answer is that your file is already "+
   "as clean as this tool can make it.\n\nIf your material carries a "+
-  "different kind of apparatus — interface labels, timestamps, usernames, "+
-  "boilerplate that repeats — that is worth reporting, because it is the sort "+
+  "different kind of apparatus, such as interface labels, timestamps, "+
+  "usernames or boilerplate that repeats, that is worth reporting, because "+
+  "it is the sort "+
   "of thing a rule can be built for and none of the rules here were.";
 
 function logMarkdown(){
@@ -1105,7 +1106,7 @@ function logMarkdown(){
   if(quiet.length){
     m+=`## Nothing was removed, and here is what was looked for\n\n`;
     m+=`Every rule in this tool examined the text and declined. That is a `;
-    m+=`result, not a failure — but it is only useful if you can see what was `;
+    m+=`result, not a failure. It is only useful, though, if you can see what was `;
     m+=`asked.\n\n`;
     quiet.forEach(n=>m+=`- ${n}\n`);
     m+=`\n${NO_OP_CLOSING}\n\n`;
@@ -1148,8 +1149,8 @@ function drawLog(){
       declined.<ul>${quietNotes.map(n=>`<li>${esc(n.replace(/\*\*/g,"").replace(/[`*]/g,""))}</li>`).join("")}</ul>
       The rules here are built for printed books turned into text. Text that was
       born digital carries none of that apparatus, and your file is already as
-      clean as this tool can make it. If it carries a different kind — interface
-      labels, timestamps, usernames, boilerplate that repeats — that is worth
+      clean as this tool can make it. If it carries a different kind, such as
+      interface labels, timestamps, usernames or boilerplate that repeats, that is worth
       reporting.</div>`:"")
     +`
 

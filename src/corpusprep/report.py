@@ -116,8 +116,8 @@ def no_op_notes(doc: Document, results: list[VariantResult]) -> list[str]:
                      f"characters), which is the shape wrapped text has, but "
                      f"no block looked like one paragraph broken across "
                      f"several lines. Short lines that are each a whole "
-                     f"utterance — a comment, a caption, a line of a "
-                     f"transcript — are not wrapped, and rejoining them would "
+                     f"utterance, such as a comment, a caption or a line of "
+                     f"a transcript, are not wrapped, and rejoining them would "
                      f"be damage.")
     notes.append("**No word broken across a line.** De-hyphenation looks for "
                  "a word ending in a hyphen at a line end; there were none.")
@@ -153,7 +153,7 @@ def build_markdown(doc: Document, results: list[VariantResult]) -> str:
         a("## Nothing was removed, and here is what was looked for")
         a("")
         a("Every rule in this tool examined the text and declined. That is a "
-          "result, not a failure — but it is only useful if you can see what "
+          "result, not a failure. It is only useful, though, if you can see what "
           "was asked.")
         a("")
         for n in quiet:
@@ -161,14 +161,15 @@ def build_markdown(doc: Document, results: list[VariantResult]) -> str:
         a("")
         a("**What this means for your corpus.** The rules here are built for "
           "printed books turned into text: Gutenberg files, PDF extractions, "
-          "library scans. Their apparatus — running heads, page numbers, "
-          "editorial front matter, hyphens at line ends — is what there is to "
+          "library scans. What there is to remove is their apparatus: running "
+          "heads, page numbers, editorial front matter, hyphens at line ends. "
           "remove. Text that was born digital has none of it, and the honest "
           "answer is that your file is already as clean as this tool can make "
           "it.")
         a("")
-        a("If your material carries a different kind of apparatus — interface "
-          "labels, timestamps, usernames, boilerplate that repeats — that is "
+        a("If your material carries a different kind of apparatus, such as "
+          "interface labels, timestamps, usernames or boilerplate that "
+          "repeats, that is "
           "worth reporting, because it is the sort of thing a rule can be "
           "built for and none of the rules here were.")
         a("")
@@ -236,7 +237,7 @@ def build_markdown(doc: Document, results: list[VariantResult]) -> str:
         a("")
         a("**Detected, not removed.** These lines go only if a variant sets "
           "`drop_interface`, and no built-in variant does. Every word here is "
-          "ordinary English — `Like`, `Reply`, `Share` — so the rule refuses "
+          "ordinary English (`Like`, `Reply`, `Share`), so the rule refuses "
           "to fire at all unless the file itself is shaped like a scraped "
           "feed, and even then it takes only lines that sit *after* the text "
           "of a record rather than among it. Read the table before you turn "
