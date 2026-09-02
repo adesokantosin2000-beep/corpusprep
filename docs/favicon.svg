@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img"
+     aria-label="CorpusPrep">
+  <rect width="32" height="32" rx="6" fill="#37564a"/>
+  <rect x="8" y="9" width="9" height="2.6" rx="1.3" fill="#8fae9f"/>
+  <rect x="8" y="15" width="16" height="2.6" rx="1.3" fill="#faf8f4"/>
+  <rect x="8" y="20.5" width="16" height="2.6" rx="1.3" fill="#faf8f4"/>
+</svg>
