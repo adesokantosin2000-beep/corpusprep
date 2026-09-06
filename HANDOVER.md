@@ -5,7 +5,7 @@ Point a fresh session at this file. It replaces reading the conversation.
 ## State
 
 `v0.11.0` plus an unreleased body of work, all committed and pushed
-(`a2c1c67`). Zenodo DOI **10.5281/zenodo.22083932** (version), `…931`
+(`526d3e2`). Zenodo DOI **10.5281/zenodo.22083932** (version), `…931`
 (concept).
 
 ```
@@ -133,7 +133,12 @@ tools/make_*_fixture*.py         generators that record the key as they write
 
 Running the tests: `python tests/test_corpusprep.py` needs nothing. `node
 tools/ui_test.js` needs the vendored jsdom, which is in `node_modules` and
-complete as of `be8ba02`.
+complete as of `6d64231`.
+
+History was rewritten on 7 September to remove assistant co-author trailers
+from fifteen commit messages. File contents, dates, authorship and all ten
+annotated tags are unchanged; every commit hash from the fifth commit onward
+is new. Any hash written down before that date will not resolve.
 
 `build/_engine.js` contains one literal NUL byte in the `"\0page-number"`
 sentinel, around line 918. It works, but `grep` treats the file as binary and
