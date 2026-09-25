@@ -5,7 +5,8 @@ type: software
 authors:
   - family-names: Adesokan
     given-names: Tosin
-version: 0.11.0
+    orcid: "https://orcid.org/0009-0000-2288-4271"
+version: 0.12.0
 doi: 10.5281/zenodo.22083932
 identifiers:
   - type: doi
@@ -34,8 +35,10 @@ abstract: >-
   Handles Project Gutenberg apparatus, mass-digitisation boilerplate, front
   and back matter, chapter and act segmentation, page furniture in scanned
   text, footnotes, hyphenation broken across line breaks, and paragraph
-  reflow of hard-wrapped sources. Imports TXT, DOCX, EPUB and HTML. Runs as a
-  Python package or as a single-file web application requiring no upload.
+  reflow of hard-wrapped sources. Imports TXT, Markdown, DOCX, EPUB, HTML and
+  PDF, and reports which PDFs carry no readable text layer and need optical
+  character recognition before anything else. Runs as a Python package or as a
+  single-file web application requiring no upload.
 keywords:
   - corpus linguistics
   - text preprocessing

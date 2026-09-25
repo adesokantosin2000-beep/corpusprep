@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-25
+
+The first release archived since 0.6.0, so it is also the first version since
+then that a reader can cite and run the same code. Versions 0.7.0 to 0.11.0
+were tagged in git and never archived, and have no DOI.
+
+Metadata only, beyond what follows: an ORCID iD on the author record, and a
+description that names the formats the tool actually reads. It had claimed TXT,
+DOCX, EPUB and HTML since before Markdown and PDF existed.
+
 Six faults, four of them silent, two rules the tool did not have, and a
 stabilisation pass over the parts that could not report on themselves.
 
