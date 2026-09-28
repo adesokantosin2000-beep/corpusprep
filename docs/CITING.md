@@ -34,7 +34,7 @@ For a month this page said "version 0.6.0" while the software reported 0.11.0,
 in a document whose own argument is that the version is not a formality.
 
 The cause was worse than a typo. Versions 0.7.0 to 0.11.0 were tagged in git
-and never released to the archive, so **they have no version DOI at all** — a
+and never released to the archive, so they have no version DOI at all. A
 reader running 0.9.0 had nothing frozen to cite, and no DOI printed here could
 have honestly described what they were running. The answer was not to paper
 over it by printing a DOI that resolves to different code than the reader ran,
@@ -78,7 +78,7 @@ land on a different version of the software than the one that produced your
 results, which is exactly the failure a DOI is supposed to prevent.
 
 The concept DOI is right when referring to the software as a project rather
-than to a run — in a related-work paragraph, a bibliography of tools, or a
+than to a run: in a related-work paragraph, a bibliography of tools, or a
 sentence like "CorpusPrep is maintained at…".
 
 Machine-readable metadata is in [`CITATION.cff`](https://github.com/adesokantosin2000-beep/corpusprep/blob/main/CITATION.cff). GitHub reads
@@ -118,7 +118,7 @@ What has to be true for each release:
 The original one-time setup, recorded in case it is needed for another
 repository: sign in to Zenodo with the GitHub account, open **GitHub** in the
 account menu, and turn the repository's toggle on. It must be done **before**
-the release is created — Zenodo does not see releases published earlier.
+the release is created. Zenodo does not see releases published earlier.
 
 1. Sign in at [zenodo.org](https://zenodo.org) with the GitHub account.
 2. Go to **GitHub** in the Zenodo account menu.
