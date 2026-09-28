@@ -406,6 +406,53 @@ async function run(name, fn) {
     quick.window.close();
   }
 
+  await run('the citation is reachable before anything is loaded', dom => {
+    // The Log tab citation only exists after a reader has loaded a file and
+    // cleaned it. Someone writing a related-work paragraph, or deciding
+    // whether to trust the tool at all, never gets that far. This one is on
+    // the first screen, and it must be closed until asked for: the sign-in
+    // card is what the first screen is for.
+    const d = dom.window.document;
+    const t = d.querySelector('#g-cite-toggle');
+    const p = d.querySelector('#g-cite');
+    check('the gate offers a citation', !!t && !!p);
+    if (!t || !p) return;
+    check('and it is closed on arrival', p.hidden,
+          'an open panel pushes the sign-in card down the page');
+    check('and says so to a screen reader',
+          t.getAttribute('aria-expanded') === 'false');
+
+    const click = () => t.dispatchEvent(
+      new dom.window.MouseEvent('click', { bubbles: true }));
+
+    click();
+    check('one click opens it', !p.hidden);
+    check('aria-expanded follows the panel',
+          t.getAttribute('aria-expanded') === 'true');
+
+    const text = p.textContent;
+    check('the reference names the author', /Adesokan, T\./.test(text));
+    check('and carries the running version', /version \d+\.\d+\.\d+/.test(text),
+          text.slice(0, 100));
+    check('and the concept DOI', text.includes('10.5281/zenodo.22083931'));
+    check('BibTeX is offered, with the title brace-protected',
+          text.includes('@software{') && text.includes('{{CorpusPrep'),
+          'single braces let plain and IEEEtran case-fold it to Corpusprep');
+    check('both texts can be copied',
+          p.querySelectorAll('[data-gcopy]').length === 2);
+    check('and it says where the version DOI lives',
+          !!p.querySelector('a[href*="CITING.html"]'));
+
+    // The reason this page prints a concept DOI at all. It knows its version
+    // and cannot know whether a release was archived for this build, so a
+    // version DOI here would resolve to code the reader did not run.
+    check('no version DOI is printed, because it cannot be verified',
+          !/zenodo\.229\d{5}/.test(text));
+
+    click();
+    check('a second click closes it', p.hidden);
+  });
+
   await run('the citation is where the methods section gets written', async dom => {
     // AntConc — the most cited tool in this field — puts its citation on the
     // page people download from. Ours lived only in docs/CITING.md, which a

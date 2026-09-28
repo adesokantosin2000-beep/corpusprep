@@ -82,6 +82,27 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
 .byline a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
 .byline a:hover{border-bottom-color:var(--accent)}
 .byline-sep{margin:0 7px;color:var(--faint)}
+.byline button.linkish{font:inherit;color:var(--accent);background:none;
+  border:0;border-bottom:1px solid transparent;padding:0;cursor:pointer}
+.byline button.linkish:hover{border-bottom-color:var(--accent)}
+.gate-cite{margin:14px 0 0;padding:14px 15px;text-align:left;
+  background:var(--gold-soft);border:1px solid #ece0c4;border-radius:4px}
+.gate-cite .row{display:flex;align-items:baseline;justify-content:space-between;
+  gap:10px;margin:0 0 5px}
+.gate-cite .row b{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);font-weight:600}
+.gate-cite .row button{font:inherit;font-size:12px;color:var(--accent);
+  background:none;border:0;padding:0;cursor:pointer;
+  border-bottom:1px solid transparent}
+.gate-cite .row button:hover{border-bottom-color:var(--accent)}
+.gate-cite pre{margin:0 0 14px;padding:10px 11px;background:var(--card);
+  border:1px solid var(--rule);border-radius:3px;
+  font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-word;
+  max-height:none;overflow:visible;-webkit-user-select:all;user-select:all}
+.gate-cite .note{margin:0;font-size:11.5px;line-height:1.5;color:var(--muted)}
+.gate-cite .note a{color:var(--accent);text-decoration:none;
+  border-bottom:1px solid transparent}
+.gate-cite .note a:hover{border-bottom-color:var(--accent)}
 .docnav{margin:20px 0 0;padding-top:16px;border-top:1px solid var(--hair);
   font-size:12.5px;color:var(--muted);text-align:center}
 .docnav a{color:var(--accent);text-decoration:none;
@@ -491,7 +512,17 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
       <span class="byline-sep">·</span>
       <a href="https://doi.org/10.5281/zenodo.22083931" target="_blank"
          rel="noopener">doi.org/10.5281/zenodo.22083931</a>
+      <span class="byline-sep">·</span>
+      <!-- A citation is the reason a DOI exists, and asking a reader to
+           assemble one from a name and a bare DOI is asking them to get it
+           wrong. The panel is closed by default: the first screen's job is to
+           let someone start, not to explain provenance to a person who has not
+           used the tool yet. -->
+      <button class="linkish" id="g-cite-toggle" aria-expanded="false"
+              aria-controls="g-cite">Cite this</button>
     </p>
+
+    <div class="gate-cite" id="g-cite" hidden></div>
 
     <div class="rule-orn"><span>Sign in</span></div>
 
@@ -655,7 +686,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
           <p>Every line is labelled before anything is removed, and the log
           records how the decision was made.</p>
           <p class="onboard-cta">Select or drop a file on the left.
-          TXT, DOCX, EPUB or HTML.</p>
+          TXT, Markdown, DOCX, EPUB, HTML or PDF.</p>
         </div>
 
         <!-- Closed by default. The planned items are listed so the present
@@ -3885,6 +3916,53 @@ $("#g-go").onclick=()=>{
 ["#g-name","#g-inst"].forEach(s=>$(s).addEventListener("keydown",
   e=>{if(e.key==="Enter")$("#g-go").click()}));
 $("#g-skip").onclick=()=>enter(null);
+
+/* ---- cite from the first screen ---------------------------------------
+   The same two texts the Log tab prints, and deliberately the same concept
+   DOI: this file does not know which archived release it was built from, so a
+   version DOI here would be a claim it cannot support. The note says where the
+   version DOI lives, because that is the one a methods section needs.
+
+   Built on demand rather than at load. The citation carries the running
+   version, and reading CORPUSPREP_VERSION at click time cannot go stale. */
+function drawGateCite(){
+  const el=$("#g-cite");
+  if(!el) return;
+  el.innerHTML=`
+    <div class="row"><b>Reference</b>
+      <button data-gcopy="apa">Copy</button></div>
+    <pre>${esc(citationText())}</pre>
+    <div class="row"><b>BibTeX</b>
+      <button data-gcopy="bib">Copy</button></div>
+    <pre>${esc(citationBibtex())}</pre>
+    <p class="note">This is the <b>concept DOI</b>, which always resolves to the
+      newest release. For a methods section use the <b>version DOI</b> of the
+      release you ran, which resolves to a frozen copy of that code and cannot
+      move. See <a href="https://corpusprep.org/CITING.html" target="_blank"
+      rel="noopener">how to cite CorpusPrep</a>.</p>`;
+  $$("#g-cite [data-gcopy]").forEach(b=>b.onclick=async()=>{
+    const text=b.dataset.gcopy==="apa"?citationText():citationBibtex();
+    try{
+      await navigator.clipboard.writeText(text);
+      b.textContent="Copied";
+    }catch(e){
+      // The clipboard is not granted in every browser or every context. The
+      // text is selectable, so say so rather than appearing to have worked.
+      b.textContent="Select and copy";
+    }
+    setTimeout(()=>{b.textContent="Copy"},2000);
+  });
+}
+{
+  const t=$("#g-cite-toggle"), p=$("#g-cite");
+  if(t&&p) t.onclick=()=>{
+    const open=p.hidden;
+    if(open) drawGateCite();
+    p.hidden=!open;
+    t.setAttribute("aria-expanded",String(open));
+    t.textContent=open?"Hide citation":"Cite this";
+  };
+}
 
 /* ---- import ---- */
 function decode(buf){

@@ -280,6 +280,53 @@ $("#g-go").onclick=()=>{
   e=>{if(e.key==="Enter")$("#g-go").click()}));
 $("#g-skip").onclick=()=>enter(null);
 
+/* ---- cite from the first screen ---------------------------------------
+   The same two texts the Log tab prints, and deliberately the same concept
+   DOI: this file does not know which archived release it was built from, so a
+   version DOI here would be a claim it cannot support. The note says where the
+   version DOI lives, because that is the one a methods section needs.
+
+   Built on demand rather than at load. The citation carries the running
+   version, and reading CORPUSPREP_VERSION at click time cannot go stale. */
+function drawGateCite(){
+  const el=$("#g-cite");
+  if(!el) return;
+  el.innerHTML=`
+    <div class="row"><b>Reference</b>
+      <button data-gcopy="apa">Copy</button></div>
+    <pre>${esc(citationText())}</pre>
+    <div class="row"><b>BibTeX</b>
+      <button data-gcopy="bib">Copy</button></div>
+    <pre>${esc(citationBibtex())}</pre>
+    <p class="note">This is the <b>concept DOI</b>, which always resolves to the
+      newest release. For a methods section use the <b>version DOI</b> of the
+      release you ran, which resolves to a frozen copy of that code and cannot
+      move. See <a href="https://corpusprep.org/CITING.html" target="_blank"
+      rel="noopener">how to cite CorpusPrep</a>.</p>`;
+  $$("#g-cite [data-gcopy]").forEach(b=>b.onclick=async()=>{
+    const text=b.dataset.gcopy==="apa"?citationText():citationBibtex();
+    try{
+      await navigator.clipboard.writeText(text);
+      b.textContent="Copied";
+    }catch(e){
+      // The clipboard is not granted in every browser or every context. The
+      // text is selectable, so say so rather than appearing to have worked.
+      b.textContent="Select and copy";
+    }
+    setTimeout(()=>{b.textContent="Copy"},2000);
+  });
+}
+{
+  const t=$("#g-cite-toggle"), p=$("#g-cite");
+  if(t&&p) t.onclick=()=>{
+    const open=p.hidden;
+    if(open) drawGateCite();
+    p.hidden=!open;
+    t.setAttribute("aria-expanded",String(open));
+    t.textContent=open?"Hide citation":"Cite this";
+  };
+}
+
 /* ---- import ---- */
 function decode(buf){
   const b=new Uint8Array(buf);

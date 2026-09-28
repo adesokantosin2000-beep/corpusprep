@@ -82,6 +82,27 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
 .byline a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
 .byline a:hover{border-bottom-color:var(--accent)}
 .byline-sep{margin:0 7px;color:var(--faint)}
+.byline button.linkish{font:inherit;color:var(--accent);background:none;
+  border:0;border-bottom:1px solid transparent;padding:0;cursor:pointer}
+.byline button.linkish:hover{border-bottom-color:var(--accent)}
+.gate-cite{margin:14px 0 0;padding:14px 15px;text-align:left;
+  background:var(--gold-soft);border:1px solid #ece0c4;border-radius:4px}
+.gate-cite .row{display:flex;align-items:baseline;justify-content:space-between;
+  gap:10px;margin:0 0 5px}
+.gate-cite .row b{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);font-weight:600}
+.gate-cite .row button{font:inherit;font-size:12px;color:var(--accent);
+  background:none;border:0;padding:0;cursor:pointer;
+  border-bottom:1px solid transparent}
+.gate-cite .row button:hover{border-bottom-color:var(--accent)}
+.gate-cite pre{margin:0 0 14px;padding:10px 11px;background:var(--card);
+  border:1px solid var(--rule);border-radius:3px;
+  font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-word;
+  max-height:none;overflow:visible;-webkit-user-select:all;user-select:all}
+.gate-cite .note{margin:0;font-size:11.5px;line-height:1.5;color:var(--muted)}
+.gate-cite .note a{color:var(--accent);text-decoration:none;
+  border-bottom:1px solid transparent}
+.gate-cite .note a:hover{border-bottom-color:var(--accent)}
 .docnav{margin:20px 0 0;padding-top:16px;border-top:1px solid var(--hair);
   font-size:12.5px;color:var(--muted);text-align:center}
 .docnav a{color:var(--accent);text-decoration:none;
@@ -491,7 +512,17 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
       <span class="byline-sep">·</span>
       <a href="https://doi.org/10.5281/zenodo.22083931" target="_blank"
          rel="noopener">doi.org/10.5281/zenodo.22083931</a>
+      <span class="byline-sep">·</span>
+      <!-- A citation is the reason a DOI exists, and asking a reader to
+           assemble one from a name and a bare DOI is asking them to get it
+           wrong. The panel is closed by default: the first screen's job is to
+           let someone start, not to explain provenance to a person who has not
+           used the tool yet. -->
+      <button class="linkish" id="g-cite-toggle" aria-expanded="false"
+              aria-controls="g-cite">Cite this</button>
     </p>
+
+    <div class="gate-cite" id="g-cite" hidden></div>
 
     <div class="rule-orn"><span>Sign in</span></div>
 
@@ -655,7 +686,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
           <p>Every line is labelled before anything is removed, and the log
           records how the decision was made.</p>
           <p class="onboard-cta">Select or drop a file on the left.
-          TXT, DOCX, EPUB or HTML.</p>
+          TXT, Markdown, DOCX, EPUB, HTML or PDF.</p>
         </div>
 
         <!-- Closed by default. The planned items are listed so the present
