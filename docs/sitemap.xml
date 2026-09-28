@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One page, because the site is one page. index.html is the whole application.
+
+  CITING.md and USING.md are served as raw Markdown rather than HTML, since
+  there is no Jekyll front matter on them, so they are not listed: a sitemap
+  that points at files a search engine will not index is a sitemap that
+  reports failures it caused itself.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://corpusprep.org/</loc>
+    <lastmod>2026-09-29</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

@@ -1,0 +1,11 @@
+
+# corpusprep.org
+#
+# Everything here is public and meant to be found. There is nothing to hide
+# from a crawler: the application runs entirely in the reader's browser, so no
+# corpus, no log and no reader's name exists on this server to be exposed.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://corpusprep.org/sitemap.xml
