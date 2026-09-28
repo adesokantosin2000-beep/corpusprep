@@ -1,6 +1,8 @@
 # CorpusPrep
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22083932.svg)](https://doi.org/10.5281/zenodo.22083932)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22960284.svg)](https://doi.org/10.5281/zenodo.22960284)
+
+By [Tosin Adesokan](https://orcid.org/0009-0000-2288-4271).
 
 **Corpus preparation for linguists.** Prepare a source text for analysis, and
 retain a record of every editorial decision taken.
@@ -398,10 +400,10 @@ between releases, and an analysis is only reproducible against the version that
 produced it.
 
 > Adesokan, T. (2026). *CorpusPrep: corpus preparation for linguists*
-> (version 0.6.0) [Computer software]. Zenodo.
-> https://doi.org/10.5281/zenodo.22083932
+> (version 0.12.0) [Computer software]. Zenodo.
+> https://doi.org/10.5281/zenodo.22960284
 
-That DOI resolves to a frozen, archived copy of `v0.6.0` and cannot move. To
+That DOI resolves to a frozen, archived copy of `v0.12.0` and cannot move. To
 refer to the software in general rather than to one version, use the concept
 DOI [10.5281/zenodo.22083931](https://doi.org/10.5281/zenodo.22083931), which
 always resolves to the latest release — useful in prose, wrong in a methods

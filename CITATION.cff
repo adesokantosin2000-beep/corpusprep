@@ -7,20 +7,25 @@ authors:
     given-names: Tosin
     orcid: "https://orcid.org/0009-0000-2288-4271"
 version: 0.12.0
-doi: 10.5281/zenodo.22083932
+doi: 10.5281/zenodo.22960284
 identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22960284
+    description: >-
+      Version DOI for 0.12.0. Cite this one in a thesis or paper: it resolves
+      to a frozen copy of the code that produced the results, and cannot move.
   - type: doi
     value: 10.5281/zenodo.22083932
     description: >-
-      Version DOI for 0.6.0. Cite this one in a thesis or paper: it resolves
-      to a frozen copy of the code that produced the results, and cannot move.
+      Version DOI for 0.6.0, the previous archived release. Kept so that an
+      analysis run against 0.6.0 still has something to point at.
   - type: doi
     value: 10.5281/zenodo.22083931
     description: >-
       Concept DOI, always resolving to the latest version. Useful as a general
       reference to the software; wrong for a methods section, which has to
       stay true after the software changes.
-date-released: 2026-08-24
+date-released: 2026-09-25
 license: MIT
 repository-code: "https://github.com/adesokantosin2000-beep/corpusprep"
 url: "https://corpusprep.org"

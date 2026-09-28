@@ -14,26 +14,29 @@ your methods section.
 
 ## Current release
 
-**This page said "version 0.6.0" while the software reported 0.11.0**, in a
-document whose own argument is that the version is not a formality. Corrected
-on 29 August, and the correction is more interesting than the typo:
-
-`10.5281/zenodo.22083932` is the version DOI **for 0.6.0**, because 0.6.0 is
-the last release that was archived. Versions 0.7.0 to 0.11.0 were tagged in git
-and never released to the archive, so **they have no version DOI at all**. A
-reader running 0.9.0 has nothing frozen to cite.
-
-That is a gap to close at `v1.0` — cut a release, let the archive mint a DOI,
-and record it here — not a gap to paper over by printing a DOI that resolves to
-different code than the reader ran. A citation that looks right and is not is
-worse than none.
-
-Until then, cite the archived release you can actually point at, and state the
-version you ran alongside it:
+**0.12.0**, archived on 25 September 2026, version DOI
+`10.5281/zenodo.22960284`.
 
 > Adesokan, T. (2026). *CorpusPrep: corpus preparation for linguists*
-> (version 0.6.0) [Computer software]. Zenodo.
-> https://doi.org/10.5281/zenodo.22083932
+> (version 0.12.0) [Computer software]. Zenodo.
+> https://doi.org/10.5281/zenodo.22960284
+
+### The gap this release closed, kept on the record
+
+For a month this page said "version 0.6.0" while the software reported 0.11.0,
+in a document whose own argument is that the version is not a formality.
+
+The cause was worse than a typo. Versions 0.7.0 to 0.11.0 were tagged in git
+and never released to the archive, so **they have no version DOI at all** — a
+reader running 0.9.0 had nothing frozen to cite, and no DOI printed here could
+have honestly described what they were running. The answer was not to paper
+over it by printing a DOI that resolves to different code than the reader ran,
+but to cut a release. 0.12.0 is that release.
+
+**The same gap opens again the moment a version ships unarchived.** If the
+software reports a version that does not appear in the table below, this page
+is out of date and the honest citation is the newest archived release plus the
+version named in prose.
 
 The application shows this, with the version you are running, in the Log tab.
 
@@ -43,11 +46,11 @@ BibTeX:
 @software{adesokan_corpusprep_2026,
   author    = {Adesokan, Tosin},
   title     = {{CorpusPrep: corpus preparation for linguists}},
-  version   = {0.6.0},
+  version   = {0.12.0},
   year      = {2026},
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.22083932},
-  url       = {https://doi.org/10.5281/zenodo.22083932}
+  doi       = {10.5281/zenodo.22960284},
+  url       = {https://doi.org/10.5281/zenodo.22960284}
 }
 ```
 
@@ -55,6 +58,7 @@ BibTeX:
 
 | | DOI | Resolves to |
 |---|---|---|
+| **Version** | `10.5281/zenodo.22960284` | `v0.12.0`, frozen. Never changes. |
 | **Version** | `10.5281/zenodo.22083932` | `v0.6.0`, frozen. Never changes. |
 | **Concept** | `10.5281/zenodo.22083931` | Whatever the newest release is. |
 
@@ -75,9 +79,20 @@ it for the "Cite this repository" button, and Zenodo reads
 
 ## Releasing a new version
 
-The archive is already set up: `v0.6.0` is deposited at
-[10.5281/zenodo.22083932](https://doi.org/10.5281/zenodo.22083932). Every
+The archive is already set up: the newest deposit is `v0.12.0` at
+[10.5281/zenodo.22960284](https://doi.org/10.5281/zenodo.22960284). Every
 future GitHub release is archived automatically and gets its own version DOI.
+
+**Two things observed while releasing 0.12.0, so that neither is mistaken for
+a fault next time.** The archive row can sit at *Received* for hours rather
+than minutes; that is a queue position, not an error, and uploading a version
+by hand while it waits produces two records for one release. And editing a
+release's description after publishing fires a second webhook, which the
+archive answers with HTTP 409 because it already holds that release. A failed
+last delivery therefore proves nothing on its own: read the whole delivery
+list, and read the repository's own release list at
+`zenodo.org/account/settings/github/`, which reports *Received* or *Published*
+per release and is the only view that distinguishes waiting from broken.
 
 What has to be true for each release:
 
