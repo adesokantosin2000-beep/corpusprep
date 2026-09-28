@@ -7,6 +7,43 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%226%22%20fill%3D%22%2337564a%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%229%22%20width%3D%229%22%20height%3D%222.6%22%20rx%3D%221.3%22%20fill%3D%22%238fae9f%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%2215%22%20width%3D%2216%22%20height%3D%222.6%22%20rx%3D%221.3%22%20fill%3D%22%23faf8f4%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%2220.5%22%20width%3D%2216%22%20height%3D%222.6%22%20rx%3D%221.3%22%20fill%3D%22%23faf8f4%22%2F%3E%3C%2Fsvg%3E">
 <meta name="description" content="Prepare a source text for corpus analysis and keep a record of every editorial decision taken. Runs in your browser; your text is never uploaded.">
+<link rel="canonical" href="https://corpusprep.org/">
+
+<!-- Structured data: who wrote this, what it is, and which archive holds it.
+     A researcher's first two questions about an unfamiliar tool are who made
+     it and whether it can be cited, and this states both in a form a machine
+     reads. The concept DOI is used rather than a version DOI because this file
+     is also served from disk and from forks, where no claim about which release
+     it came from would be true. offers/price says free rather than leaving it
+     unstated, since an unpriced application is assumed to have a paywall. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "CorpusPrep",
+  "alternateName": "CorpusPrep: corpus preparation for linguists",
+  "url": "https://corpusprep.org/",
+  "applicationCategory": "ResearchApplication",
+  "applicationSubCategory": "Corpus linguistics",
+  "operatingSystem": "Any (runs in a web browser)",
+  "description": "Prepares source texts for corpus analysis: the stage before AntConc or WordSmith Tools, both of which assume a clean corpus. Every line is labelled before anything is removed, and a log records how the decision was made. Reads TXT, Markdown, DOCX, EPUB, HTML and PDF. Runs entirely in the browser; no text is uploaded.",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "license": "https://opensource.org/licenses/MIT",
+  "identifier": "https://doi.org/10.5281/zenodo.22083931",
+  "sameAs": "https://doi.org/10.5281/zenodo.22083931",
+  "codeRepository": "https://github.com/adesokantosin2000-beep/corpusprep",
+  "author": {
+    "@type": "Person",
+    "name": "Tosin Adesokan",
+    "identifier": "https://orcid.org/0009-0000-2288-4271",
+    "url": "https://orcid.org/0009-0000-2288-4271"
+  },
+  "keywords": "corpus linguistics, text preprocessing, digital humanities, reproducibility, optical character recognition, Project Gutenberg, AntConc, WordSmith Tools",
+  "documentation": "https://corpusprep.org/USING.html"
+}
+</script>
 <style>
 :root{
   --paper:#faf8f4; --card:#fffefb; --ink:#1c1a17; --muted:#6e6960;
@@ -45,6 +82,11 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
 .byline a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
 .byline a:hover{border-bottom-color:var(--accent)}
 .byline-sep{margin:0 7px;color:var(--faint)}
+.docnav{margin:20px 0 0;padding-top:16px;border-top:1px solid var(--hair);
+  font-size:12.5px;color:var(--muted);text-align:center}
+.docnav a{color:var(--accent);text-decoration:none;
+  border-bottom:1px solid transparent}
+.docnav a:hover{border-bottom-color:var(--accent)}
 .rule-orn{display:flex;align-items:center;gap:14px;color:var(--faint);margin:32px 0 26px}
 .rule-orn::before,.rule-orn::after{content:"";flex:1;height:1px;background:var(--rule)}
 .rule-orn span{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;font-weight:600}
@@ -480,6 +522,19 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
         held on this device only.</p>
       </div>
     </div>
+
+    <!-- Absolute URLs on purpose. This page is also meant to work opened from
+         disk as a single file, where a relative link to USING.html resolves to
+         nothing; an absolute one reaches the published copy from either place.
+         They are also the only crawlable path from this page to the
+         documentation, which is most of the writing this project contains. -->
+    <p class="docnav">
+      <a href="https://corpusprep.org/USING.html">How to use it</a>
+      <span class="byline-sep">·</span>
+      <a href="https://corpusprep.org/CITING.html">How to cite it</a>
+      <span class="byline-sep">·</span>
+      <a href="https://github.com/adesokantosin2000-beep/corpusprep">Source code</a>
+    </p>
   </div>
 </div>
 

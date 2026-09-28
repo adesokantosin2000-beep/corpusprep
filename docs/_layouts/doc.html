@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ page.title }} — CorpusPrep</title>
+<meta name="description" content="{{ page.description }}">
+<link rel="canonical" href="https://corpusprep.org{{ page.url }}">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+<!-- The palette and typography are copied from build/_shell.html rather than
+     imported, because a documentation page must not depend on the application
+     loading. If the two drift apart the cost is cosmetic; if the docs stopped
+     rendering when the app changed, the cost would be the docs. -->
+<style>
+:root{
+  --paper:#faf8f4; --card:#fffefb; --ink:#1c1a17; --muted:#6e6960;
+  --faint:#a09a8e; --rule:#e5dfd3; --hair:#f0ece3;
+  --accent:#37564a; --accent-dk:#2a4438; --accent-soft:#eaf0ed;
+  --gold:#8a6d2f; --gold-soft:#f8f2e3;
+  --serif:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:16px/1.65 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none;
+  border-bottom:1px solid rgba(55,86,74,.28)}
+a:hover{border-bottom-color:var(--accent)}
+
+.topbar{border-bottom:1px solid var(--rule);background:var(--card)}
+.topbar .in{max-width:760px;margin:0 auto;padding:14px 24px;
+  display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+.wordmark{font-family:var(--serif);font-size:19px;color:var(--accent);
+  letter-spacing:-.02em;border:0}
+.wordmark em{font-style:italic}
+.navlink{font-size:13.5px;color:var(--muted);border:0}
+.navlink:hover{color:var(--accent)}
+.navlink[aria-current]{color:var(--ink);font-weight:600}
+
+main{max-width:760px;margin:0 auto;padding:40px 24px 72px}
+h1{font-family:var(--serif);font-size:32px;line-height:1.2;
+  letter-spacing:-.02em;margin:0 0 10px}
+h2{font-family:var(--serif);font-size:23px;line-height:1.25;
+  margin:44px 0 12px;padding-top:16px;border-top:1px solid var(--hair)}
+h3{font-size:16.5px;margin:30px 0 8px;letter-spacing:.005em}
+h4{font-size:15px;margin:22px 0 6px;color:var(--muted)}
+p,ul,ol{margin:0 0 14px}
+li{margin:0 0 6px}
+blockquote{margin:18px 0;padding:12px 18px;background:var(--card);
+  border-left:3px solid var(--accent);color:var(--ink)}
+blockquote p:last-child{margin:0}
+code{font:13.5px var(--mono);background:var(--accent-soft);
+  padding:1.5px 5px;border-radius:3px}
+pre{background:var(--card);border:1px solid var(--rule);border-radius:4px;
+  padding:14px 16px;overflow-x:auto;font:13px/1.55 var(--mono)}
+pre code{background:none;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14.5px;
+  display:block;overflow-x:auto}
+th,td{border:1px solid var(--rule);padding:8px 11px;text-align:left;
+  vertical-align:top}
+th{background:var(--accent-soft);font-weight:600}
+hr{border:0;border-top:1px solid var(--rule);margin:36px 0}
+strong{font-weight:600}
+
+/* The citation is what this site exists to make usable, so it is the one
+   element given its own colour rather than inheriting the body's. */
+.docfoot{max-width:760px;margin:0 auto;padding:0 24px 64px;
+  font-size:13.5px;color:var(--muted)}
+.docfoot .cite{background:var(--gold-soft);border:1px solid #ece0c4;
+  border-radius:4px;padding:13px 16px;margin:0 0 16px;color:var(--ink)}
+@media(max-width:560px){
+  main{padding:28px 18px 56px} h1{font-size:26px} h2{font-size:20px}
+}
+</style>
+
+<!-- Structured data. It says who wrote this and which archived release it
+     describes, in a form a machine can read, because "who made this and can I
+     cite it" is the first question a researcher asks of an unfamiliar tool. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": {{ page.title | jsonify }},
+  "description": {{ page.description | jsonify }},
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Tosin Adesokan",
+    "identifier": "https://orcid.org/0009-0000-2288-4271",
+    "url": "https://orcid.org/0009-0000-2288-4271"
+  },
+  "license": "https://opensource.org/licenses/MIT",
+  "about": {
+    "@type": "SoftwareApplication",
+    "name": "CorpusPrep",
+    "applicationCategory": "Corpus linguistics",
+    "identifier": "https://doi.org/10.5281/zenodo.22083931",
+    "url": "https://corpusprep.org/"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="in">
+    <a class="wordmark" href="/">Corpus<em>Prep</em></a>
+    <a class="navlink" href="/USING.html">Using CorpusPrep</a>
+    <a class="navlink" href="/CITING.html">Citing</a>
+    <a class="navlink" href="https://github.com/adesokantosin2000-beep/corpusprep">Source</a>
+  </div>
+</nav>
+
+<main>
+{{ content }}
+</main>
+
+<footer class="docfoot">
+  <p class="cite">
+    Adesokan, T. (2026). <em>CorpusPrep: corpus preparation for linguists</em>
+    (version 0.12.0) [Computer software]. Zenodo.
+    <a href="https://doi.org/10.5281/zenodo.22960284">https://doi.org/10.5281/zenodo.22960284</a>
+  </p>
+  <p>
+    By <a href="https://orcid.org/0009-0000-2288-4271">Tosin Adesokan</a>.
+    MIT licensed. The application runs in your browser and uploads nothing.
+  </p>
+</footer>
+
+</body>
+</html>

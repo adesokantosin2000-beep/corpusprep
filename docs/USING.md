@@ -1,3 +1,10 @@
+---
+layout: doc
+title: "Using CorpusPrep"
+description: >-
+  How to prepare a corpus with CorpusPrep: what each cleaning preset retains, how to read the preprocessing log, which rules are measured and which are experimental, and where the tool is weakest.
+---
+
 # Using CorpusPrep
 
 For people preparing a corpus, not for people maintaining the tool. If you want

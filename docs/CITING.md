@@ -1,3 +1,10 @@
+---
+layout: doc
+title: "Citing CorpusPrep"
+description: >-
+  How to cite CorpusPrep in a thesis or paper: the version DOI for each archived release, why a version DOI and not the concept DOI belongs in a methods section, and the BibTeX entry.
+---
+
 # Citing CorpusPrep
 
 ## Cite a version, not the repository
@@ -40,8 +47,10 @@ version named in prose.
 
 The application shows this, with the version you are running, in the Log tab.
 
-BibTeX:
+BibTeX. The doubled braces around the title are deliberate: they stop BibTeX
+lowercasing "CorpusPrep" in styles that would otherwise do so.
 
+{% raw %}
 ```bibtex
 @software{adesokan_corpusprep_2026,
   author    = {Adesokan, Tosin},
@@ -53,6 +62,7 @@ BibTeX:
   url       = {https://doi.org/10.5281/zenodo.22960284}
 }
 ```
+{% endraw %}
 
 ## Two DOIs, and they are not interchangeable
 
@@ -71,9 +81,9 @@ The concept DOI is right when referring to the software as a project rather
 than to a run — in a related-work paragraph, a bibliography of tools, or a
 sentence like "CorpusPrep is maintained at…".
 
-Machine-readable metadata is in [`CITATION.cff`](../CITATION.cff). GitHub reads
+Machine-readable metadata is in [`CITATION.cff`](https://github.com/adesokantosin2000-beep/corpusprep/blob/main/CITATION.cff). GitHub reads
 it for the "Cite this repository" button, and Zenodo reads
-[`.zenodo.json`](../.zenodo.json) when archiving a release.
+[`.zenodo.json`](https://github.com/adesokantosin2000-beep/corpusprep/blob/main/.zenodo.json) when archiving a release.
 
 ---
 
@@ -170,8 +180,8 @@ scanned text, which rests on two scans and is too small a sample to quote.
 PDF input, which is not implemented.
 
 **Known limits**, stated in full in
-[`design/integration-failures.md`](../design/integration-failures.md) and
-[`design/reflow-failures.md`](../design/reflow-failures.md). Both were written
+[`design/integration-failures.md`](https://github.com/adesokantosin2000-beep/corpusprep/blob/main/design/integration-failures.md) and
+[`design/reflow-failures.md`](https://github.com/adesokantosin2000-beep/corpusprep/blob/main/design/reflow-failures.md). Both were written
 before the fixes, and the unfixed items are still listed. That is deliberate:
 software whose failure log is missing is not more reliable than software whose
 failure log is long.

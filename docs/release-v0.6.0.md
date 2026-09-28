@@ -1,3 +1,10 @@
+---
+layout: doc
+title: "CorpusPrep 0.6.0 release notes"
+description: >-
+  Release notes for CorpusPrep 0.6.0, the first archived release.
+---
+
 # v0.6.0 — Integration
 
 *24 August 2026*

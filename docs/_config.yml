@@ -1,0 +1,33 @@
+# GitHub Pages configuration.
+#
+# This exists so that USING.md and CITING.md are rendered as HTML rather than
+# served as raw Markdown. Before it, Google crawled the site, found one page of
+# sign-in furniture, and declined to index it: six hundred lines of
+# documentation were present on the server and invisible to a reader who did
+# not already know the repository.
+#
+# Jekyll runs on GitHub's side, so nothing here adds a local build dependency.
+# index.html carries no front matter and is therefore copied through untouched
+# by Jekyll: the application is still a single self-contained file that works
+# when opened from disk.
+
+title: "CorpusPrep"
+description: >-
+  Corpus preparation for linguists. Prepare a source text for analysis and
+  retain a record of every editorial decision taken.
+url: "https://corpusprep.org"
+
+# Markdown only. No theme, because the layout is hand-written to match the
+# application's own typography rather than a generic one.
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  hard_wrap: false          # the .md files are wrapped at 76 columns for
+                            # reading in an editor; those breaks are not
+                            # meaningful and must not survive into the page
+
+# Nothing is excluded on purpose. `exclude` in Jekyll means "do not publish",
+# so listing CNAME here would drop the custom domain and listing the Search
+# Console file here would un-verify the property. Jekyll already skips names
+# beginning with `_` or `.`, which is all the skipping this site needs.
