@@ -1,12 +1,13 @@
-# Handover — where CorpusPrep is, 29 August 2026
+# Handover: where CorpusPrep is, 29 September 2026
 
 Point a fresh session at this file. It replaces reading the conversation.
 
 ## State
 
-`v0.11.0` plus an unreleased body of work, all committed and pushed
-(`526d3e2`). Zenodo DOI **10.5281/zenodo.22083932** (version), `…931`
-(concept).
+`v0.12.0`, released and archived. Version DOI
+**10.5281/zenodo.22960284**, concept DOI `…22083931`. The gap is closed: 0.7.0
+to 0.11.0 were tagged and never archived, so they have no DOI and nothing to
+cite. Cite 0.12.0.
 
 ```
 tests/test_corpusprep.py     568 passed, 0 failed   (unit + CLI smoke)
@@ -71,22 +72,50 @@ German, Russian and Czech. An optional registration link. `pyproject.toml`.
 
 ## Open faults
 
-**P2** — a 21,581-token "Introduction" that happens to be correct. Recorded
+**P2.** A 21,581-token "Introduction" that happens to be correct. Recorded
 because it cannot be told from I1 without reading the book: there is still no
 check that a front-matter region is front-matter-sized.
 
-**P6** — a method note rather than a fault. The interface rule scored 100% on
+**P6.** A method note rather than a fault. The interface rule scored 100% on
 its own fixture and was wrong anyway; the test that found it took one line.
 Worth reading before writing another fixture.
 
-**A sonnet's closing couplet** — a two-line block with a 0% break rate — stays
+**A sonnet's closing couplet.** A two-line block with a 0% break rate, still
 unprotected. Below any floor, not reachable by this evidence.
+
+## Publication and provenance, all done on 29 September
+
+Nothing here is outstanding. Recorded so that a later session does not redo it.
+
+```
+v0.12.0 archived          10.5281/zenodo.22960284, ORCID on the record
+history rewritten         assistant co-author trailers removed from 15 commits
+                          and force-pushed; hashes before 7 Sep do not resolve
+author on the site        name, ORCID and DOI under the tagline
+docs are HTML             Jekyll renders USING/CITING/release notes; they were
+                          served as raw Markdown, so Google crawled the site,
+                          found one thin page, and declined to index it
+robots.txt + sitemap.xml  four URLs, hand-written
+Search Console            verified by docs/google5dfb0b72a8cff2ba.html; that
+                          file must never be deleted or the property un-verifies
+structured data           schema.org on the landing page and every doc page
+ORCID record              public, one work, employment and education filled in
+```
+
+Two things learned about the archive, both of which look like faults and are
+not: a release row can sit at *Received* for hours, and editing a published
+release fires a second webhook that Zenodo answers with HTTP 409 because it
+already holds the release. Written up in `docs/CITING.md`.
+
+The user guide was rewritten in plain prose on the same day. No figure changed.
+**No em dashes anywhere in `docs/`** except one inside a quoted release title,
+which is a literal string and would be wrong to correct. Keep it that way.
 
 ## What to do next, in this order
 
 1. **One hour of cold use.** New browser profile, fresh clone into a different
    folder, follow the README exactly as written. Record hesitations, not only
-   errors — P9 was a hesitation before it was a bug. Everything found on 29
+   errors. P9 was a hesitation before it was a bug. Everything found on 29
    August came from this and nothing else.
 2. **Send it to the tester**, with the four questions in
    `design/tester-questions.md`. She is the
@@ -142,7 +171,7 @@ is new. Any hash written down before that date will not resolve.
 
 `build/_engine.js` contains one literal NUL byte in the `"\0page-number"`
 sentinel, around line 918. It works, but `grep` treats the file as binary and
-skips it — on the half of the codebase that must be kept in step with the
+skips it, on the half of the codebase that must be kept in step with the
 other half. Write it as `\0` when something else takes you there.
 
 ## Working rules that have earned their place
