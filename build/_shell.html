@@ -400,6 +400,11 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .cmp pre{margin:0;flex:1;overflow:auto;padding:18px;font-size:12px;line-height:1.75;
   white-space:pre-wrap;word-break:break-word;font-family:var(--mono)}
 .cmp pre mark{background:var(--c-lic-bg);color:var(--c-lic);border-radius:1px}
+/* Off-screen blocks are skipped. Without this a long book puts well over a
+   megabyte of markup into one element and scrolling stops responding. Browsers
+   that do not support it simply render everything, which is what happened
+   before. */
+.cmp pre .cmp-chunk{content-visibility:auto}
 
 /* ════════════════════ log ════════════════════ */
 .log{max-width:760px}

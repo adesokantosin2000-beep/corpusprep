@@ -852,8 +852,17 @@ async function runClean(){
   // thread is occupied. One yield is not always enough: the style change and
   // the paint are separate frames, and a single setTimeout can land between
   // them, which showed the spinner only after the work had finished.
-  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(
-    ()=>setTimeout(r,0))));
+  //
+  // The race matters. A window that is not in front gets no animation frames
+  // at all, so waiting on them alone means the clean never starts: the button
+  // says Cleaning and nothing happens until the window is brought forward.
+  // Seen while testing, and a plausible way to lose a demonstration. The
+  // timeout is the floor, the frames are the nicety.
+  await Promise.race([
+    new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(
+      ()=>setTimeout(r,0)))),
+    new Promise(r=>setTimeout(r,250)),
+  ]);
 
   const t0=performance.now();
   try{
@@ -973,21 +982,61 @@ function drawRegions(){
 }
 
 /* ---- compare ---- */
+/* Both panes are built in chunks rather than as one block of text.
+
+   A 415 page Jane Eyre put 13,216 lines into each side, which came to about
+   1.6 MB of markup in a single element, and scrolling it made the browser
+   report that the page was not responding. Two things were wrong. The element
+   was far too large to lay out, and the scroll handler read scrollHeight and
+   clientHeight from both panes on every scroll event, which forces a
+   synchronous layout each time.
+
+   The lines are now grouped into blocks of CMP_CHUNK. Each block carries
+   `content-visibility:auto`, so the browser skips layout and paint for the
+   blocks that are off screen, and `contain-intrinsic-size`, so the scrollbar
+   is about the right length before they have been measured. Wrapping is
+   unaffected, which matters because these lines wrap.
+
+   The sync handler now measures once and then runs at most once per frame. */
+const CMP_CHUNK=250;
+const CMP_LINE_PX=21;          // 12px type at a line height of 1.75
+
+function cmpFill(el,lines,dropSet){
+  const parts=[];
+  for(let i=0;i<lines.length;i+=CMP_CHUNK){
+    const slice=lines.slice(i,i+CMP_CHUNK);
+    const body=slice.map((l,k)=>
+      dropSet&&dropSet.has(i+k)?`<mark>${esc(l)}</mark>`:esc(l)).join("\n");
+    parts.push(`<div class="cmp-chunk" style="contain-intrinsic-size:auto `+
+               `${slice.length*CMP_LINE_PX}px">${body}</div>`);
+  }
+  el.innerHTML=parts.join("")||"";
+}
+
 function drawCompare(){
   $("#src-i").textContent=`${DOC.stats.tokens.toLocaleString()} tokens`;
   $("#out-i").textContent=`${RESULT.stats.tokens.toLocaleString()} tokens · ${CFG.name||"custom"}`;
 
   const dropSet=new Set();
   RESULT.dropped.forEach(r=>{for(let i=r.start;i<r.end;i++) dropSet.add(i)});
-  $("#src-t").innerHTML=DOC.lines.map((l,i)=>
-    dropSet.has(i)?`<mark>${esc(l)}</mark>`:esc(l)).join("\n");
-  $("#out-t").textContent=RESULT.text;
+  cmpFill($("#src-t"),DOC.lines,dropSet);
+  cmpFill($("#out-t"),RESULT.text.split("\n"),null);
 
   const a=$("#src-t"),b=$("#out-t");
-  let lock=false;
-  const sync=(from,to)=>()=>{ if(lock)return; lock=true;
-    const r=from.scrollTop/Math.max(1,from.scrollHeight-from.clientHeight);
-    to.scrollTop=r*(to.scrollHeight-to.clientHeight); lock=false; };
+  let lock=false,queued=false;
+  const sync=(from,to)=>()=>{
+    if(lock||queued) return;
+    queued=true;
+    requestAnimationFrame(()=>{
+      queued=false; lock=true;
+      const fromRange=Math.max(1,from.scrollHeight-from.clientHeight);
+      const toRange=to.scrollHeight-to.clientHeight;
+      to.scrollTop=(from.scrollTop/fromRange)*toRange;
+      // Released on the next frame so the scroll event this causes on the
+      // other pane does not bounce straight back.
+      requestAnimationFrame(()=>{lock=false});
+    });
+  };
   a.onscroll=sync(a,b); b.onscroll=sync(b,a);
 }
 

@@ -1119,3 +1119,44 @@ coverage line should not be read as a sign that the segmentation is correct.
 **Not fixed here.** The CLI exposes no way to drop page furniture, so the
 cleaned file still ends on the page numbers 414 and 415. The variant supports
 `drop_furniture`; only the web application offers it.
+
+---
+
+## P15 — The comparison view stopped responding on a long book — **PARTLY FIXED**
+
+Reported on 14 October, scrolling the before and after view after cleaning a
+415 page *Jane Eyre* of 13,216 lines. The browser offered to stop the page.
+
+**Measured.** Each pane held the whole text in one element. The source side was
+754,043 characters of markup in a single node, the two sides together about
+1.6 MB. Setting that is cheap, because layout is deferred; the bill arrives on
+the first scroll, when the browser has to lay the whole thing out. The scroll
+handler then made it worse by reading `scrollHeight` and `clientHeight` from
+both panes on every scroll event, which forces a synchronous layout each time.
+
+**Changed.** The panes are now built in blocks of 250 lines. Each block carries
+`content-visibility:auto`, so the browser skips layout and paint for blocks
+that are off screen, and `contain-intrinsic-size`, so the scrollbar is about
+right before they have been measured. Wrapping is untouched, which matters,
+because these lines wrap and a fixed-height virtual list would drift. The sync
+handler now runs at most once per frame.
+
+**Why this is only partly fixed.** The measurement that would settle it, how
+the fixed page scrolls at full size, could not be taken: the only browser I can
+drive here renders in a narrow remote pane where the layout cost does not
+appear. The reasoning is sound and the technique is ordinary, but nobody has
+yet scrolled the fixed page on a real screen. **That test is still owed.**
+
+**A second cause, fixed.** `runClean` waited on two nested animation frames so
+the working state would paint before the main thread was taken. A window that
+is not in front gets no animation frames, so the clean never began: the button
+said Cleaning and sat there until the window was brought forward. Seen twice
+while testing, once on a fresh page with a single click. The wait is now a race
+between the frames and a 250 ms timeout.
+
+**What the numbers actually were.** An early figure of 57 seconds for a clean
+was wrong and came from measuring in a hidden pane, where the same frame
+starvation applies. With the window in front, the engine stages for 13,216
+lines total about a second: reflow 923 ms, hyphen breaks 35 ms, protected spans
+18 ms, token counting 26 ms. Python renders the same file in 0.21 s. The clean
+was never the problem. Scrolling the result was.

@@ -686,6 +686,44 @@ async function run(name, fn) {
     check('no page furniture', w.eval('DOC.furniture.size') === 0);
   });
 
+  await run('a long text does not put the whole book in one element', async dom => {
+    // A 415 page Jane Eyre put about 1.6 MB of markup into a single element in
+    // each pane, and scrolling it made the browser stop responding. The panes
+    // are now built in blocks that the browser can skip while they are off
+    // screen. This checks the shape of what is built, which is the part a test
+    // can see; it cannot measure how it scrolls.
+    const w = dom.window, d = w.document;
+    const lines = [];
+    for (let c = 1; c <= 6; c++) {
+      lines.push('CHAPTER ' + c, '');
+      for (let i = 0; i < 300; i++) lines.push('There was no possibility of a walk that day at all.');
+      lines.push('');
+    }
+    const text = lines.join('\n');
+    w.eval('loadText("long.txt", new TextEncoder().encode(' +
+           JSON.stringify(text) + ').buffer)');
+    await until(dom, 'typeof DOC !== "undefined" && DOC !== null && !!DOC.regions');
+    await w.eval('runClean()');
+
+    const src = d.querySelector('#src-t');
+    const chunks = src.querySelectorAll('.cmp-chunk');
+    check('the source pane is built in blocks', chunks.length > 1,
+          `got ${chunks.length} for ${lines.length} lines`);
+    check('and the output pane too',
+          d.querySelector('#out-t').querySelectorAll('.cmp-chunk').length > 1);
+
+    const biggest = Math.max(...[...chunks].map(c => c.textContent.length));
+    check('no single block holds the whole text',
+          biggest < text.length / 2,
+          `largest block is ${biggest} of ${text.length} characters`);
+    check('every block declares an intrinsic size so the scrollbar is right',
+          [...chunks].every(c => /contain-intrinsic-size/.test(c.getAttribute('style') || '')));
+
+    const joined = [...chunks].map(c => c.textContent).join('\n');
+    check('and the text itself is all still there',
+          joined.includes('CHAPTER 1') && joined.includes('CHAPTER 6'));
+  });
+
   await run('cleaning runs, and says so while it runs', async dom => {
     await load(dom, 'hyphenated.txt');
     const w = dom.window, d = w.document;
