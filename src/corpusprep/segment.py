@@ -813,12 +813,46 @@ def find_transcriber_notes(lines, start, end, window=TRANSCRIBER_WINDOW):
     return sorted(found)
 
 
+#: Licence phrases per thousand words, below which a block is prose that
+#: mentions Project Gutenberg rather than the licence itself.
+#:
+#: Not a guess. Measured over every fixture that contains a real licence block
+#: and over the file that broke this rule:
+#:
+#:     pg_marked.txt                        136.4 and 87.0
+#:     romeo_juliet.txt                      48.8, 50.0 and 23.0
+#:     Jane Eyre, 415 page PDF, whole novel   0.03
+#:
+#: The lowest true positive is 23.0 and the false positive is 0.03, so any
+#: threshold between them works. Five is chosen because it sits far below the
+#: true positives and far above the thing that went wrong, and because a
+#: licence that mentions Gutenberg only once per two hundred words is not a
+#: licence.
+LICENCE_MIN_DENSITY = 5.0
+
+
+
 def find_licence_blocks(lines: list[str], min_score: int = 2) -> list[tuple[int, int, int]]:
     """Find (start, end, score) for paragraph blocks that read as PG licence.
 
     Blocks are separated by blank lines. A block qualifies only if it scores
-    on at least ``min_score`` distinct phrases *and* mentions Gutenberg —
-    so a novel discussing copyright is never caught.
+    on at least ``min_score`` distinct phrases, mentions Gutenberg, *and* is
+    dense enough in licence vocabulary to be a licence rather than a book that
+    happens to contain one.
+
+    **The density test is what stops the rule eating a novel.** Splitting on
+    blank lines assumes a file that has them. A PDF text layer frequently has
+    none at all, and then the whole book is one block. A 415 page Jane Eyre
+    extracted from a Project Gutenberg PDF produced 13,216 lines without a
+    single blank line, scored five licence phrases across the front matter and
+    the licence at the end, and was labelled licence from the first line to the
+    last. Every preset except verbatim then removed the entire novel, and the
+    coverage check still passed, because one region really did cover every
+    line.
+
+    Counting phrases without regard to length was the mistake. Five phrases in
+    a 300 word block is a licence. The same five phrases in a 186,000 word
+    block is a novel with a licence stapled to it.
     """
     blocks: list[tuple[int, int, int]] = []
     start = None
@@ -831,7 +865,11 @@ def find_licence_blocks(lines: list[str], min_score: int = 2) -> list[tuple[int,
                 text = "\n".join(lines[start:i])
                 score = licence_score(text)
                 low = text.lower()
-                if score >= min_score and ("gutenberg" in low or "pglaf" in low):
+                words = len(text.split())
+                density = 1000.0 * score / words if words else 0.0
+                if (score >= min_score
+                        and ("gutenberg" in low or "pglaf" in low)
+                        and density >= LICENCE_MIN_DENSITY):
                     blocks.append((start, i, score))
                 start = None
     return blocks

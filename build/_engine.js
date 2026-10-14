@@ -518,6 +518,13 @@ function findScanApparatus(lines){
   return out;
 }
 
+// Licence phrases per thousand words, below which a block is prose that
+// mentions Project Gutenberg rather than the licence itself. See P14 and the
+// matching constant in segment.py. A 415 page Jane Eyre extracted from a PDF
+// had no blank lines at all, so the whole novel was one block, scored five
+// phrases, and was removed entirely by every preset.
+const LICENCE_MIN_DENSITY=5.0;
+
 function findLicenceBlocks(lines,min=2){
   const out=[]; let start=null;
   for(let i=0;i<=lines.length;i++){
@@ -525,7 +532,10 @@ function findLicenceBlocks(lines,min=2){
     if(line.trim()){ if(start===null) start=i; }
     else if(start!==null){
       const t=lines.slice(start,i).join("\n"), s=licenceScore(t), lo=t.toLowerCase();
-      if(s>=min && (lo.includes("gutenberg")||lo.includes("pglaf"))) out.push([start,i,s]);
+      const w=t.split(/\s+/).filter(Boolean).length;
+      const density=w?1000*s/w:0;
+      if(s>=min && (lo.includes("gutenberg")||lo.includes("pglaf"))
+         && density>=LICENCE_MIN_DENSITY) out.push([start,i,s]);
       start=null;
     }
   }

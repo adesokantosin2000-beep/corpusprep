@@ -2899,6 +2899,62 @@ def test_metadata_header():
         check("interview content retained", "we mix it" in out)
 
 
+def test_licence_rule_cannot_eat_a_book():
+    """A whole novel in one block must not be labelled licence.
+
+    P14. A Project Gutenberg PDF of Jane Eyre extracted to 13,216 lines with no
+    blank line anywhere, so the block splitter produced a single block covering
+    the entire novel. It mentioned Gutenberg and scored five licence phrases,
+    picked up from the metadata header at the top and the licence at the
+    bottom, so the whole book was labelled licence. Every preset except
+    verbatim then wrote an empty file, and the coverage check passed while it
+    happened.
+
+    Scale is the point, so the fixture has to be of a realistic size. The
+    failure cannot be reproduced in a few hundred words, because the rule now
+    separates the two cases by how dense the licence vocabulary is, and a
+    licence beside a short extract is genuinely dense.
+    """
+    from corpusprep.segment import find_licence_blocks
+
+    sentence = ("There was no possibility of taking a walk that day and the "
+                "cold winter wind had brought with it clouds so sombre and a "
+                "rain so penetrating that further outdoor exercise was now "
+                "quite out of the question for any of the children at all. ")
+    novel = (sentence * 260)
+    body = [novel[i:i + 70] for i in range(0, len(novel), 70)]
+
+    lines = (["The Project Gutenberg eBook of Jane Eyre",
+              "Release date: March 1, 1998 [eBook #1260]",
+              "www.gutenberg.org/ebooks/1260"]
+             + body
+             + ["This eBook is for the use of anyone anywhere in the United",
+                "States at no cost and with almost no restrictions whatsoever.",
+                "PROJECT GUTENBERG LICENSE applies, and the Project Gutenberg",
+                "trademark and donations are covered by its terms."])
+
+    check("the fixture has no blank line, which is what broke the rule",
+          all(l.strip() for l in lines))
+    check("and it is novel sized", len(" ".join(lines).split()) > 9000,
+          f"{len(' '.join(lines).split())} words")
+
+    blocks = find_licence_blocks(lines)
+    covered = sum(e - s for s, e, _ in blocks)
+    check("the book is not swallowed as licence", covered == 0,
+          f"{covered} of {len(lines)} lines were called licence")
+
+    # The rule must still catch a real licence block when it meets one.
+    real = ["*** END OF THE PROJECT GUTENBERG EBOOK JANE EYRE ***", "",
+            "This eBook is for the use of anyone anywhere in the United States",
+            "and most other parts of the world at no cost and with almost no",
+            "restrictions whatsoever. You may copy it, give it away or re-use",
+            "it under the terms of the Project Gutenberg License included with",
+            "this eBook or online at www.gutenberg.org. Project Gutenberg is a",
+            "registered trademark, and donations are gratefully received.", ""]
+    check("a real licence block is still found",
+          len(find_licence_blocks(real)) >= 1)
+
+
 def test_jane_eyre_real_file():
     src = FIXTURES / "CBronte_Jane.txt"
     if not src.exists():

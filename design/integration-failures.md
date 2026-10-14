@@ -993,3 +993,129 @@ in this program is worth reporting in full, and a bare `except` would swallow
 exactly the reports that are worth having. A test asserts that nobody ever
 replaces it with one.
 
+
+---
+
+## P13 — `body-no-headings` says it stripped headings it did not strip — **OPEN**
+
+Found on 8 October while preparing a Project Gutenberg copy of Kafka's
+*Metamorphosis* (eBook 5200, David Wyllie's translation) for a talk.
+
+The story is divided by three lines carrying nothing but a roman numeral.
+
+```
+I
+II
+III
+```
+
+Segmentation reads them correctly. `inspect` reports three body regions titled
+`I`, `II` and `III`, with the right line spans. So the division is found.
+
+`body-no-headings` then leaves all three in the output, while the log says they
+went:
+
+```
+### `body-no-headings`
+...
+Chapter heading lines were also stripped.
+```
+
+The token count gives it away. `body-only` and `body-no-headings` both report
+22,048 tokens. If three heading lines had been removed the second should be
+22,045, and `grep -c "^\(I\|II\|III\)$"` finds all three still present.
+
+**Cause.** Two different tests decide these two things. Segmentation finds a
+division by position and numbering, through `find_numeral_sequence`. The
+stripping step asks `is_chapter_heading`, which wants a division word:
+
+```
+is_chapter_heading('CHAPTER I') -> True
+is_chapter_heading('I')         -> False
+```
+
+So a bare numeral is a heading for the purpose of finding structure and not a
+heading for the purpose of removing it.
+
+**Why it matters more than three tokens.** The count is trivial. The log
+entry is not. It states that something was removed when it was not, which is
+the one kind of error this project cannot afford, because the whole argument
+for the log is that a reader can trust it without re-reading the text.
+
+**Not fixed yet, and the fix needs a decision rather than a patch.** Making
+`is_chapter_heading` accept bare numerals risks removing a line that reads `I`
+in ordinary prose, which is why the guard exists. The safer repair is probably
+to strip the lines segmentation already identified as region titles, rather than
+re-deciding what a heading looks like. Until that is settled the honest
+intermediate step is for the log to report what was actually removed.
+
+**Found by reading the output, not by a test.** Again.
+
+---
+
+## P14 — A 415 page novel was labelled licence and every preset deleted it — **FIXED**
+
+Reported on 14 October by the person who built this, cleaning a Project
+Gutenberg PDF of *Jane Eyre* (eBook 1260, the 1897 Service & Paton edition,
+415 pages, 13,216 lines, 77% letters).
+
+**What was seen.** `inspect` said no structural headings were found and that
+the whole text had been kept as body. The comparison view then showed the
+entire novel struck through as removed, and scrolling it made the browser
+report that the page was not responding.
+
+**What was true.** The report was wrong about the body. Every one of the 13,216
+lines had been labelled `pg_licence`:
+
+```
+    #  LABEL         KIND                       LINES     WORDS  TITLE
+    1  pg_licence    licence_block            1-13216   188,569  Licence text (unmarked)
+```
+
+So `clean` behaved exactly as asked and removed all of it:
+
+```
+  jane__verbatim.txt           188,569 tokens  (+0.0%)
+  jane__full.txt                     0 tokens  (-100.0%)
+  jane__body-only.txt                0 tokens  (-100.0%)
+  jane__body-no-headings.txt         0 tokens  (-100.0%)
+```
+
+Three outputs of one byte each. The novel was gone, and the coverage check
+passed while it happened, because one region genuinely did cover every line.
+
+**Cause.** `find_licence_blocks` separates candidate blocks on blank lines.
+**This PDF text layer contains no blank lines at all**, so the entire file was
+one block. That block mentions Gutenberg and scores five distinct licence
+phrases, spread between the metadata header at the top and the licence at the
+bottom, so it qualified.
+
+The guard in the docstring said a novel discussing copyright would never be
+caught. It was defeated by a block that was the novel *and* the licence.
+
+**Fix.** Count density rather than occurrences. Measured across every fixture
+holding a real licence block, and across the file that broke it:
+
+```
+pg_marked.txt                            136.4 and 87.0 phrases per 1,000 words
+romeo_juliet.txt                          48.8, 50.0 and 23.0
+Jane Eyre, 415 page PDF, whole novel       0.03
+```
+
+The lowest true positive is 23.0 and the false positive is 0.03. Any threshold
+between them separates them; `LICENCE_MIN_DENSITY` is 5.0, which sits far below
+the real licences and far above the novel.
+
+After the fix the same file gives 43 regions, five of front matter and **38
+chapters**, with `body-only` at 187,566 tokens, a drop of 0.5 per cent. 568
+tests still pass.
+
+**What this says about the invariant.** "Every line belongs to exactly one
+region" is still true and was true throughout. It guarantees that nothing is
+lost silently. It does not guarantee that the label is right, and a wrong label
+on one region can destroy a book just as thoroughly as a lost line. The
+coverage line should not be read as a sign that the segmentation is correct.
+
+**Not fixed here.** The CLI exposes no way to drop page furniture, so the
+cleaned file still ends on the page numbers 414 and 415. The variant supports
+`drop_furniture`; only the web application offers it.
