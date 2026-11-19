@@ -8,9 +8,17 @@
 ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT" || exit 1
 
-PY=python3
-command -v $PY >/dev/null 2>&1 || PY=python
-command -v $PY >/dev/null 2>&1 || { echo "pre-push: no python found, skipping checks"; exit 0; }
+# Use the first interpreter that actually runs. On Windows, `python3` is often
+# the Microsoft Store placeholder or a second install without this project's
+# dependencies, while `python` is the one the reader uses, so try it first.
+PY=
+for c in python python3 py; do
+  if command -v $c >/dev/null 2>&1 && $c -c "import sys" >/dev/null 2>&1; then PY=$c; break; fi
+done
+# Python on Windows prints to a pipe in cp1252 unless told otherwise, and the
+# tests print non-Latin text.
+export PYTHONIOENCODING=utf-8 PYTHONUTF8=1
+[ -n "$PY" ] || { echo "pre-push: no python found, skipping checks"; exit 0; }
 
 fail=0
 

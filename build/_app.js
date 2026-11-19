@@ -16,70 +16,6 @@ let CLEANED=false;
 const SHORT={pg_header:"Apparatus", pg_licence:"Licence", front_matter:"Front matter",
              body:"Body", back_matter:"Back matter", unknown:"Unclassified"};
 
-/* ---- capabilities -------------------------------------------------------
-   `ready:false` entries are specified in the design but not implemented. They
-   are shown, and marked, deliberately: a researcher who discovers a missing
-   capability mid-project trusts the tool less than one who was told up front.
-   Update these flags as the stages land. */
-/* What this version does, and what it does not.
-
-   **This list went stale in the direction that flatters, which is the
-   direction that matters.** It existed so that a researcher meets the limits
-   before choosing the tool rather than halfway through a project, and for
-   three releases it carried page furniture, de-hyphenation and reflow as
-   "planned" after all three had shipped — while describing de-hyphenation as
-   "wordlist-validated", which is precisely the approach that was tried,
-   measured and rejected.
-
-   Reported by the user, not by any test. It is checked now: the test suite
-   asserts that everything marked available is reachable, and the release
-   checklist includes this list.
-
-   A capability list that is not maintained is worse than none, because it is
-   read as a claim about the present. */
-const CAPABILITIES=[
-  {ready:1, t:"Detects front matter and back matter",
-   d:"Title pages, prefaces, cast lists, contents, appendices and indexes."},
-  {ready:1, t:"Segments chapters and sections",
-   d:"Chapters, books, parts, acts, scenes and numbered sections, including headings split over two lines in scans. Some other languages work too (Kapitel, Glava, Kapitola), from a fixed list. If your language is not on it, no chapters are found and the log tells you."},
-  {ready:1, t:"Recovers chapters from running heads",
-   d:"When OCR has lost the headings in a scan, chapter titles are taken from the title printed at the top of each page."},
-  {ready:1, t:"Identifies publisher and licence apparatus",
-   d:"Gutenberg headers, licence text and transcriber credits, even when the usual start and end markers are missing."},
-  {ready:1, t:"Identifies digitisation apparatus",
-   d:"Internet Archive and Google Books notices, and pages the scanner marked as unreadable."},
-  {ready:1, t:"Identifies page numbers, headers and footers",
-   d:"Found by how regularly they repeat, so a refrain in a poem is left alone. So far it has only been measured on a generated scan, so it is off by default and every line it flags is listed for you to check."},
-  {ready:1, t:"Detects catchwords",
-   d:"The early modern habit of printing the next page's first word at the foot of a page. Only tested on a generated fixture so far, so look over what it finds before removing anything."},
-  {ready:1, t:"Detects footnotes",
-   d:"Keep them, remove them, or save them to a separate file. A marker only counts when a matching note exists, so stage directions are safe."},
-  {ready:1, t:"Rejoins hyphenated line breaks",
-   d:"Each case is checked against the words used elsewhere in your own text. Anything it cannot decide keeps its hyphen."},
-  {ready:1, t:"Reflows hard-wrapped paragraphs",
-   d:"Joins lines back into paragraphs, with 99.5% exact in testing. Verse, drama and tables are left alone."},
-  {ready:1, t:"Preserves or removes structural elements on request",
-   d:"Keep or remove any section. Use one of five presets, or choose sections yourself."},
-  {ready:1, t:"Reads TXT, Markdown, DOCX, EPUB and HTML",
-   d:"Encoding and line endings are sorted out when the file opens. In Markdown, link text is kept and the web address dropped."},
-  {ready:1, t:"Detects interface furniture",
-   d:"Experimental. Labels such as Like, Reply or View replies that an app prints around a post in scraped social media. Only tried on one synthetic thread so far, so it reports what it finds and never removes it."},
-  {ready:1, t:"Records every decision in a log",
-   d:"Saved as Markdown and JSON, with token and type counts, ready to cite. If nothing was removed, the log explains what was checked."},
-  {ready:1, t:"Reads PDF",
-   d:"Page breaks come straight from the file. A PDF with no readable text is turned away with a clear reason. Opening a PDF needs the internet once, to fetch the PDF reader, but your document is never uploaded."},
-  {ready:0, t:"Repairs OCR characters",
-   d:"Broken ligatures, stray marks and misread characters. For now, damaged pages are reported but not fixed."},
-  {ready:0, t:"Detects titled sections without numbering",
-   d:"Collections whose parts have titles but no numbers. These show no sections yet, and the log says so."},
-];
-
-const TICK_ON=`<svg class="tick" width="14" height="14" viewBox="0 0 24 24" fill="none"
-  stroke="#37564a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M20 6L9 17l-5-5"/></svg>`;
-const TICK_OFF=`<svg class="tick" width="14" height="14" viewBox="0 0 24 24" fill="none"
-  stroke="#a09a8e" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"
-  stroke-dasharray="3 3"/></svg>`;
 
 function drawRegister(){
   if(!REGISTER_URL) return;                    // nothing configured, nothing shown
@@ -89,22 +25,11 @@ function drawRegister(){
     `Using CorpusPrep? ${link}Let us know</a>, or ask to hear about new `+
     `versions. It is optional, the form opens in a new tab, and this page `+
     `sends nothing.`;
-  const side=$("#reg-side");
-  if(side) side.innerHTML=
-    `${link}Tell us you use CorpusPrep</a> (optional)`;
+  const foot=$("#reg-foot");
+  if(foot) foot.innerHTML=
+    `${link}Tell us how you use CorpusPrep</a> (optional, external form)`;
 }
 
-function drawCapabilities(){
-  const ready=CAPABILITIES.filter(c=>c.ready).length;
-  $("#cap-count").textContent=`${ready} ready, ${CAPABILITIES.length-ready} planned`;
-  $("#caps").innerHTML=CAPABILITIES.map(c=>`
-    <div class="cap ${c.ready?"":"soon"}">
-      ${c.ready?TICK_ON:TICK_OFF}
-      <div class="body">
-        <div class="t">${c.t}${c.ready?"":'<span class="tag">planned</span>'}</div>
-        <div class="d">${c.d}</div>
-      </div></div>`).join("");
-}
 
 /* ---- local persistence -------------------------------------------------
    Held on this machine only. No server exists, so nothing is transmitted;
@@ -243,43 +168,56 @@ function forgetRecent(i){
   drawRecent();
 }
 
-/* ---- sign in ---- */
-function initials(n){
-  const p=n.trim().split(/\s+/).filter(Boolean);
-  return ((p[0]&&p[0][0]||"?")+(p.length>1?p[p.length-1][0]:"")).toUpperCase();
+/* ---- welcome page and log details ----
+   Name and institution are optional and fill one line of the processing log,
+   "Prepared by". The welcome page asks for them once; after that they can be
+   changed from the sidebar ("Edit log details") without going back. Both sets
+   of fields write through setDetails, so they cannot disagree. */
+function drawWho(){
+  $("#who").innerHTML=`${USER?`<span class="nm">${esc(USER.name)}${
+      USER.inst?" · "+esc(USER.inst):""}</span>`:""}
+    <button class="linkish" id="who-edit" type="button">Edit log details</button>`;
+  $("#who-edit").onclick=()=>{
+    const d=$("#details-panel");
+    d.open=true;
+    if(d.scrollIntoView) d.scrollIntoView({block:"nearest"});
+    $("#d-name").focus();
+  };
 }
-function enter(user){
-  USER=user;
-  // A skipped sign-in must not overwrite a remembered one: the reader may be
-  // going through the door labelled "without signing in" on a borrowed
-  // machine, and their own name should still be there next time.
-  remember(user ? {user, signedOut:false} : {signedOut:true});
+function setDetails(name,inst){
+  name=(name||"").trim(); inst=(inst||"").trim();
+  USER=name?{name,inst}:null;
+  remember({user:(name||inst)?{name,inst}:undefined, signedOut:false});
+  for(const [n,i] of [["#g-name","#g-inst"],["#d-name","#d-inst"]]){
+    if($(n).value!==name) $(n).value=name;
+    if($(i).value!==inst) $(i).value=inst;
+  }
+  drawWho();
+  if(CLEANED) drawLog();
+}
+function showWorkspace(){
+  remember({seen:true});
   $("#gate").style.display="none";
   $("#app").style.display="flex";
-  $("#who").innerHTML = user
-    ? `<span class="avatar">${esc(initials(user.name))}</span>
-       <span>${esc(user.name)}${user.inst?" · "+esc(user.inst):""}</span>
-       <button class="linkish" id="who-out" title="Change the name on your log">Change</button>`
-    : `<span>No name on the log</span>
-       <button class="linkish" id="who-out" title="Add your name to the log">Add name</button>`;
-  const out=$("#who-out");
-  if(out) out.onclick=()=>{
-    USER=null;
-    remember({signedOut:true});
-    $("#app").style.display="none";
-    $("#gate").style.display="";
-  };
+  drawWho();
   drawRecent();
-  if(CFG) refreshPreview();
 }
+["#d-name","#d-inst"].forEach(s=>$(s).addEventListener("input",
+  ()=>setDetails($("#d-name").value,$("#d-inst").value)));
+// Start works with or without a name: the details are optional.
 $("#g-go").onclick=()=>{
-  const name=$("#g-name").value.trim();
-  if(!name){ $("#g-name").focus(); return }
-  enter({name,inst:$("#g-inst").value.trim()});
+  setDetails($("#g-name").value,$("#g-inst").value);
+  showWorkspace();
 };
 ["#g-name","#g-inst"].forEach(s=>$(s).addEventListener("keydown",
   e=>{if(e.key==="Enter")$("#g-go").click()}));
-$("#g-skip").onclick=()=>enter(null);
+// Skipping on a borrowed machine leaves whoever is remembered untouched, and
+// keeps their name off this session's log.
+$("#g-skip").onclick=()=>{
+  USER=null;
+  remember({signedOut:true});
+  showWorkspace();
+};
 
 /* ---- cite from the first screen ---------------------------------------
    The same two texts the Log tab prints, and deliberately the same concept
@@ -289,8 +227,8 @@ $("#g-skip").onclick=()=>enter(null);
 
    Built on demand rather than at load. The citation carries the running
    version, and reading CORPUSPREP_VERSION at click time cannot go stale. */
-function drawGateCite(){
-  const el=$("#g-cite");
+function drawGateCite(id){
+  const el=$("#"+id);
   if(!el) return;
   el.innerHTML=`
     <div class="row"><b>Reference</b>
@@ -303,7 +241,7 @@ function drawGateCite(){
       section, cite the DOI of the exact version you used instead. The
       <a href="https://corpusprep.org/CITING.html" target="_blank"
       rel="noopener">citing guide</a> shows where to find it.</p>`;
-  $$("#g-cite [data-gcopy]").forEach(b=>b.onclick=async()=>{
+  $$("#"+id+" [data-gcopy]").forEach(b=>b.onclick=async()=>{
     const text=b.dataset.gcopy==="apa"?citationText():citationBibtex();
     try{
       await navigator.clipboard.writeText(text);
@@ -316,14 +254,15 @@ function drawGateCite(){
     setTimeout(()=>{b.textContent="Copy"},2000);
   });
 }
-{
-  const t=$("#g-cite-toggle"), p=$("#g-cite");
+for(const [tid,pid,label] of [["g-cite-toggle","g-cite","Cite this"],
+                               ["f-cite-toggle","f-cite","Cite CorpusPrep"]]){
+  const t=$("#"+tid), p=$("#"+pid);
   if(t&&p) t.onclick=()=>{
     const open=p.hidden;
-    if(open) drawGateCite();
+    if(open) drawGateCite(pid);
     p.hidden=!open;
     t.setAttribute("aria-expanded",String(open));
-    t.textContent=open?"Hide citation":"Cite this";
+    t.textContent=open?"Hide citation":label;
   };
 }
 
@@ -418,6 +357,7 @@ async function loadText(name,buf){
   $("#side").style.display="";
   $("#guide").style.display="none";
   $("#welcome").style.display="none";
+  $("#wrap").classList.remove("nofile");
   $("#segview").style.display="";
   $("#hdr-doc").innerHTML=`<b>${esc(name)}</b>`;
   pushRecent(name,DOC.stats.tokens);
@@ -619,8 +559,8 @@ function footnoteNotice(){
           loose?` · ${loose} label${loose===1?"":"s"} with no matching note`:""}`
         : "this text has footnotes"}</span>
     </div>
-    <p class="furn-lead">A marker only counts when a matching note exists, so
-      stage directions are safe. Anything without a match is never removed.${
+    <p class="furn-lead">A marker counts only when a matching note exists, which
+      keeps most stage directions out. Unmatched labels are not removed.${
       CLEANED&&loose?` There ${loose===1?"is":"are"} ${loose} here.`:""}</p>
     <div class="fn-opts">
       ${opt("retain","Keep","For studying the edition.")}
@@ -665,8 +605,8 @@ function furnitureNotice(){
       <thead><tr><th>Repeated line</th><th>Times</th><th>Reason</th></tr></thead>
       <tbody>${rows}</tbody></table>`:""}
     <p class="furn-foot">${on
-      ? "These lines will be removed when you clean, and each one goes in the log."
-      : "To remove them, tick <b>Drop page furniture</b> under What to Keep."}
+      ? "These lines will be removed when you clean. The JSON log lists them."
+      : "To remove them, tick <b>Drop page furniture</b> under Sections to Keep."}
       This check has only been tried on test examples so far, not real scans,
       so please look over the list first.</p>
   </div>`;
@@ -892,7 +832,7 @@ function drawRunState(){
   if(CLEANED){
     label.textContent="Cleaned";
     b.className="btn-run done";
-    n.textContent="Done. See Before and After, or download from the Log tab. "
+    n.textContent="Done. See Compare, or download from the Processing Log tab. "
       +"Change anything above to clean again.";
   } else if(RESULT===null&&b.dataset.ran==="1"){
     label.textContent="Apply changes";
@@ -912,6 +852,10 @@ function drawRunState(){
    cleaning has been run, so they are held closed until then. */
 function drawGates(){
   const on=CLEANED;
+  $("#gate-cmp-h").textContent=DOC?"Ready to Review":"No File Selected";
+  $("#gate-cmp-p").textContent=DOC
+    ?"Choose which sections to keep, then select Clean text."
+    :"Open a file on the Sections tab to begin.";
   $("#gate-cmp").style.display=on?"none":"";
   $("#cmp-body").style.display=on?"":"none";
   $("#gate-log").style.display=on?"none":"";
@@ -1235,14 +1179,15 @@ function drawLog(){
   drawCite();
   const dt=b.tokens?100*(s.tokens-b.tokens)/b.tokens:0;
   const dc=b.chars?100*(s.chars-b.chars)/b.chars:0;
-  let h=`<div class="canvas-head"><h3>Log</h3>
-    <p>Everything that was changed, and why. You can cite it in a methods section.</p></div>`
+  let h=`<div class="canvas-head"><h3>Processing Log</h3>
+    <p>The settings used, the sections removed, and token and type counts before
+    and after. Download it for your methods section.</p></div>`
     +(quietNotes.length?`<div class="warn"><strong>Nothing was removed.</strong>
       Here is what CorpusPrep checked for.<ul>${quietNotes.map(n=>`<li>${esc(n.replace(/\*\*/g,"").replace(/[`*]/g,""))}</li>`).join("")}</ul>
-      CorpusPrep is built for printed books turned into text. A file that began
-      life on screen usually has none of that clutter, so yours is likely already
-      clean. If it has a different kind, such as app labels, timestamps,
-      usernames or repeated boilerplate, please let us know.</div>`:"")
+      CorpusPrep is built for printed books converted to text. Text that was
+      created digitally usually has none of this material. If your file has a
+      different kind, such as app labels, timestamps, usernames or repeated
+      boilerplate, please let us know.</div>`:"")
     +`
 
    <h4>Provenance</h4><table>
@@ -1323,8 +1268,11 @@ $("#run-clean").onclick=()=>{
   runClean();
 };
 
+// The button inside the drop zone gives keyboard users a real control; a click
+// on it bubbles here, so the picker opens once either way.
 $("#drop").onclick=()=>$("#file").click();
-$("#file").onchange=e=>handleFile(e.target.files[0]);
+$("#open-another").onclick=()=>$("#file").click();
+$("#file").onchange=e=>{ handleFile(e.target.files[0]); e.target.value=""; };
 ["dragover","dragenter"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.add("over")}));
 ["dragleave","drop"].forEach(ev=>$("#drop").addEventListener(ev,e=>{e.preventDefault();$("#drop").classList.remove("over")}));
 $("#drop").addEventListener("drop",e=>handleFile(e.dataTransfer.files[0]));
@@ -1343,24 +1291,19 @@ $$("nav button").forEach(b=>b.onclick=()=>{
   $("#tab-"+b.dataset.tab).classList.add("on");
 });
 
-/* ---- restore session ----
-   This filled the sign-in fields and stopped, so a reload put the gate back up
-   with the name typed in and `USER` still null. Nothing was lost — the details
-   were in local storage the whole time — but the reader had to sign in again
-   on every reload, and if they took the "Continue without signing in" door
-   instead, every log written afterwards silently lost its "Prepared by" line.
-   That line is the reason the sign-in exists: it is what makes the log a
-   document someone can cite. So this was a provenance fault wearing the
-   clothes of an annoyance.
-
-   `signedOut` is what keeps the gate reachable now that it is skipped by
-   default: without it, signing in once would hide the door for good, which
-   matters on a shared machine. */
+/* ---- restore saved details ----
+   A returning reader skips the welcome page and keeps their details, so a
+   reload never loses the "Prepared by" line. Someone who chose "Skip for now"
+   is not given a remembered name back, which matters on a shared machine. */
 (function(){
   const s=load_();
   if(s.user){ $("#g-name").value=s.user.name||""; $("#g-inst").value=s.user.inst||""; }
-  drawCapabilities();
+  if(s.user&&!s.signedOut){
+    $("#d-name").value=s.user.name||""; $("#d-inst").value=s.user.inst||"";
+    USER=s.user.name?{name:s.user.name,inst:s.user.inst||""}:null;
+  }
+  drawWho();
   drawRegister();
   drawRecent();
-  if(s.user&&!s.signedOut) enter(s.user);
+  if(s.seen||(s.user&&!s.signedOut)) showWorkspace();
 })();

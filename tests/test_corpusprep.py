@@ -18,6 +18,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+# Test names include Cyrillic and other non-Latin text. On Windows, output
+# sent to a pipe (as the git hook does) defaults to cp1252, which cannot print
+# them, and the first such name stopped the whole suite. Write UTF-8 always.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 from corpusprep import BUILTIN, load, render, render_all, segment  # noqa: E402
 from corpusprep.document import (BODY, FRONT_MATTER, PG_HEADER, PG_LICENCE,  # noqa: E402
                                   word_tokens)

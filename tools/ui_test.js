@@ -126,60 +126,100 @@ async function run(name, fn) {
   });
 
   {
-    // Reported by a user: "when I reload, it logs the users out."
-    //
-    // It never logged anyone out. The details were in local storage the whole
-    // time; the startup block filled the sign-in fields from them and stopped,
-    // so the gate came back up with the name already typed and `USER` null.
-    //
-    // The cost is not the second click. If the reader takes the "Continue
-    // without signing in" door instead, every log written afterwards loses its
-    // "Prepared by" line — the line that makes the log citable, and the whole
-    // reason the sign-in exists. A provenance fault dressed as an annoyance.
-    console.log('\nthe session survives a reload');
+    // The welcome page asks for optional log details once. Its job is to
+    // greet, not to stand in the way: Start works without a name, a
+    // returning reader goes straight to the workspace, and details typed
+    // once fill the "Prepared by" line of every log, across reloads.
+    console.log('\nthe welcome page, and log details that persist');
     const store = {};
     const visit = () => open(store);
+    const input = (w, id, v) => {
+      const el = w.document.getElementById(id);
+      el.value = v;
+      el.dispatchEvent(new w.Event('input', { bubbles: true }));
+    };
 
     const first = visit();
-    first.window.document.getElementById('g-name').value = 'A Reader';
-    first.window.document.getElementById('g-inst').value = 'Somewhere';
-    first.window.document.getElementById('g-go').click();
-    check('signing in sets the user', first.window.eval('USER && USER.name') === 'A Reader');
-    check('and the gate closes',
-          first.window.document.getElementById('gate').style.display === 'none');
+    const d1 = first.window.document;
+    check('a first visit shows the welcome page',
+          d1.getElementById('gate').style.display !== 'none' &&
+          first.window.getComputedStyle(d1.getElementById('app')).display === 'none');
+    check('the welcome page has no privacy box', !d1.querySelector('#gate .privacy'));
+    check('and no link to the source code',
+          ![...d1.querySelectorAll('#gate a')].some(a => /github\.com/.test(a.href)));
+    check('the name is marked optional',
+          /optional/i.test(d1.querySelector('label[for="g-name"]').textContent));
+    d1.getElementById('g-go').click();
+    check('Start works without a name',
+          d1.getElementById('gate').style.display === 'none' &&
+          d1.getElementById('app').style.display === 'flex');
+    check('and nobody is named on the log', first.window.eval('USER') === null);
     first.window.close();
 
+    const second = visit();
+    const d2 = second.window.document;
+    check('a returning reader goes straight to the workspace',
+          d2.getElementById('gate').style.display === 'none');
+    const openBtn = d2.getElementById('open-file');
+    check('the file picker is a real button, so a keyboard can reach it',
+          !!openBtn && openBtn.tagName === 'BUTTON');
+    let picked = 0;
+    d2.getElementById('file').click = () => { picked++; };
+    openBtn.click();
+    check('and pressing it opens the picker once', picked === 1, picked + ' opens');
+    check('the features list is gone from the page', !d2.getElementById('caps'));
+    d2.getElementById('who-edit').click();
+    check('"Edit log details" opens the sidebar panel', d2.getElementById('details-panel').open);
+    input(second.window, 'd-name', 'A Reader');
+    input(second.window, 'd-inst', 'Somewhere');
+    check('typing a name there sets the log details',
+          second.window.eval('USER && USER.name') === 'A Reader');
+    check('and the header shows it', /A Reader/.test(d2.getElementById('who').textContent));
+    check('and the welcome page fields agree',
+          d2.getElementById('g-name').value === 'A Reader');
+    second.window.close();
+
     const again = visit();
-    check('a reload keeps them signed in',
+    check('a reload keeps the details',
           again.window.eval('USER && USER.name') === 'A Reader',
           'USER is ' + again.window.eval('JSON.stringify(USER)'));
-    check('and does not put the gate back up',
-          again.window.document.getElementById('gate').style.display === 'none');
+    check('and puts them back in the fields',
+          again.window.document.getElementById('d-name').value === 'A Reader' &&
+          again.window.document.getElementById('d-inst').value === 'Somewhere');
     check('so the log still carries its provenance line',
           /Prepared by/.test(again.window.eval('logMarkdown ? "Prepared by" : ""') || 'Prepared by'));
-
-    // The way back has to exist, or signing in once hides the door for good —
-    // which matters on a shared machine.
-    again.window.document.getElementById('who-out').click();
-    check('signing out returns to the gate',
-          again.window.document.getElementById('gate').style.display !== 'none');
-    check('and clears the user', again.window.eval('USER') === null);
+    input(again.window, 'd-name', '');
+    check('clearing the name takes it off the log', again.window.eval('USER') === null);
     again.window.close();
 
-    const afterOut = visit();
-    check('and a reload does not sign them back in',
-          afterOut.window.eval('USER') === null);
-    check('but their name is still offered',
-          afterOut.window.document.getElementById('g-name').value === 'A Reader');
+    // Entering a name on the welcome page, then reloading.
+    const fresh = {};
+    const a = open(fresh);
+    a.window.document.getElementById('g-name').value = 'B Reader';
+    a.window.document.getElementById('g-go').click();
+    check('a name typed on the welcome page reaches the log',
+          a.window.eval('USER && USER.name') === 'B Reader');
+    a.window.close();
+    const b = open(fresh);
+    check('and survives a reload', b.window.eval('USER && USER.name') === 'B Reader');
+    b.window.close();
 
-    // Going through the "without signing in" door on a borrowed machine must
-    // not erase whoever is remembered.
-    afterOut.window.document.getElementById('g-skip').click();
-    const stored = JSON.parse(store['corpusprep.v1']);
-    check('skipping the sign-in keeps the remembered name',
-          stored.user && stored.user.name === 'A Reader');
-    check('and records that they are signed out', stored.signedOut === true);
-    afterOut.window.close();
+    // "Skip for now" on a borrowed machine must not erase or apply whoever is
+    // remembered.
+    const shared = { 'corpusprep.v1': JSON.stringify({ user: { name: 'A Reader', inst: '' } }) };
+    const c = open(shared);
+    check('a remembered name skips the welcome page',
+          c.window.document.getElementById('gate').style.display === 'none');
+    c.window.close();
+    const borrowed = { 'corpusprep.v1': JSON.stringify({ user: { name: 'A Reader', inst: '' }, signedOut: true }) };
+    const e = open(borrowed);
+    check('after "Skip for now", the welcome page offers the name again',
+          e.window.document.getElementById('g-name').value === 'A Reader');
+    e.window.document.getElementById('g-skip').click();
+    check('skipping keeps the name off the log', e.window.eval('USER') === null);
+    check('and keeps it remembered',
+          JSON.parse(borrowed['corpusprep.v1']).user.name === 'A Reader');
+    e.window.close();
   }
 
   {
@@ -194,7 +234,7 @@ async function run(name, fn) {
     const shipped = open();
     check('both places to show it exist',
           !!shipped.window.document.getElementById('reg-gate') &&
-          !!shipped.window.document.getElementById('reg-side'));
+          !!shipped.window.document.getElementById('reg-foot'));
     shipped.window.close();
 
     // Both branches, whichever one happens to be shipped. Testing only the
@@ -207,7 +247,7 @@ async function run(name, fn) {
     await until(empty, 'typeof drawRegister === "function"').catch(() => {});
     check('nothing is shown when no form is configured',
           empty.window.document.getElementById('reg-gate').innerHTML === '' &&
-          empty.window.document.getElementById('reg-side').innerHTML === '',
+          empty.window.document.getElementById('reg-foot').innerHTML === '',
           'markup rendered with REGISTER_URL empty');
     empty.window.close();
 
@@ -231,23 +271,26 @@ async function run(name, fn) {
             (a.getAttribute('rel') || '').includes('noopener'));
     }
     check('it says it is optional',
-          /optional/i.test(dom.window.document.getElementById('reg-gate').textContent));
+          /optional/i.test(dom.window.document.getElementById('reg-gate').textContent) &&
+          /optional/i.test(dom.window.document.getElementById('reg-foot').textContent));
+    check('and that it is an external form',
+          /external form/i.test(dom.window.document.getElementById('reg-foot').textContent));
 
-    // Placement, which is the half that was wrong. A returning reader is
-    // signed in automatically and never sees the gate, so the sidebar copy is
-    // the only one they can ever meet — and it has to be reachable without
-    // opening a disclosure or loading a file first.
-    check('the sidebar link is reachable before any file is loaded',
-          reachable(dom.window.document.getElementById('reg-side')),
+    // Placement, which was once wrong: the link sat inside a closed
+    // disclosure inside a block that vanished on load. A returning reader
+    // never sees the welcome page, so the footer copy must be reachable.
+    check('the footer link is reachable before any file is loaded',
+          reachable(dom.window.document.getElementById('reg-foot')),
           'hidden by an ancestor: display:none, [hidden], or a closed <details>');
-    check('and is not buried in the capability disclosure',
-          !dom.window.document.querySelector('details #reg-side'));
+    check('and is not buried in a disclosure',
+          !dom.window.document.querySelector('details #reg-foot'));
     check('and not inside the onboarding block that vanishes on load',
-          !dom.window.document.querySelector('#welcome #reg-side'));
+          !dom.window.document.querySelector('#welcome #reg-foot'));
 
     // The decisive one: type a name, and the link must be unchanged by it.
     dom.window.document.getElementById('g-name').value = 'A Reader';
     dom.window.document.getElementById('g-inst').value = 'Somewhere';
+    dom.window.document.getElementById('g-go').click();
     dom.window.eval('drawRegister()');
     const after = dom.window.document.querySelector('#reg-gate a').getAttribute('href');
     check('nothing the reader typed reaches the URL', after === FORM, after);
@@ -410,15 +453,14 @@ async function run(name, fn) {
     // The Log tab citation only exists after a reader has loaded a file and
     // cleaned it. Someone writing a related-work paragraph, or deciding
     // whether to trust the tool at all, never gets that far. This one is on
-    // the first screen, and it must be closed until asked for: the sign-in
-    // card is what the first screen is for.
+    // the welcome page, and it is closed until asked for.
     const d = dom.window.document;
     const t = d.querySelector('#g-cite-toggle');
     const p = d.querySelector('#g-cite');
-    check('the gate offers a citation', !!t && !!p);
+    check('the welcome page offers a citation', !!t && !!p);
     if (!t || !p) return;
     check('and it is closed on arrival', p.hidden,
-          'an open panel pushes the sign-in card down the page');
+          'an open panel pushes the details form down the page');
     check('and says so to a screen reader',
           t.getAttribute('aria-expanded') === 'false');
 
@@ -451,6 +493,13 @@ async function run(name, fn) {
 
     click();
     check('a second click closes it', p.hidden);
+
+    // The footer offers the same citation once inside the workspace.
+    const ft = d.querySelector('#f-cite-toggle'), fp = d.querySelector('#f-cite');
+    check('the footer offers it too', !!ft && !!fp && fp.hidden);
+    ft.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    check('and it opens with the same reference',
+          !fp.hidden && /Adesokan, T\./.test(fp.textContent));
   });
 
   await run('the citation is where the methods section gets written', async dom => {
@@ -499,7 +548,7 @@ async function run(name, fn) {
     // notice what the sentence says.
     //
     // Comments are exempt. This is about what a visitor reads.
-    dom.window.eval('drawCapabilities(); drawRegister();');
+    dom.window.eval('drawRegister();');
     try { dom.window.eval('drawCite()'); } catch (e) { /* needs a document */ }
 
     const visible = node => {
@@ -526,72 +575,6 @@ async function run(name, fn) {
 
     check('the page has an icon for the browser tab',
           !!dom.window.document.querySelector('link[rel="icon"]'));
-  });
-
-  await run('the capability list is not stale', dom => {
-    const d = dom.window.document;
-    dom.window.eval('drawCapabilities()');
-    const cap = t => [...d.querySelectorAll('#caps .cap')]
-      .find(e => e.textContent.toLowerCase().includes(t));
-    const planned = e => !!e && e.classList.contains('soon');
-
-    // This list carried page furniture, de-hyphenation and reflow as PLANNED
-    // for three releases after all three had shipped, and described
-    // de-hyphenation as "wordlist-validated" — the approach that was tried,
-    // measured and rejected. It went stale in the direction that flatters.
-    //
-    // Reported by a user, not by a test. So: a test. Each of these is proven
-    // to work by the checks above and elsewhere in this file.
-    for (const feature of ['hyphenated line breaks', 'hard-wrapped paragraphs',
-                           'page numbers, headers', 'footnotes',
-                           'digitisation apparatus', 'running heads',
-                           'reads pdf', 'interface furniture']) {
-      const e = cap(feature);
-      check(`"${feature}" is not still marked planned`, !!e && !planned(e),
-            e ? 'marked planned' : 'missing from the list entirely');
-    }
-
-    // `reads pdf` was in the list below, asserted as planned, from the day
-    // PDF support shipped in v0.8.0 until 29 August. Nobody saw it, because
-    // this file could not run: jsdom was vendored into `node_modules` with
-    // 496 of its 657 files missing and `Document.js` truncated at 16 KB.
-    //
-    // A test that cannot run is worse than no test. It reads as coverage in
-    // the summary and asserts nothing, and this one had gone stale in the
-    // direction it exists to prevent — the list telling the truth and the
-    // test insisting otherwise.
-
-    // And the other direction, which is the one that misleads a researcher
-    // into starting work the tool cannot finish.
-    for (const feature of ['repairs ocr characters']) {
-      const e = cap(feature);
-      check(`"${feature}" is honestly marked planned`, planned(e),
-            e ? 'claimed as available' : 'missing');
-    }
-
-    // A third direction, and the subtlest: available, but on evidence
-    // narrower than a reader would assume. Interface furniture has met one
-    // synthetic thread; the division-word list is a list. Both work. Neither
-    // is validated, and the list must say so in its own words.
-    const ui = cap('interface furniture');
-    check('interface furniture is declared experimental',
-          !!ui && /experimental/i.test(ui.textContent),
-          ui ? 'no qualification in the description' : 'missing');
-    check('interface furniture states the evidence it rests on',
-          !!ui && /synthetic/i.test(ui.textContent));
-    const fur = cap('page numbers, headers');
-    check('page furniture states what its figure rests on',
-          !!fur && /generated scan/i.test(fur.textContent),
-          'no statement of the evidence behind the measurement');
-    const cw = cap('catchwords');
-    check('catchwords states what its figure rests on',
-          !!cw && /generated fixture/i.test(cw.textContent));
-    const seg = cap('segments chapters');
-    check('chapter segmentation no longer lists English divisions alone',
-          !!seg && /kapitel/i.test(seg.textContent),
-          'still describes only Chapter/Book/Part/Act/Scene');
-    check('and says the other-language list is a fixed list',
-          !!seg && /fixed list/i.test(seg.textContent));
   });
 
   await run('hyphenated.txt: the review queue', async dom => {
