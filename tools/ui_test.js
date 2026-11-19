@@ -158,8 +158,9 @@ async function run(name, fn) {
 
     const second = visit();
     const d2 = second.window.document;
-    check('a returning reader goes straight to the workspace',
-          d2.getElementById('gate').style.display === 'none');
+    check('the welcome page shows again on a return visit',
+          d2.getElementById('gate').style.display !== 'none');
+    d2.getElementById('g-go').click();
     const openBtn = d2.getElementById('open-file');
     check('the file picker is a real button, so a keyboard can reach it',
           !!openBtn && openBtn.tagName === 'BUTTON');
@@ -202,14 +203,18 @@ async function run(name, fn) {
     a.window.close();
     const b = open(fresh);
     check('and survives a reload', b.window.eval('USER && USER.name') === 'B Reader');
+    check('with the welcome page showing it, ready to start',
+          b.window.document.getElementById('gate').style.display !== 'none' &&
+          b.window.document.getElementById('g-name').value === 'B Reader');
     b.window.close();
 
     // "Skip for now" on a borrowed machine must not erase or apply whoever is
     // remembered.
     const shared = { 'corpusprep.v1': JSON.stringify({ user: { name: 'A Reader', inst: '' } }) };
     const c = open(shared);
-    check('a remembered name skips the welcome page',
-          c.window.document.getElementById('gate').style.display === 'none');
+    check('a remembered name still sees the welcome page, filled in',
+          c.window.document.getElementById('gate').style.display !== 'none' &&
+          c.window.document.getElementById('g-name').value === 'A Reader');
     c.window.close();
     const borrowed = { 'corpusprep.v1': JSON.stringify({ user: { name: 'A Reader', inst: '' }, signedOut: true }) };
     const e = open(borrowed);

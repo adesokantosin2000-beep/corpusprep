@@ -1292,9 +1292,11 @@ $$("nav button").forEach(b=>b.onclick=()=>{
 });
 
 /* ---- restore saved details ----
-   A returning reader skips the welcome page and keeps their details, so a
-   reload never loses the "Prepared by" line. Someone who chose "Skip for now"
-   is not given a remembered name back, which matters on a shared machine. */
+   The welcome page shows on every visit, so the tool always opens the same
+   way, which is what a demonstration needs. Saved details are filled in, so a
+   returning reader is one click from the workspace and the "Prepared by" line
+   is not lost. Someone who chose "Skip for now" is not given a remembered name
+   back in the log, which matters on a shared machine. */
 (function(){
   const s=load_();
   if(s.user){ $("#g-name").value=s.user.name||""; $("#g-inst").value=s.user.inst||""; }
@@ -1305,5 +1307,5 @@ $$("nav button").forEach(b=>b.onclick=()=>{
   drawWho();
   drawRegister();
   drawRecent();
-  if(s.seen||(s.user&&!s.signedOut)) showWorkspace();
+  $("#g-go").focus();
 })();
