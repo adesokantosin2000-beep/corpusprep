@@ -39,39 +39,39 @@ const SHORT={pg_header:"Apparatus", pg_licence:"Licence", front_matter:"Front ma
    read as a claim about the present. */
 const CAPABILITIES=[
   {ready:1, t:"Detects front matter and back matter",
-   d:"Title pages, prefaces, dramatis personae, contents, appendices and indexes."},
+   d:"Title pages, prefaces, cast lists, contents, appendices and indexes."},
   {ready:1, t:"Segments chapters and sections",
-   d:"Chapter, Book, Part, Act and Scene divisions, numbered sections and bare numeral runs. Headings split across two lines, or welded to the front of a page in scanned text, are also found. The division words of several other languages are recognised too, including Kapitel, Glava and Kapitola, from a fixed list. That list is only as wide as its entries: a language whose word is absent yields no structure, and the report says so."},
+   d:"Chapters, books, parts, acts, scenes and numbered sections, including headings split over two lines in scans. Some other languages work too (Kapitel, Glava, Kapitola), from a fixed list. If your language is not on it, no chapters are found and the log tells you."},
   {ready:1, t:"Recovers chapters from running heads",
-   d:"For scans where OCR destroyed every heading, the chapter titles are read from the head repeated on each page."},
+   d:"When OCR has lost the headings in a scan, chapter titles are taken from the title printed at the top of each page."},
   {ready:1, t:"Identifies publisher and licence apparatus",
-   d:"Gutenberg headers, licence text and transcriber credits, whether or not sentinel markers are present."},
+   d:"Gutenberg headers, licence text and transcriber credits, even when the usual start and end markers are missing."},
   {ready:1, t:"Identifies digitisation apparatus",
-   d:"Internet Archive and Google Books notices, and pages the scanner itself reports as unreadable."},
+   d:"Internet Archive and Google Books notices, and pages the scanner marked as unreadable."},
   {ready:1, t:"Identifies page numbers, headers and footers",
-   d:"Detected by regularity rather than appearance, so a refrain is never mistaken for a running head. Its measured figure comes from a generated scan rather than a hand-marked real one, which is why no preset removes what it finds: off unless requested, with every line proposed for removal listed with its grounds."},
+   d:"Found by how regularly they repeat, so a refrain in a poem is left alone. So far it has only been measured on a generated scan, so it is off by default and every line it flags is listed for you to check."},
   {ready:1, t:"Detects catchwords",
-   d:"The early modern practice of printing the next page's first word at the foot of the page. Measured against a generated fixture only, where it produced three false positives, so read them before removing them."},
+   d:"The early modern habit of printing the next page's first word at the foot of a page. Only tested on a generated fixture so far, so look over what it finds before removing anything."},
   {ready:1, t:"Detects footnotes",
-   d:"Keep them, remove them, or extract them to a parallel file. A marker counts only when a note carries the same label, so stage directions are left alone."},
+   d:"Keep them, remove them, or save them to a separate file. A marker only counts when a matching note exists, so stage directions are safe."},
   {ready:1, t:"Rejoins hyphenated line breaks",
-   d:"Settled from the document\u2019s own vocabulary rather than a bundled wordlist, which recognises only 65% of the word types in a Victorian novel. Whatever cannot be settled keeps the hyphen as printed."},
+   d:"Each case is checked against the words used elsewhere in your own text. Anything it cannot decide keeps its hyphen."},
   {ready:1, t:"Reflows hard-wrapped paragraphs",
-   d:"99.5% of paragraphs recovered exactly in measurement. Verse, drama and tabular material are identified first and left alone."},
+   d:"Joins lines back into paragraphs, with 99.5% exact in testing. Verse, drama and tables are left alone."},
   {ready:1, t:"Preserves or removes structural elements on request",
-   d:"Retain or remove any section. Five presets are provided, or sections may be selected individually."},
+   d:"Keep or remove any section. Use one of five presets, or choose sections yourself."},
   {ready:1, t:"Reads TXT, Markdown, DOCX, EPUB and HTML",
-   d:"Encoding, byte-order marks and line endings resolved on import. Markdown link targets are discarded and the link text kept, because a URL is not language."},
+   d:"Encoding and line endings are sorted out when the file opens. In Markdown, link text is kept and the web address dropped."},
   {ready:1, t:"Detects interface furniture",
-   d:"Experimental. The labels an application prints around text a person wrote: Like, Reply, 2 likes, View replies. Found by position rather than by word, since all of those are ordinary English. A control sits after the text of a record; a one-word comment does not. Nothing is claimed unless the file itself is shaped like a scraped feed. Validated so far against one synthetic thread only; detected and reported, never removed."},
+   d:"Experimental. Labels such as Like, Reply or View replies that an app prints around a post in scraped social media. Only tried on one synthetic thread so far, so it reports what it finds and never removes it."},
   {ready:1, t:"Records every decision in a log",
-   d:"Markdown and JSON, including token and type counts, suitable for citation. A run in which no rule fires says which rules were tried and why each declined, rather than reporting a zero."},
+   d:"Saved as Markdown and JSON, with token and type counts, ready to cite. If nothing was removed, the log explains what was checked."},
   {ready:1, t:"Reads PDF",
-   d:"Page boundaries are taken from the file, so running heads and page numbers are found from a stated fact rather than an inferred one. A PDF whose text layer is unreadable is refused with the reason rather than returned as noise. This is the one feature that needs the internet: pdf.js is fetched once, on demand. Your document is never uploaded."},
+   d:"Page breaks come straight from the file. A PDF with no readable text is turned away with a clear reason. Opening a PDF needs the internet once, to fetch the PDF reader, but your document is never uploaded."},
   {ready:0, t:"Repairs OCR characters",
-   d:"Broken ligatures, stray marks and mis-scanned characters. Damaged pages are currently identified and reported, not corrected."},
+   d:"Broken ligatures, stray marks and misread characters. For now, damaged pages are reported but not fixed."},
   {ready:0, t:"Detects titled sections without numbering",
-   d:"A collection whose parts are titled but neither numbered nor introduced by a division word currently yields no structure, and the report says so."},
+   d:"Collections whose parts have titles but no numbers. These show no sections yet, and the log says so."},
 ];
 
 const TICK_ON=`<svg class="tick" width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -86,16 +86,17 @@ function drawRegister(){
   const link=`<a href="${REGISTER_URL}" target="_blank" rel="noopener noreferrer">`;
   const gate=$("#reg-gate");
   if(gate) gate.innerHTML=
-    `Optional: ${link}tell us you are using CorpusPrep</a>, or ask to hear when `+
-    `it changes. Opens a form in a new tab. Nothing is sent from this page.`;
+    `Using CorpusPrep? ${link}Let us know</a>, or ask to hear about new `+
+    `versions. It is optional, the form opens in a new tab, and this page `+
+    `sends nothing.`;
   const side=$("#reg-side");
   if(side) side.innerHTML=
-    `${link}Tell us you are using this</a> \u00b7 optional, opens in a new tab.`;
+    `${link}Tell us you use CorpusPrep</a> (optional)`;
 }
 
 function drawCapabilities(){
   const ready=CAPABILITIES.filter(c=>c.ready).length;
-  $("#cap-count").textContent=`${ready} available, ${CAPABILITIES.length-ready} planned`;
+  $("#cap-count").textContent=`${ready} ready, ${CAPABILITIES.length-ready} planned`;
   $("#caps").innerHTML=CAPABILITIES.map(c=>`
     <div class="cap ${c.ready?"":"soon"}">
       ${c.ready?TICK_ON:TICK_OFF}
@@ -219,7 +220,7 @@ function drawRecent(){
      to be able to take it off the screen. */
   $("#recent").innerHTML=list.map((r,i)=>`
     <div class="rec-row">
-      <button data-open="${i}" title="Choose this file again. The browser cannot reopen it for you.">
+      <button data-open="${i}" title="Choose this file again. Your browser cannot reopen it on its own.">
         <span class="t">${esc(r.name)}</span>
         <span class="d">${r.tokens.toLocaleString()}</span>
       </button>
@@ -258,9 +259,9 @@ function enter(user){
   $("#who").innerHTML = user
     ? `<span class="avatar">${esc(initials(user.name))}</span>
        <span>${esc(user.name)}${user.inst?" · "+esc(user.inst):""}</span>
-       <button class="linkish" id="who-out" title="Return to the sign-in screen">Sign out</button>`
-    : `<span>Not signed in</span>
-       <button class="linkish" id="who-out" title="Return to the sign-in screen">Sign in</button>`;
+       <button class="linkish" id="who-out" title="Change the name on your log">Change</button>`
+    : `<span>No name on the log</span>
+       <button class="linkish" id="who-out" title="Add your name to the log">Add name</button>`;
   const out=$("#who-out");
   if(out) out.onclick=()=>{
     USER=null;
@@ -298,11 +299,10 @@ function drawGateCite(){
     <div class="row"><b>BibTeX</b>
       <button data-gcopy="bib">Copy</button></div>
     <pre>${esc(citationBibtex())}</pre>
-    <p class="note">This is the <b>concept DOI</b>, which always resolves to the
-      newest release. For a methods section use the <b>version DOI</b> of the
-      release you ran, which resolves to a frozen copy of that code and cannot
-      move. See <a href="https://corpusprep.org/CITING.html" target="_blank"
-      rel="noopener">how to cite CorpusPrep</a>.</p>`;
+    <p class="note">This DOI always points to the newest release. In a methods
+      section, cite the DOI of the exact version you used instead. The
+      <a href="https://corpusprep.org/CITING.html" target="_blank"
+      rel="noopener">citing guide</a> shows where to find it.</p>`;
   $$("#g-cite [data-gcopy]").forEach(b=>b.onclick=async()=>{
     const text=b.dataset.gcopy==="apa"?citationText():citationBibtex();
     try{
@@ -355,16 +355,15 @@ async function loadText(name,buf){
          hadBom:false,conf:1,newline:"\\n",repl:(text.match(/\uFFFD/g)||[]).length,
          pageStarts:ex.meta.page_starts||null};
       if(ex.meta.container==="pdf"){
-        extraNotes.push(`Read from PDF: ${ex.meta.note}`);
+        extraNotes.push(`Read from PDF. ${ex.meta.note}`);
         // The page boundaries are the gift of this format. Every other input
         // makes the furniture rules infer where pages begin; a PDF states it.
-        extraNotes.push(`Page boundaries were taken from the file itself `+
-          `(${ex.meta.pdf_pages} pages), so running heads and page numbers are `+
-          `identified from a stated boundary rather than one inferred from the `+
-          `text.`);
+        extraNotes.push(`Page breaks were taken from the file `+
+          `(${ex.meta.pdf_pages} pages), which makes page numbers and running `+
+          `heads easier to find.`);
       } else {
-        extraNotes.push(`Text extracted from ${ex.meta.container}. Formatting, images `+
-          `and footnotes were discarded. Paragraph structure was preserved.`);
+        extraNotes.push(`Text taken from ${ex.meta.container}. Formatting, images `+
+          `and footnotes were left out, and paragraphs were kept.`);
       }
     } else d=decode(buf);
   }catch(err){
@@ -382,8 +381,8 @@ async function loadText(name,buf){
   const fu=findFurnitureIn(d.lines,seg.regions,d.pageStarts);
   const ui=findInterfaceIn(d.lines,seg.regions);
   if(ui.lines.size) extraNotes=[...extraNotes,
-    `${ui.lines.size} lines look like interface furniture (the labels an `+
-    `application printed, not text anyone wrote). Detected, not removed: the `+
+    `${ui.lines.size} lines look like app labels (such as Like or Reply) `+
+    `rather than text someone wrote. They are flagged, not removed, and the `+
     `log lists every one.`];
   DOC={name,...d,regions:seg.regions,notes:[...extraNotes,...seg.notes],
        interface:ui.lines,interfaceSeries:ui.series,
@@ -465,18 +464,18 @@ function drawSummary(){
 
   $("#summary").innerHTML=`<div class="summary">
     <div class="summary-top">
-      <span class="t">Segmentation summary</span>
+      <span class="t">What We Found</span>
       <span class="s">${DOC.regions.length} sections · ${
-        depth>1?`${depth} levels of nesting`:"no nesting detected"}${
+        depth>1?`${depth} levels deep`:"one level"}${
         unknown?` · ${unknown} unclassified`:""}</span>
     </div>
     <div class="bar-track">${bar}</div>
     <div class="sum-grid">
       ${cell(DOC.stats.tokens,"Words")}
       ${cell(chapters||sections,chapters?"Chapters":"Sections")}
-      ${cell(front,"Front-matter blocks")}
-      ${cell(back,"Back-matter blocks")}
-      ${cell(apparatus,"Apparatus blocks")}
+      ${cell(front,"Front matter")}
+      ${cell(back,"Back matter")}
+      ${cell(apparatus,"Publisher blocks")}
       ${CLEANED?cell(plannedDrops().length,"Removed"):""}
     </div>${furnitureNotice()}${footnoteNotice()}${hyphenNotice()}</div>`;
 }
@@ -494,24 +493,24 @@ function hyphenNotice(){
       <span class="t">Words broken across lines</span>
       <span class="s">${CLEANED
         ? `${DOC.breaks.length} found · <b>${DOC.breaks.length-flagged.length}
-           settled from this text itself</b>${
-           left?` · ${left} kept exactly as printed`:""}`
-        : "this text is hard-wrapped"}</span>
+           decided from this text</b>${
+           left?` · ${left} left as printed`:""}`
+        : "this text has fixed line lengths"}</span>
     </div>
-    <p class="furn-lead">The line break is an artefact; the hyphen may be real.
-      Each case is settled from this text's own vocabulary, and anything it
-      cannot settle keeps the hyphen exactly as printed.${
+    <p class="furn-lead">The line break was added by the printer, but the hyphen
+      may be real. Each case is checked against the words used elsewhere in
+      this text, and anything unclear keeps its hyphen.${
       CLEANED&&left?` <b>${left}</b> did. Nothing is required of you.`:""}</p>
     <div class="fn-opts">
       <label class="fn-opt ${on?"on":""}">
         <input type="checkbox" id="dh-on" ${on?"checked":""}>
         <span class="fn-t">Rejoin broken words</span>
-        <span class="fn-d">The hyphen is decided separately.</span></label>
+        <span class="fn-d">Hyphens are checked one by one.</span></label>
       <label class="fn-opt ${CFG.reflow?"on":""}">
         <input type="checkbox" id="rf-on" ${CFG.reflow?"checked":""}>
         <span class="fn-t">Rejoin paragraphs</span>
-        <span class="fn-d">Undoes fixed-width wrapping. Verse and drama are
-          left alone.</span></label>
+        <span class="fn-d">Joins short lines back into paragraphs. Verse and
+          drama are left alone.</span></label>
     </div>
     ${CLEANED&&left?`<div class="rv-bar">
       <button class="btn-sm ghost" id="rv-start">Look at the ${left} kept
@@ -617,17 +616,16 @@ function footnoteNotice(){
       <span class="t">Footnotes</span>
       <span class="s">${CLEANED
         ? `${paired.length} note${paired.length===1?"":"s"} matched to a marker${
-          loose?` · ${loose} bracketed label${loose===1?"":"s"} could not be
-          matched`:""}`
-        : "this text carries footnotes"}</span>
+          loose?` · ${loose} label${loose===1?"":"s"} with no matching note`:""}`
+        : "this text has footnotes"}</span>
     </div>
-    <p class="furn-lead">A marker counts only when a note elsewhere carries the
-      same label, so stage directions are left alone. Anything unmatched is
-      never removed.${CLEANED&&loose?` ${loose} here.`:""}</p>
+    <p class="furn-lead">A marker only counts when a matching note exists, so
+      stage directions are safe. Anything without a match is never removed.${
+      CLEANED&&loose?` There ${loose===1?"is":"are"} ${loose} here.`:""}</p>
     <div class="fn-opts">
-      ${opt("retain","Keep","Study the edition.")}
-      ${opt("remove","Remove","Study the work.")}
-      ${opt("extract","Extract to a second file","Study both.")}
+      ${opt("retain","Keep","For studying the edition.")}
+      ${opt("remove","Remove","For studying the work itself.")}
+      ${opt("extract","Save to a separate file","For studying both.")}
     </div>
   </div>`;
 }
@@ -647,30 +645,30 @@ function furnitureNotice(){
     +(DOC.catchwords.size?`<tr>
         <td class="mono">(catchwords)</td>
         <td class="num">${DOC.catchwords.size}</td>
-        <td class="why">each repeats the first word of the following page, on
+        <td class="why">repeats the first word of the next page, on
           ${DOC.catchwords.size} of ${DOC.catchwordMatches.length} pages</td></tr>`:"");
   const on=!!CFG.dropFurniture;
   return `<div class="furn-notice ${on?"on":""}">
     <div class="furn-head">
       <span class="t">Possible page furniture</span>
       <span class="s">${CLEANED
-        ? `${DOC.furniture.size} lines · estimated page length
+        ? `${DOC.furniture.size} lines · pages of about
            ${Math.round(DOC.pageLength)} lines`
-        : "this text appears to come from printed pages"}</span>
+        : "this text seems to come from printed pages"}</span>
     </div>
-    <p class="furn-lead">Running heads and page numbers recur at the page
-      interval; a refrain recurs irregularly and is left alone.${
-      DOC.catchwords.size?" This text also uses catchwords.":""}${
-      !CLEANED?" Every line proposed for removal is listed with its grounds"
-      +" once cleaning has run.":""}</p>
+    <p class="furn-lead">Page numbers and running heads repeat at a steady
+      interval, page after page. A refrain repeats unevenly, so it is left
+      alone.${DOC.catchwords.size?" This text also has catchwords.":""}${
+      !CLEANED?" After cleaning, each flagged line is listed here with the"
+      +" reason.":""}</p>
     ${CLEANED?`<table class="furn-table">
-      <thead><tr><th>Recurring line</th><th>Times</th><th>Grounds</th></tr></thead>
+      <thead><tr><th>Repeated line</th><th>Times</th><th>Reason</th></tr></thead>
       <tbody>${rows}</tbody></table>`:""}
     <p class="furn-foot">${on
-      ? "These lines will be removed when you clean. Every one is listed in the log."
-      : "Nothing is removed unless you tick <b>Drop page furniture</b> in the section list."}
-      This rule has so far been tested against constructed examples rather than
-      real scans, so please check the list above before relying on it.</p>
+      ? "These lines will be removed when you clean, and each one goes in the log."
+      : "To remove them, tick <b>Drop page furniture</b> under What to Keep."}
+      This check has only been tried on test examples so far, not real scans,
+      so please look over the list first.</p>
   </div>`;
 }
 
@@ -735,9 +733,9 @@ function handleFile(f){
   const mb=f.size/1048576;
   loading(`Reading ${f.name} (${mb<0.1?"<0.1":mb.toFixed(1)} MB)\u2026`);
   if(/\.pdf$/i.test(f.name))
-    loading(`Reading ${f.name} (${mb.toFixed(1)} MB). A PDF is parsed page by `+
-            `page, so a long one takes a moment. The first PDF of a session `+
-            `also fetches pdf.js.`);
+    loading(`Reading ${f.name} (${mb.toFixed(1)} MB). A PDF is read page by `+
+            `page, so a long one takes a moment. The first PDF also fetches `+
+            `the PDF reader (pdf.js).`);
   f.arrayBuffer()
     .then(b=>loadText(f.name,b))
     .finally(()=>loading(null));
@@ -755,10 +753,10 @@ function drawMeta(){
      <dt>Encoding</dt><dd>${esc(d.enc)}${d.hadBom?" · BOM":""}</dd>
    </dl>`;
   const w=[];
-  if(d.conf<.6) w.push(`Encoding identified with low confidence (${d.enc}). Inspect the output for character corruption.`);
-  if(d.repl)    w.push(`${d.repl} undecodable byte(s) replaced. The source file may be damaged.`);
+  if(d.conf<.6) w.push(`The encoding is uncertain (${d.enc}). Check the result for garbled characters.`);
+  if(d.repl)    w.push(`${d.repl} unreadable character(s) were replaced. The file may be damaged.`);
   d.notes.forEach(n=>w.push(n));
-  if(d.gaps.length) w.push(`${d.gaps.length} uncovered content range(s). This indicates a fault in segmentation.`);
+  if(d.gaps.length) w.push(`${d.gaps.length} stretch(es) of text were not given a section. That is a bug in CorpusPrep, so please report it.`);
   $("#meta").innerHTML=h+w.map(x=>`<div class="warn">${esc(x)}</div>`).join("");
 }
 
@@ -826,7 +824,7 @@ function plannedDrops(){
 function refreshPreview(){
   if(CLEANED){ CLEANED=false; RESULT=null; }
   $("#preset-desc").textContent=PRESETS[CFG.name]?PRESETS[CFG.name].desc
-    :"A custom selection of sections.";
+    :"Your own choice of sections.";
   drawSummary(); drawStats(); drawRegions(); drawRunState(); drawGates();
 }
 
@@ -845,8 +843,8 @@ async function runClean(){
   b.classList.add("busy");
   b.disabled=true;
   $("#run-label").textContent="Cleaning…";
-  $("#run-note").textContent="Working through the text. Nothing has been "
-    +"written yet.";
+  $("#run-note").textContent="Working through the text. This can take a "
+    +"few seconds for a long book.";
 
   // Yield twice so the browser paints the working state before the main
   // thread is occupied. One yield is not always enough: the style change and
@@ -872,8 +870,8 @@ async function runClean(){
   }catch(e){
     b.classList.remove("busy"); b.disabled=false;
     $("#run-label").textContent="Clean text";
-    $("#run-note").textContent="Cleaning failed: "+e.message
-      +". The source text is untouched.";
+    $("#run-note").textContent="Cleaning stopped with an error ("+e.message
+      +"). Your original text is unchanged.";
     throw e;
   }
 
@@ -894,19 +892,19 @@ function drawRunState(){
   if(CLEANED){
     label.textContent="Cleaned";
     b.className="btn-run done";
-    n.textContent="The cleaned text and its log are ready. Adjust the selection "
-      +"above to clean again.";
+    n.textContent="Done. See Before and After, or download from the Log tab. "
+      +"Change anything above to clean again.";
   } else if(RESULT===null&&b.dataset.ran==="1"){
     label.textContent="Apply changes";
     b.className="btn-run stale";
-    n.textContent="The selection has changed since the last run.";
+    n.textContent="You changed the selection. Clean again to update the result.";
   } else {
     label.textContent="Clean text";
     b.className="btn-run";
     n.textContent=drops
-      ? `${drops} of ${DOC.regions.length} sections will be removed. Nothing is `
-        +`produced until you run this.`
-      : "No sections are currently marked for removal.";
+      ? `${drops} of ${DOC.regions.length} sections will be removed when you `
+        +`press Clean text.`
+      : "Every section is currently kept.";
   }
 }
 
@@ -923,8 +921,8 @@ function drawGates(){
 function drawStats(){
   if(!CLEANED){
     $("#stats").innerHTML=`<div class="fig" style="grid-column:1/-1">
-      <div class="v zero">Not yet cleaned</div>
-      <div class="k">Run cleaning to see the result</div></div>`;
+      <div class="v zero">Not cleaned yet</div>
+      <div class="k">The numbers appear after cleaning</div></div>`;
     return;
   }
   const s=RESULT.stats,b=RESULT.base;
@@ -944,12 +942,11 @@ function drawRegions(){
   const counts={};
   for(const r of DOC.regions) counts[r.label]=(counts[r.label]||0)+1;
   const drops=plannedDrops().length;
-  const cover=DOC.gaps.length?"warning: uncovered lines present"
-                             :"every line accounted for";
+  const cover=DOC.gaps.length?"some lines have no section"
+                             :"every line has a section";
   $("#seg-sub").textContent=CLEANED
-    ? `${DOC.regions.length} sections identified · ${drops} removed by the `
-      +`current selection · ${cover}`
-    : `${DOC.regions.length} sections identified · ${cover}`;
+    ? `${DOC.regions.length} sections · ${drops} removed · ${cover}`
+    : `${DOC.regions.length} sections · ${cover} · click any section to see its text`;
 
   $("#legend").innerHTML=LABELS.filter(l=>counts[l.id]).map(l=>
     `<span><span class="swatch" style="background:${l.fg}"></span>${l.name}</span>`).join("");
@@ -1085,22 +1082,22 @@ function drawCite(){
   if(!el) return;
   const v=typeof CORPUSPREP_VERSION!=="undefined"?CORPUSPREP_VERSION:"unknown";
   el.innerHTML=`
-    <h4>Citing this run</h4>
-    <p class="why">You ran <b>version ${esc(v)}</b>. Record it: the tool's
-      behaviour changes between releases, and an analysis run against one
-      version is not reproducible against another.</p>
+    <h4>Citing This Run</h4>
+    <p class="why">You used <b>version ${esc(v)}</b>. Please note it down, since
+      behaviour changes between releases and results from one version are not
+      reproducible with another.</p>
     <div class="row"><b>Reference</b>
       <button class="linkish" data-copy="apa">Copy</button></div>
     <pre id="cite-apa">${esc(citationText())}</pre>
     <div class="row"><b>BibTeX</b>
       <button class="linkish" data-copy="bib">Copy</button></div>
     <pre id="cite-bib">${esc(citationBibtex())}</pre>
-    <p class="note">The DOI above is the <b>concept DOI</b>, which always
-      resolves to the newest release. For a methods section, prefer the
-      <b>version DOI</b> of the release matching ${esc(v)}. That one resolves to
-      a frozen copy of the code that produced your results and cannot move. It is
-      shown on that release's page in the archive. See
-      <code>docs/CITING.md</code>.</p>`;
+    <p class="note">The DOI above is the <b>concept DOI</b> and always points
+      to the newest release. In a methods section, cite the <b>version DOI</b>
+      for ${esc(v)} instead. It points to the exact code you used, and you will
+      find it on that release's page in the archive. The
+      <a href="https://corpusprep.org/CITING.html" target="_blank"
+      rel="noopener">citing guide</a> explains more.</p>`;
   $$("#cite [data-copy]").forEach(b=>b.onclick=async()=>{
     const text=b.dataset.copy==="apa"?citationText():citationBibtex();
     try{
@@ -1238,16 +1235,14 @@ function drawLog(){
   drawCite();
   const dt=b.tokens?100*(s.tokens-b.tokens)/b.tokens:0;
   const dc=b.chars?100*(s.chars-b.chars)/b.chars:0;
-  let h=`<div class="canvas-head"><h3>Preprocessing log</h3>
-    <p>A record of every decision taken, suitable for citation in a methods section.</p></div>`
-    +(quietNotes.length?`<div class="warn"><strong>Nothing was removed, and here
-      is what was looked for.</strong> Every rule examined the text and
-      declined.<ul>${quietNotes.map(n=>`<li>${esc(n.replace(/\*\*/g,"").replace(/[`*]/g,""))}</li>`).join("")}</ul>
-      The rules here are built for printed books turned into text. Text that was
-      born digital carries none of that apparatus, and your file is already as
-      clean as this tool can make it. If it carries a different kind, such as
-      interface labels, timestamps, usernames or boilerplate that repeats, that is worth
-      reporting.</div>`:"")
+  let h=`<div class="canvas-head"><h3>Log</h3>
+    <p>Everything that was changed, and why. You can cite it in a methods section.</p></div>`
+    +(quietNotes.length?`<div class="warn"><strong>Nothing was removed.</strong>
+      Here is what CorpusPrep checked for.<ul>${quietNotes.map(n=>`<li>${esc(n.replace(/\*\*/g,"").replace(/[`*]/g,""))}</li>`).join("")}</ul>
+      CorpusPrep is built for printed books turned into text. A file that began
+      life on screen usually has none of that clutter, so yours is likely already
+      clean. If it has a different kind, such as app labels, timestamps,
+      usernames or repeated boilerplate, please let us know.</div>`:"")
     +`
 
    <h4>Provenance</h4><table>
@@ -1257,7 +1252,7 @@ function drawLog(){
    <tr><td class="lbl">Encoding</td><td>${esc(d.enc)}${d.hadBom?" · BOM removed":""} · confidence ${d.conf.toFixed(1)}</td></tr>
    <tr><td class="lbl">Line endings</td><td class="mono">${d.newline} → \\n</td></tr>
    <tr><td class="lbl">Preset</td><td>${esc(CFG.name||"custom")}</td></tr>
-   <tr><td class="lbl">Coverage</td><td>${d.gaps.length?"⚠ "+d.gaps.length+" uncovered range(s)":"Every line accounted for"}</td></tr>
+   <tr><td class="lbl">Coverage</td><td>${d.gaps.length?"⚠ "+d.gaps.length+" stretch(es) with no section":"Every line has a section"}</td></tr>
    </table>
 
    <h4>Result</h4>
@@ -1267,16 +1262,16 @@ function drawLog(){
    <tr><td class="lbl">Word types</td><td>${b.types.toLocaleString()}</td><td>${s.types.toLocaleString()}</td><td>n/a</td></tr></table>
 
    <div class="note">${Math.abs(dc)>1&&Math.abs(dt)<3
-     ? "A substantial reduction in characters accompanied by negligible token loss indicates that <b>apparatus was removed rather than prose</b>. This is the expected signature of a sound run."
+     ? "Many characters went but very few words did, so <b>the clutter was removed and the prose was kept</b>. This is what a good run looks like."
      : Math.abs(dt)>=8
-     ? "<b>Token loss is high.</b> Examine the sections listed below before this corpus is used."
-     : "Both character and token counts have changed little. Little was removed."}</div>
+     ? "<b>A lot of words were removed.</b> Check the sections listed below before you use this corpus."
+     : "Very little changed, so very little was removed."}</div>
 
-   <h4>Sections removed</h4>
+   <h4>Sections Removed</h4>
    <p class="sub">${RESULT.dropped.length} of ${DOC.regions.length} sections</p>`;
   if(!RESULT.dropped.length) h+=`<p style="color:var(--muted);font-size:13.5px">None.</p>`;
   else{
-    h+=`<table><tr><th>Section</th><th>Lines</th><th>Words</th><th>Basis for identification</th></tr>`;
+    h+=`<table><tr><th>Section</th><th>Lines</th><th>Words</th><th>How it was identified</th></tr>`;
     RESULT.dropped.forEach(r=>{
       const w=countTT(DOC.lines.slice(r.start,r.end).join("\n")).tokens;
       h+=`<tr><td>${esc(r.title||r.kind)}</td><td>${r.start+1}–${r.end}</td>
@@ -1286,8 +1281,8 @@ function drawLog(){
   }
   h+=`<div class="dl">
     <button class="btn sm" onclick="dl('txt')">Download cleaned text</button>
-    <button class="btn sm ghost" onclick="dl('md')">Log (Markdown)</button>
-    <button class="btn sm ghost" onclick="dl('json')">Log (JSON)</button></div>`;
+    <button class="btn sm ghost" onclick="dl('md')">Download log (Markdown)</button>
+    <button class="btn sm ghost" onclick="dl('json')">Download log (JSON)</button></div>`;
   $("#logview").innerHTML=h;
 }
 

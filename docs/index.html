@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CorpusPrep: corpus preparation for linguists</title>
+<title>CorpusPrep | Corpus Preparation for Linguists</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%226%22%20fill%3D%22%2337564a%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%229%22%20width%3D%229%22%20height%3D%222.6%22%20rx%3D%221.3%22%20fill%3D%22%238fae9f%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%2215%22%20width%3D%2216%22%20height%3D%222.6%22%20rx%3D%221.3%22%20fill%3D%22%23faf8f4%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%2220.5%22%20width%3D%2216%22%20height%3D%222.6%22%20rx%3D%221.3%22%20fill%3D%22%23faf8f4%22%2F%3E%3C%2Fsvg%3E">
-<meta name="description" content="Prepare a source text for corpus analysis and keep a record of every editorial decision taken. Runs in your browser; your text is never uploaded.">
+<meta name="description" content="Clean a text for corpus analysis and keep a record of every change. CorpusPrep runs in your browser, so your text is never uploaded.">
 <link rel="canonical" href="https://corpusprep.org/">
 
 <!-- Structured data: who wrote this, what it is, and which archive holds it.
@@ -46,8 +46,8 @@
 </script>
 <style>
 :root{
-  --paper:#faf8f4; --card:#fffefb; --ink:#1c1a17; --muted:#6e6960;
-  --faint:#a09a8e; --rule:#e5dfd3; --hair:#f0ece3;
+  --paper:#faf8f4; --card:#fffefb; --ink:#1c1a17; --muted:#5e5950;
+  --faint:#766f64; --rule:#e5dfd3; --hair:#f0ece3;
   --accent:#37564a; --accent-dk:#2a4438; --accent-soft:#eaf0ed;
   --gold:#8a6d2f; --gold-soft:#f8f2e3;
   --c-body:#37564a;  --c-body-bg:#eaf0ed;
@@ -69,16 +69,16 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
 
 /* ════════════════════ landing ════════════════════ */
 #gate{min-height:100vh;display:grid;place-items:center;padding:40px 24px}
-.gate-card{width:100%;max-width:452px;text-align:center}
+.gate-card{width:100%;max-width:480px;text-align:center}
 .monogram{width:52px;height:52px;margin:0 auto 18px;border:1px solid var(--rule);
   border-radius:50%;display:grid;place-items:center;background:var(--card);
   font-family:var(--serif);font-size:21px;color:var(--accent);letter-spacing:-.02em}
 .mark{font-family:var(--serif);font-size:52px;letter-spacing:-.025em;margin:0 0 10px;
   font-weight:500;line-height:1}
 .mark em{font-style:italic;color:var(--accent)}
-.tagline{color:var(--muted);font-size:15px;margin:0;line-height:1.55}
+.tagline{color:var(--muted);font-size:16.5px;margin:0;line-height:1.6;font-family:var(--serif)}
 .tagline b{color:var(--ink);font-weight:500}
-.byline{margin:14px 0 0;font-size:12.5px;color:var(--muted);letter-spacing:.01em}
+.byline{margin:16px 0 0;font-size:13px;color:var(--muted);letter-spacing:.01em}
 .byline a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
 .byline a:hover{border-bottom-color:var(--accent)}
 .byline-sep{margin:0 7px;color:var(--faint)}
@@ -89,8 +89,7 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
   background:var(--gold-soft);border:1px solid #ece0c4;border-radius:4px}
 .gate-cite .row{display:flex;align-items:baseline;justify-content:space-between;
   gap:10px;margin:0 0 5px}
-.gate-cite .row b{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--muted);font-weight:600}
+.gate-cite .row b{font-size:12.5px;color:var(--ink);font-weight:600}
 .gate-cite .row button{font:inherit;font-size:12px;color:var(--accent);
   background:none;border:0;padding:0;cursor:pointer;
   border-bottom:1px solid transparent}
@@ -99,29 +98,29 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
   border:1px solid var(--rule);border-radius:3px;
   font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-word;
   max-height:none;overflow:visible;-webkit-user-select:all;user-select:all}
-.gate-cite .note{margin:0;font-size:11.5px;line-height:1.5;color:var(--muted)}
+.gate-cite .note{margin:0;font-size:12.5px;line-height:1.55;color:var(--muted)}
 .gate-cite .note a{color:var(--accent);text-decoration:none;
   border-bottom:1px solid transparent}
 .gate-cite .note a:hover{border-bottom-color:var(--accent)}
-.docnav{margin:20px 0 0;padding-top:16px;border-top:1px solid var(--hair);
-  font-size:12.5px;color:var(--muted);text-align:center}
+.docnav{margin:24px 0 0;padding-top:18px;border-top:1px solid var(--rule);
+  font-size:13px;color:var(--muted);text-align:center}
 .docnav a{color:var(--accent);text-decoration:none;
   border-bottom:1px solid transparent}
 .docnav a:hover{border-bottom-color:var(--accent)}
-.rule-orn{display:flex;align-items:center;gap:14px;color:var(--faint);margin:32px 0 26px}
+.rule-orn{display:flex;align-items:center;gap:14px;color:var(--muted);margin:34px 0 10px}
 .rule-orn::before,.rule-orn::after{content:"";flex:1;height:1px;background:var(--rule)}
-.rule-orn span{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;font-weight:600}
+.rule-orn span{font-family:var(--serif);font-size:18px;color:var(--ink)}
+.gate-lead{margin:0 0 22px;font-size:13.5px;line-height:1.6;color:var(--muted)}
 .field{text-align:left;margin-bottom:15px}
-.field label{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--muted);margin-bottom:6px;font-weight:600}
-.field .opt{text-transform:none;letter-spacing:0;font-weight:400;color:var(--faint)}
+.field label{display:block;font-size:13.5px;color:var(--ink);margin-bottom:6px;font-weight:600}
+.field .opt{font-weight:400;color:var(--muted)}
 .field input{width:100%;padding:12px 14px;border:1px solid var(--rule);border-radius:3px;
   background:var(--card);font:15px var(--sans);color:var(--ink)}
 .field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 
 .btn-primary{display:block;width:100%;padding:15px 20px;margin-top:22px;
   background:var(--accent);color:#fff;border:0;border-radius:4px;
-  font:15.5px var(--sans);font-weight:650;letter-spacing:.03em;cursor:pointer;
+  font:15.5px var(--sans);font-weight:650;letter-spacing:.01em;cursor:pointer;
   box-shadow:0 1px 2px rgba(28,26,23,.10),0 4px 14px -4px rgba(55,86,74,.34);
   transition:background .15s,box-shadow .15s,transform .08s}
 .btn-primary:hover{background:var(--accent-dk);
@@ -135,23 +134,24 @@ body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);
   background:#fff;font:12px/1.6 var(--mono,ui-monospace,monospace);
   white-space:pre-wrap;word-break:break-word;color:var(--ink)}
 .cite .row{display:flex;align-items:baseline;gap:10px;margin:14px 0 5px}
-.cite .row b{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--muted);font-weight:600}
+.cite .row b{font-size:13px;color:var(--ink);font-weight:600}
 .cite .note{color:var(--muted);font-size:12px;line-height:1.6;margin:14px 0 0}
 .loading{margin:10px 0 0;font-size:12.5px;color:var(--accent);line-height:1.5}
-.reg{margin:14px 0 0;color:var(--muted);font-size:12.5px;line-height:1.6}
+.reg{margin:16px 0 0;color:var(--muted);font-size:13px;line-height:1.6}
 .reg:empty{display:none}
+#reg-side{margin:14px 0 6px}
+#side h2:first-child{margin-top:28px}
 .reg a{color:var(--accent)}
-.linkish{background:none;border:0;color:var(--muted);font:inherit;font-size:12.5px;
+.linkish{background:none;border:0;color:var(--muted);font:inherit;font-size:13.5px;
   cursor:pointer;padding:0;margin-top:15px;text-decoration:underline;
   text-underline-offset:3px;text-decoration-color:var(--rule)}
 .linkish:hover{color:var(--accent);text-decoration-color:var(--accent)}
 
-.privacy{display:flex;gap:13px;text-align:left;margin-top:30px;padding:16px 18px;
+.privacy{display:flex;gap:14px;text-align:left;margin-top:30px;padding:18px 20px;
   background:var(--accent-soft);border:1px solid #d6e2dd;border-radius:4px}
 .privacy svg{flex-shrink:0;margin-top:2px}
-.privacy .h{font-family:var(--serif);font-size:15.5px;margin:0 0 4px;color:var(--accent-dk)}
-.privacy p{margin:0;font-size:12.5px;line-height:1.7;color:#4b5f57}
+.privacy .h{font-family:var(--serif);font-size:16.5px;margin:0 0 5px;color:var(--accent-dk)}
+.privacy p{margin:0;font-size:13.5px;line-height:1.65;color:#41544c}
 
 /* ════════════════════ chrome ════════════════════ */
 #app{display:none;min-height:100vh;flex-direction:column}
@@ -164,18 +164,19 @@ header .doc{font-family:var(--serif);font-size:16px;color:var(--muted);overflow:
   text-overflow:ellipsis;white-space:nowrap;max-width:38vw}
 header .doc b{color:var(--ink);font-weight:500;font-style:italic}
 header .spacer{flex:1}
-.shield{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--accent);
+.shield{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--accent);
   background:var(--accent-soft);border:1px solid #dbe5e0;padding:5px 10px;border-radius:20px;
   font-weight:600;letter-spacing:.02em;white-space:nowrap}
 .who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.who .linkish{margin-top:0;font-size:13px}
 .avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;
   display:grid;place-items:center;font-size:11.5px;font-weight:700}
 .wrap{display:grid;grid-template-columns:312px 1fr;flex:1;min-height:0}
 aside{background:var(--card);border-right:1px solid var(--rule);overflow-y:auto;padding:26px 24px}
 main{display:flex;flex-direction:column;min-width:0;min-height:0}
 
-h2{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);
-  margin:30px 0 12px;font-weight:700}
+h2{font-family:var(--serif);font-size:16.5px;color:var(--ink);
+  margin:30px 0 12px;font-weight:500;letter-spacing:-.005em}
 h2:first-child{margin-top:0}
 
 /* ════════════════════ drop zone ════════════════════ */
@@ -186,9 +187,9 @@ h2:first-child{margin-top:0}
 #drop:hover .ico,#drop.over .ico{color:var(--accent)}
 #drop strong{display:block;font-family:var(--serif);font-size:16.5px;margin-bottom:5px;
   font-weight:500}
-#drop .fmts{font-size:10.5px;color:var(--muted);letter-spacing:.11em;text-transform:uppercase;
-  font-weight:600;margin-bottom:7px}
-#drop .after{font-size:12px;color:var(--faint);line-height:1.6;margin:0}
+#drop .fmts{font-size:12px;color:var(--muted);letter-spacing:.02em;
+  font-weight:600;margin-bottom:8px}
+#drop .after{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0}
 #file{display:none}
 
 .btn{display:block;width:100%;padding:11px 14px;margin-top:10px;background:var(--accent);
@@ -207,29 +208,29 @@ h2:first-child{margin-top:0}
 .steps li{counter-increment:s;position:relative;padding:0 0 15px 30px;font-size:13px;
   line-height:1.6;color:var(--muted)}
 .steps li::before{content:counter(s);position:absolute;left:0;top:0;width:20px;height:20px;
-  border-radius:50%;border:1px solid var(--rule);display:grid;place-items:center;
-  font-size:10.5px;font-weight:700;color:var(--accent);background:var(--paper)}
+  border-radius:50%;border:1px solid #d6e2dd;display:grid;place-items:center;
+  font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft)}
 .steps li b{color:var(--ink);font-weight:600;display:block;margin-bottom:1px;font-size:13.5px}
 .steps li:last-child{padding-bottom:0}
 
 .meta .fn{font-family:var(--serif);font-size:17px;line-height:1.3;display:block;
   margin-bottom:9px}
-.meta dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px}
-.meta dt{color:var(--faint)}
+.meta dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}
+.meta dt{color:var(--muted)}
 .meta dd{margin:0;text-align:right;color:var(--ink)}
 
 select{width:100%;padding:10px 12px;border:1px solid var(--rule);border-radius:3px;
   background:var(--card);font:14px var(--sans);color:var(--ink);cursor:pointer}
 select:focus{outline:none;border-color:var(--accent)}
-.preset-desc{font-size:12.5px;color:var(--muted);line-height:1.65;margin-top:10px;
-  padding-left:12px;border-left:2px solid var(--hair);font-style:italic}
+.preset-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-top:10px;
+  padding-left:12px;border-left:2px solid var(--rule)}
 
 .toggle{display:flex;align-items:center;gap:11px;padding:8px 9px;border-radius:3px;
   cursor:pointer;font-size:13.5px}
 .toggle:hover{background:var(--paper)}
 .toggle input{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;margin:0}
 .swatch{width:3px;height:15px;border-radius:1px;flex-shrink:0}
-.toggle .n{margin-left:auto;font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.toggle .n{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .toggle.off{color:var(--faint)}
 .toggle.off .swatch{opacity:.3}
 
@@ -237,8 +238,7 @@ select:focus{outline:none;border-color:var(--accent)}
   border:1px solid var(--hair);border-radius:3px;overflow:hidden}
 .fig{background:var(--card);padding:13px 14px}
 .fig .v{font-family:var(--serif);font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
-.fig .k{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);
-  margin-top:5px;font-weight:600}
+.fig .k{font-size:12px;color:var(--muted);margin-top:5px;font-weight:500}
 .fig .d{font-size:11.5px;font-weight:600;margin-left:6px}
 .d.ok{color:var(--c-body)} .d.warn{color:var(--gold)} .d.bad{color:var(--c-lic)}
 
@@ -268,11 +268,11 @@ select:focus{outline:none;border-color:var(--accent)}
 .btn-run.stale{background:var(--gold);box-shadow:0 1px 2px rgba(28,26,23,.10),
   0 3px 12px -4px rgba(138,109,47,.34)}
 .btn-run.stale:hover{background:#755c27}
-.run-note{font-size:12px;color:var(--muted);line-height:1.6;margin:9px 0 0}
+.run-note{font-size:12.5px;color:var(--muted);line-height:1.6;margin:10px 0 0}
 .onboard-cta{margin-top:18px;font-size:13.5px;color:var(--muted)}
 .caps-wrap{max-width:760px;margin:34px auto 0;border-top:1px solid var(--rule);
   padding-top:18px}
-.caps-wrap summary{cursor:pointer;font:13.5px var(--sans);color:var(--muted);
+.caps-wrap summary{cursor:pointer;font:16px var(--serif);color:var(--ink);
   list-style:none;display:flex;align-items:center;gap:9px}
 .caps-wrap summary::-webkit-details-marker{display:none}
 .caps-wrap summary::before{content:"▸";font-size:11px;transition:transform .15s}
@@ -301,8 +301,8 @@ select:focus{outline:none;border-color:var(--accent)}
 nav{background:var(--card);border-bottom:1px solid var(--rule);padding:0 40px;
   display:flex;gap:26px;flex-shrink:0}
 nav button{background:0;border:0;border-bottom:2px solid transparent;padding:15px 0 13px;
-  font:13px var(--sans);color:var(--muted);cursor:pointer;font-weight:600;
-  letter-spacing:.1em;text-transform:uppercase}
+  font:14px var(--sans);color:var(--muted);cursor:pointer;font-weight:600;
+  letter-spacing:.01em}
 nav button:hover{color:var(--ink)}
 nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .panelwrap{flex:1;overflow:auto;min-height:0}
@@ -312,14 +312,14 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 
 .canvas-head{margin-bottom:26px;padding-bottom:18px;border-bottom:1px solid var(--rule)}
 .canvas-head h3{font-family:var(--serif);font-size:23px;font-weight:500;margin:0 0 6px}
-.canvas-head p{margin:0;color:var(--muted);font-size:13.5px}
+.canvas-head p{margin:0;color:var(--muted);font-size:14px}
 
 /* ════════════════════ onboarding ════════════════════ */
 .onboard{max-width:820px}
 .onboard-hero{margin-bottom:34px}
-.onboard-hero h3{font-family:var(--serif);font-size:30px;font-weight:500;margin:0 0 10px;
+.onboard-hero h3{font-family:var(--serif);font-size:34px;font-weight:500;margin:0 0 14px;
   letter-spacing:-.015em;line-height:1.25}
-.onboard-hero p{margin:0;color:var(--muted);font-size:15.5px;line-height:1.7;max-width:60ch}
+.onboard-hero p{margin:0;color:var(--muted);font-size:16px;line-height:1.7;max-width:58ch}
 
 .flow-step + 
 .cap-head h4{font-family:var(--serif);font-size:19px;font-weight:500;margin:0}
@@ -330,9 +330,9 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
   align-items:flex-start}
 .cap .tick{flex-shrink:0;margin-top:2px}
 .cap .body .t{font-size:13.5px;font-weight:600;line-height:1.45}
-.cap .body .d{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:2px}
+.cap .body .d{font-size:13px;color:var(--muted);line-height:1.6;margin-top:3px}
 .cap.soon .body .t{color:var(--muted);font-weight:500}
-.tag{display:inline-block;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+.tag{display:inline-block;font-size:11px;letter-spacing:.02em;
   font-weight:700;padding:2px 6px;border-radius:2px;margin-left:7px;vertical-align:1.5px;
   background:var(--gold-soft);color:var(--gold)}
 
@@ -349,13 +349,12 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .sum{background:var(--card);padding:15px 18px}
 .sum .v{font-family:var(--serif);font-size:25px;line-height:1;font-variant-numeric:tabular-nums}
 .sum .v.zero{color:var(--faint)}
-.sum .k{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);
-  margin-top:7px;font-weight:600;line-height:1.4}
+.sum .k{font-size:12px;color:var(--muted);margin-top:7px;font-weight:500;line-height:1.4}
 .bar-track{height:5px;background:var(--hair);display:flex}
 .bar-seg{height:100%}
 
 /* ════════════════════ segmentation ════════════════════ */
-.legend{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px;font-size:11.5px;
+.legend{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px;
   color:var(--muted);align-items:center}
 .legend span{display:flex;align-items:center;gap:7px}
 .legend .swatch{height:11px}
@@ -367,9 +366,9 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .bar{width:3px;align-self:stretch;border-radius:1px;flex-shrink:0}
 .region-head .t{font-family:var(--serif);font-size:16px;line-height:1.35;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-.region-head .k{font-size:10px;letter-spacing:.13em;text-transform:uppercase;
-  color:var(--faint);font-weight:600;flex-shrink:0}
-.region-head .i{color:var(--muted);font-size:12px;flex-shrink:0;
+.region-head .k{font-size:11.5px;letter-spacing:.02em;
+  color:var(--faint);font-weight:700;flex-shrink:0}
+.region-head .i{color:var(--muted);font-size:12.5px;flex-shrink:0;
   font-variant-numeric:tabular-nums;min-width:158px;text-align:right}
 .region-body{padding:4px 0 18px 17px;font-size:12.5px;line-height:1.8;
   white-space:pre-wrap;word-break:break-word;max-height:270px;overflow:auto;
@@ -383,7 +382,7 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .region.unselected .t{color:var(--faint)}
 .region.unselected .bar{opacity:.3}
 .region .removed{color:var(--c-lic);font-weight:600}
-.evid{font-size:11.5px;color:var(--faint);font-style:italic;margin-top:12px;
+.evid{font-size:12px;color:var(--muted);font-style:italic;margin-top:12px;
   padding-top:10px;border-top:1px dashed var(--rule);font-family:var(--sans)}
 
 /* ════════════════════ compare ════════════════════ */
@@ -391,12 +390,12 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
   min-height:420px}
 .cmp section{display:flex;flex-direction:column;border:1px solid var(--rule);
   border-radius:3px;overflow:hidden;background:var(--card)}
-.cmp h4{margin:0;padding:12px 16px;font-size:10.5px;letter-spacing:.15em;
-  text-transform:uppercase;background:var(--paper);border-bottom:1px solid var(--rule);
-  font-weight:700;color:var(--faint);display:flex;justify-content:space-between;
+.cmp h4{margin:0;padding:12px 16px;font-family:var(--serif);font-size:15px;
+  background:var(--paper);border-bottom:1px solid var(--rule);
+  font-weight:500;color:var(--ink);display:flex;justify-content:space-between;
   align-items:baseline}
-.cmp h4 em{font-style:normal;font-weight:600;color:var(--ink);letter-spacing:0;
-  text-transform:none;font-size:12px;font-variant-numeric:tabular-nums}
+.cmp h4 em{font-style:normal;font-weight:500;color:var(--muted);letter-spacing:0;
+  font-family:var(--sans);font-size:12.5px;font-variant-numeric:tabular-nums}
 .cmp pre{margin:0;flex:1;overflow:auto;padding:18px;font-size:12px;line-height:1.75;
   white-space:pre-wrap;word-break:break-word;font-family:var(--mono)}
 .cmp pre mark{background:var(--c-lic-bg);color:var(--c-lic);border-radius:1px}
@@ -410,10 +409,10 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .log{max-width:760px}
 .log h4{font-family:var(--serif);font-size:19px;font-weight:500;margin:34px 0 4px}
 .log h4:first-child{margin-top:0}
-.log .sub{font-size:12.5px;color:var(--faint);margin:0 0 14px}
+.log .sub{font-size:13px;color:var(--muted);margin:0 0 14px}
 .log table{border-collapse:collapse;width:100%;font-size:13.5px;margin:0 0 8px}
-.log th{text-align:left;font-weight:700;font-size:10px;text-transform:uppercase;
-  letter-spacing:.13em;color:var(--faint);padding:0 14px 9px 0;
+.log th{text-align:left;font-weight:600;font-size:12.5px;
+  color:var(--muted);padding:0 14px 9px 0;
   border-bottom:1px solid var(--rule)}
 .log td{padding:10px 14px 10px 0;border-bottom:1px solid var(--hair);
   font-variant-numeric:tabular-nums;vertical-align:top}
@@ -431,8 +430,8 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .furn-notice.on{border-color:var(--accent)}
 .furn-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .furn-head .t{font-weight:600;font-size:13px;letter-spacing:.01em}
-.furn-head .s{font-size:12px;color:var(--faint)}
-.furn-lead{margin:7px 0 10px;font-size:12.5px;line-height:1.55;color:var(--muted)}
+.furn-head .s{font-size:12.5px;color:var(--muted)}
+.furn-lead{margin:7px 0 10px;font-size:13px;line-height:1.6;color:var(--muted)}
 .furn-table{width:100%;border-collapse:collapse;font-size:12px}
 .furn-table th{text-align:left;font-weight:600;color:var(--faint);
   padding:0 10px 5px 0;border-bottom:1px solid var(--rule);white-space:nowrap}
@@ -442,7 +441,7 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .furn-table td.num{text-align:right;font-variant-numeric:tabular-nums;
   color:var(--muted)}
 .furn-table td.why{color:var(--faint);line-height:1.45}
-.furn-foot{margin:10px 0 0;font-size:12px;line-height:1.55;color:var(--faint)}
+.furn-foot{margin:10px 0 0;font-size:12.5px;line-height:1.55;color:var(--muted)}
 .fn-notice{margin-top:10px}
 .fn-opts{display:flex;flex-direction:column;gap:2px;margin-top:4px}
 .fn-opt{display:flex;align-items:baseline;gap:8px;padding:6px 8px;
@@ -451,7 +450,7 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .fn-opt.on{background:var(--accent-soft)}
 .fn-opt input{margin:0}
 .fn-opt .fn-t{font-weight:600;color:var(--ink);white-space:nowrap}
-.fn-opt .fn-d{color:var(--faint);font-size:12px}
+.fn-opt .fn-d{color:var(--muted);font-size:12.5px}
 /* ---- review queue ---- */
 .rv-bar{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .btn-sm{font:inherit;font-size:12.5px;font-weight:600;padding:6px 12px;
@@ -483,8 +482,8 @@ nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .rv-pick:hover{border-color:var(--accent);background:var(--accent-soft)}
 .rv-word{font-family:var(--mono);font-size:15px;color:var(--ink);
   word-break:break-all}
-.rv-lab{font-size:11.5px;color:var(--faint)}
-.rv-help{margin-top:14px;font-size:11.5px;color:var(--faint)}
+.rv-lab{font-size:12.5px;color:var(--muted)}
+.rv-help{margin-top:14px;font-size:12.5px;color:var(--muted)}
 kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
   border-bottom-width:2px;border-radius:3px;padding:1px 5px;background:var(--paper);
   color:var(--muted)}
@@ -501,8 +500,8 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
   <div class="gate-card">
     <div class="monogram">CP</div>
     <h1 class="mark">Corpus<em>Prep</em></h1>
-    <p class="tagline">Prepare a text for analysis, and retain a record of<br>
-      every editorial decision taken.</p>
+    <p class="tagline">Clean a text for corpus analysis,<br>
+      and keep a record of every change you make.</p>
 
     <!-- The author and the archived DOI, on the first screen rather than
          buried in the log. A reader deciding whether to trust a tool with
@@ -529,7 +528,9 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
 
     <div class="gate-cite" id="g-cite" hidden></div>
 
-    <div class="rule-orn"><span>Sign in</span></div>
+    <div class="rule-orn"><span>Your Details</span></div>
+    <p class="gate-lead">Your name goes on the log, so the work can be credited
+      and cited. It is saved on this computer and nowhere else.</p>
 
     <div class="field">
       <label for="g-name">Name</label>
@@ -537,10 +538,10 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
     </div>
     <div class="field">
       <label for="g-inst">Institution <span class="opt">(optional)</span></label>
-      <input id="g-inst" type="text" placeholder="Department, University" autocomplete="organization">
+      <input id="g-inst" type="text" placeholder="Department and university" autocomplete="organization">
     </div>
-    <button class="btn-primary" id="g-go">Enter workspace</button>
-    <button class="linkish" id="g-skip">Continue without signing in</button>
+    <button class="btn-primary" id="g-go">Start</button>
+    <button class="linkish" id="g-skip">Skip for now</button>
 
     <div class="reg" id="reg-gate"></div>
 
@@ -551,11 +552,10 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
         <path d="M9 12l2 2 4-4"/>
       </svg>
       <div>
-        <p class="h">Your texts never leave this computer</p>
-        <p>All processing is performed in your browser. No text is transmitted to or
-        stored on any server, so material under copyright, licence, or ethical
-        restriction remains under your sole control. Your name and preferences are
-        held on this device only.</p>
+        <p class="h">Your Texts Stay on Your Computer</p>
+        <p>Everything happens in your browser. Nothing is sent to a server, so
+        you can safely work with texts under copyright or ethics restrictions.
+        Your name and settings are saved on this computer only.</p>
       </div>
     </div>
 
@@ -565,9 +565,9 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
          They are also the only crawlable path from this page to the
          documentation, which is most of the writing this project contains. -->
     <p class="docnav">
-      <a href="https://corpusprep.org/USING.html">How to use it</a>
+      <a href="https://corpusprep.org/USING.html">User guide</a>
       <span class="byline-sep">·</span>
-      <a href="https://corpusprep.org/CITING.html">How to cite it</a>
+      <a href="https://corpusprep.org/CITING.html">How to cite</a>
       <span class="byline-sep">·</span>
       <a href="https://github.com/adesokantosin2000-beep/corpusprep">Source code</a>
     </p>
@@ -584,30 +584,30 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
        on a narrow window, so a marker there can be clipped out of sight. -->
   <span class="ver" id="hdr-ver" title="Version of this page"></span>
   <span class="sep"></span>
-  <span class="doc" id="hdr-doc">No text loaded</span>
+  <span class="doc" id="hdr-doc">No file open</span>
   <span class="spacer"></span>
   <span class="shield">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
          stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-    Processed locally
+    Stays on this computer
   </span>
   <div class="who" id="who"></div>
 </header>
 
 <div class="wrap">
 <aside>
-  <h2>Source text</h2>
+  <h2>Your Text</h2>
   <div id="drop">
     <svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none"
          stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
       <path d="M7 9l5-5 5 5"/><path d="M12 4v12"/>
     </svg>
-    <strong>Select or drop a file</strong>
+    <strong>Choose a file, or drop it here</strong>
     <div class="fmts">TXT · Markdown · DOCX · EPUB · HTML · PDF</div>
-    <p class="after">The text is read in place, segmented, and presented for review.
-      Nothing is uploaded, and the source file is not modified.</p>
+    <p class="after">It is read here in your browser and split into sections
+      for you to check. Your original file is left as it is.</p>
     <p class="loading" id="load-note" hidden></p>
   </div>
   <input type="file" id="file" accept=".txt,.md,.markdown,.docx,.epub,.html,.htm,.xhtml,.pdf">
@@ -616,8 +616,8 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
   <div id="rv-modal" style="display:none">
     <div class="rv-card">
       <div class="rv-top">
-        <span class="rv-title">Is this one word, or two joined by a hyphen?
-          <em>The hyphen is kept unless you say otherwise.</em></span>
+        <span class="rv-title">One Word, or a Real Hyphen?
+          <em>If you are not sure, leave it. The hyphen stays.</em></span>
         <button class="rv-x" id="rv-close">Done</button>
       </div>
       <div id="rv-body"></div>
@@ -630,17 +630,17 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
   </div>
 
   <div id="guide">
-    <h2>Getting started</h2>
+    <h2>How It Works</h2>
     <ol class="steps">
-      <li><b>Load a text</b>Select a file above. It is read in place and segmented for review.</li>
-      <li><b>Review the segmentation</b>Every line is labelled. Nothing has been removed.</li>
-      <li><b>Select what to retain</b>Apply a preset, or choose sections individually.</li>
-      <li><b>Clean, then export</b>Cleaning runs only when you request it.</li>
+      <li><b>Open a text</b>Choose a file above. CorpusPrep splits it into sections.</li>
+      <li><b>Check the sections</b>Each line gets a label. Nothing is taken out yet.</li>
+      <li><b>Choose what to keep</b>Pick a preset, or tick sections one by one.</li>
+      <li><b>Clean and download</b>Press Clean text, then save the text and its log.</li>
     </ol>
   </div>
 
   <div id="recent-wrap" style="display:none">
-    <h2>Recent files</h2>
+    <h2>Recent Files</h2>
     <div class="recent" id="recent"></div>
   </div>
 
@@ -655,18 +655,18 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
     <h2>File</h2>
     <div class="meta" id="meta"></div>
 
-    <h2>Cleaning preset</h2>
+    <h2>Preset</h2>
     <select id="preset">
-      <option value="verbatim">Verbatim: retain everything</option>
-      <option value="full">Full: remove publisher apparatus</option>
-      <option value="body-and-front">Body with front matter</option>
+      <option value="verbatim">Verbatim (keep everything)</option>
+      <option value="full">Full (remove publisher material)</option>
+      <option value="body-and-front">Body and front matter</option>
       <option value="body-only" selected>Body only</option>
       <option value="body-no-headings">Body without headings</option>
       <option value="custom">Custom…</option>
     </select>
     <div class="preset-desc" id="preset-desc"></div>
 
-    <h2>Sections to retain</h2>
+    <h2>What to Keep</h2>
     <div id="toggles"></div>
 
     <h2>Result</h2>
@@ -676,8 +676,8 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
 
 <main>
   <nav>
-    <button class="on" data-tab="seg">Segmentation</button>
-    <button data-tab="cmp">Before &amp; after</button>
+    <button class="on" data-tab="seg">Sections</button>
+    <button data-tab="cmp">Before and After</button>
     <button data-tab="log">Log</button>
   </nav>
   <div class="panelwrap"><div class="canvas">
@@ -687,11 +687,11 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
       <!-- onboarding -->
       <div class="onboard" id="welcome">
         <div class="onboard-hero">
-          <h3>Prepare a source text for analysis<br>without losing track of what was removed.</h3>
-          <p>Every line is labelled before anything is removed, and the log
-          records how the decision was made.</p>
-          <p class="onboard-cta">Select or drop a file on the left.
-          TXT, Markdown, DOCX, EPUB, HTML or PDF.</p>
+          <h3>Clean a text for analysis,<br>and see exactly what came out.</h3>
+          <p>CorpusPrep labels every line before anything is removed, and writes
+          a log of each change that you can report in your methods.</p>
+          <p class="onboard-cta">Choose or drop a file on the left. TXT, Markdown,
+          DOCX, EPUB, HTML and PDF all work.</p>
         </div>
 
         <!-- Closed by default. The planned items are listed so the present
@@ -700,7 +700,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
              paragraphs of it on the opening screen is not. Kept, not deleted,
              and one click away. -->
         <details class="caps-wrap">
-          <summary>What this version can and cannot do
+          <summary>What This Version Can Do
             <span class="c" id="cap-count"></span></summary>
           <div class="caps" id="caps"></div>
         </details>
@@ -710,7 +710,7 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
       <div id="segview" style="display:none">
         <div id="summary"></div>
         <div class="canvas-head">
-          <h3>Segmentation</h3>
+          <h3>Sections</h3>
           <p id="seg-sub"></p>
         </div>
         <div class="legend" id="legend"></div>
@@ -720,15 +720,14 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
 
     <div class="tabpane" id="tab-cmp">
       <div class="gated" id="gate-cmp">
-        <h4>Nothing has been cleaned yet</h4>
-        <p>Review the segmentation, choose which sections to retain, then select
-        <b>Clean text</b> in the panel on the left. No output is produced until
-        you request it.</p>
+        <h4>Nothing Cleaned Yet</h4>
+        <p>Check the sections, choose what to keep, then press
+        <b>Clean text</b> on the left. The comparison will appear here.</p>
       </div>
       <div id="cmp-body" style="display:none">
       <div class="canvas-head">
-        <h3>Before &amp; after</h3>
-        <p>Removed passages are marked within the source. The two panes scroll together.</p>
+        <h3>Before and After</h3>
+        <p>Removed lines are highlighted in the original. Both sides scroll together.</p>
       </div>
       <div class="cmp">
         <section>
@@ -745,9 +744,9 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);
 
     <div class="tabpane" id="tab-log">
       <div class="gated" id="gate-log">
-        <h4>No log yet</h4>
-        <p>The preprocessing log records what was removed and why. It is written
-        when cleaning is run.</p>
+        <h4>No Log Yet</h4>
+        <p>The log lists everything that was removed, and why. It is written
+        when you clean the text.</p>
       </div>
       <div class="log" id="logview"></div>
       <!-- The moment a reader has a log in hand is the moment they are about
@@ -3691,39 +3690,39 @@ const SHORT={pg_header:"Apparatus", pg_licence:"Licence", front_matter:"Front ma
    read as a claim about the present. */
 const CAPABILITIES=[
   {ready:1, t:"Detects front matter and back matter",
-   d:"Title pages, prefaces, dramatis personae, contents, appendices and indexes."},
+   d:"Title pages, prefaces, cast lists, contents, appendices and indexes."},
   {ready:1, t:"Segments chapters and sections",
-   d:"Chapter, Book, Part, Act and Scene divisions, numbered sections and bare numeral runs. Headings split across two lines, or welded to the front of a page in scanned text, are also found. The division words of several other languages are recognised too, including Kapitel, Glava and Kapitola, from a fixed list. That list is only as wide as its entries: a language whose word is absent yields no structure, and the report says so."},
+   d:"Chapters, books, parts, acts, scenes and numbered sections, including headings split over two lines in scans. Some other languages work too (Kapitel, Glava, Kapitola), from a fixed list. If your language is not on it, no chapters are found and the log tells you."},
   {ready:1, t:"Recovers chapters from running heads",
-   d:"For scans where OCR destroyed every heading, the chapter titles are read from the head repeated on each page."},
+   d:"When OCR has lost the headings in a scan, chapter titles are taken from the title printed at the top of each page."},
   {ready:1, t:"Identifies publisher and licence apparatus",
-   d:"Gutenberg headers, licence text and transcriber credits, whether or not sentinel markers are present."},
+   d:"Gutenberg headers, licence text and transcriber credits, even when the usual start and end markers are missing."},
   {ready:1, t:"Identifies digitisation apparatus",
-   d:"Internet Archive and Google Books notices, and pages the scanner itself reports as unreadable."},
+   d:"Internet Archive and Google Books notices, and pages the scanner marked as unreadable."},
   {ready:1, t:"Identifies page numbers, headers and footers",
-   d:"Detected by regularity rather than appearance, so a refrain is never mistaken for a running head. Its measured figure comes from a generated scan rather than a hand-marked real one, which is why no preset removes what it finds: off unless requested, with every line proposed for removal listed with its grounds."},
+   d:"Found by how regularly they repeat, so a refrain in a poem is left alone. So far it has only been measured on a generated scan, so it is off by default and every line it flags is listed for you to check."},
   {ready:1, t:"Detects catchwords",
-   d:"The early modern practice of printing the next page's first word at the foot of the page. Measured against a generated fixture only, where it produced three false positives, so read them before removing them."},
+   d:"The early modern habit of printing the next page's first word at the foot of a page. Only tested on a generated fixture so far, so look over what it finds before removing anything."},
   {ready:1, t:"Detects footnotes",
-   d:"Keep them, remove them, or extract them to a parallel file. A marker counts only when a note carries the same label, so stage directions are left alone."},
+   d:"Keep them, remove them, or save them to a separate file. A marker only counts when a matching note exists, so stage directions are safe."},
   {ready:1, t:"Rejoins hyphenated line breaks",
-   d:"Settled from the document\u2019s own vocabulary rather than a bundled wordlist, which recognises only 65% of the word types in a Victorian novel. Whatever cannot be settled keeps the hyphen as printed."},
+   d:"Each case is checked against the words used elsewhere in your own text. Anything it cannot decide keeps its hyphen."},
   {ready:1, t:"Reflows hard-wrapped paragraphs",
-   d:"99.5% of paragraphs recovered exactly in measurement. Verse, drama and tabular material are identified first and left alone."},
+   d:"Joins lines back into paragraphs, with 99.5% exact in testing. Verse, drama and tables are left alone."},
   {ready:1, t:"Preserves or removes structural elements on request",
-   d:"Retain or remove any section. Five presets are provided, or sections may be selected individually."},
+   d:"Keep or remove any section. Use one of five presets, or choose sections yourself."},
   {ready:1, t:"Reads TXT, Markdown, DOCX, EPUB and HTML",
-   d:"Encoding, byte-order marks and line endings resolved on import. Markdown link targets are discarded and the link text kept, because a URL is not language."},
+   d:"Encoding and line endings are sorted out when the file opens. In Markdown, link text is kept and the web address dropped."},
   {ready:1, t:"Detects interface furniture",
-   d:"Experimental. The labels an application prints around text a person wrote: Like, Reply, 2 likes, View replies. Found by position rather than by word, since all of those are ordinary English. A control sits after the text of a record; a one-word comment does not. Nothing is claimed unless the file itself is shaped like a scraped feed. Validated so far against one synthetic thread only; detected and reported, never removed."},
+   d:"Experimental. Labels such as Like, Reply or View replies that an app prints around a post in scraped social media. Only tried on one synthetic thread so far, so it reports what it finds and never removes it."},
   {ready:1, t:"Records every decision in a log",
-   d:"Markdown and JSON, including token and type counts, suitable for citation. A run in which no rule fires says which rules were tried and why each declined, rather than reporting a zero."},
+   d:"Saved as Markdown and JSON, with token and type counts, ready to cite. If nothing was removed, the log explains what was checked."},
   {ready:1, t:"Reads PDF",
-   d:"Page boundaries are taken from the file, so running heads and page numbers are found from a stated fact rather than an inferred one. A PDF whose text layer is unreadable is refused with the reason rather than returned as noise. This is the one feature that needs the internet: pdf.js is fetched once, on demand. Your document is never uploaded."},
+   d:"Page breaks come straight from the file. A PDF with no readable text is turned away with a clear reason. Opening a PDF needs the internet once, to fetch the PDF reader, but your document is never uploaded."},
   {ready:0, t:"Repairs OCR characters",
-   d:"Broken ligatures, stray marks and mis-scanned characters. Damaged pages are currently identified and reported, not corrected."},
+   d:"Broken ligatures, stray marks and misread characters. For now, damaged pages are reported but not fixed."},
   {ready:0, t:"Detects titled sections without numbering",
-   d:"A collection whose parts are titled but neither numbered nor introduced by a division word currently yields no structure, and the report says so."},
+   d:"Collections whose parts have titles but no numbers. These show no sections yet, and the log says so."},
 ];
 
 const TICK_ON=`<svg class="tick" width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -3738,16 +3737,17 @@ function drawRegister(){
   const link=`<a href="${REGISTER_URL}" target="_blank" rel="noopener noreferrer">`;
   const gate=$("#reg-gate");
   if(gate) gate.innerHTML=
-    `Optional: ${link}tell us you are using CorpusPrep</a>, or ask to hear when `+
-    `it changes. Opens a form in a new tab. Nothing is sent from this page.`;
+    `Using CorpusPrep? ${link}Let us know</a>, or ask to hear about new `+
+    `versions. It is optional, the form opens in a new tab, and this page `+
+    `sends nothing.`;
   const side=$("#reg-side");
   if(side) side.innerHTML=
-    `${link}Tell us you are using this</a> \u00b7 optional, opens in a new tab.`;
+    `${link}Tell us you use CorpusPrep</a> (optional)`;
 }
 
 function drawCapabilities(){
   const ready=CAPABILITIES.filter(c=>c.ready).length;
-  $("#cap-count").textContent=`${ready} available, ${CAPABILITIES.length-ready} planned`;
+  $("#cap-count").textContent=`${ready} ready, ${CAPABILITIES.length-ready} planned`;
   $("#caps").innerHTML=CAPABILITIES.map(c=>`
     <div class="cap ${c.ready?"":"soon"}">
       ${c.ready?TICK_ON:TICK_OFF}
@@ -3871,7 +3871,7 @@ function drawRecent(){
      to be able to take it off the screen. */
   $("#recent").innerHTML=list.map((r,i)=>`
     <div class="rec-row">
-      <button data-open="${i}" title="Choose this file again. The browser cannot reopen it for you.">
+      <button data-open="${i}" title="Choose this file again. Your browser cannot reopen it on its own.">
         <span class="t">${esc(r.name)}</span>
         <span class="d">${r.tokens.toLocaleString()}</span>
       </button>
@@ -3910,9 +3910,9 @@ function enter(user){
   $("#who").innerHTML = user
     ? `<span class="avatar">${esc(initials(user.name))}</span>
        <span>${esc(user.name)}${user.inst?" · "+esc(user.inst):""}</span>
-       <button class="linkish" id="who-out" title="Return to the sign-in screen">Sign out</button>`
-    : `<span>Not signed in</span>
-       <button class="linkish" id="who-out" title="Return to the sign-in screen">Sign in</button>`;
+       <button class="linkish" id="who-out" title="Change the name on your log">Change</button>`
+    : `<span>No name on the log</span>
+       <button class="linkish" id="who-out" title="Add your name to the log">Add name</button>`;
   const out=$("#who-out");
   if(out) out.onclick=()=>{
     USER=null;
@@ -3950,11 +3950,10 @@ function drawGateCite(){
     <div class="row"><b>BibTeX</b>
       <button data-gcopy="bib">Copy</button></div>
     <pre>${esc(citationBibtex())}</pre>
-    <p class="note">This is the <b>concept DOI</b>, which always resolves to the
-      newest release. For a methods section use the <b>version DOI</b> of the
-      release you ran, which resolves to a frozen copy of that code and cannot
-      move. See <a href="https://corpusprep.org/CITING.html" target="_blank"
-      rel="noopener">how to cite CorpusPrep</a>.</p>`;
+    <p class="note">This DOI always points to the newest release. In a methods
+      section, cite the DOI of the exact version you used instead. The
+      <a href="https://corpusprep.org/CITING.html" target="_blank"
+      rel="noopener">citing guide</a> shows where to find it.</p>`;
   $$("#g-cite [data-gcopy]").forEach(b=>b.onclick=async()=>{
     const text=b.dataset.gcopy==="apa"?citationText():citationBibtex();
     try{
@@ -4007,16 +4006,15 @@ async function loadText(name,buf){
          hadBom:false,conf:1,newline:"\\n",repl:(text.match(/\uFFFD/g)||[]).length,
          pageStarts:ex.meta.page_starts||null};
       if(ex.meta.container==="pdf"){
-        extraNotes.push(`Read from PDF: ${ex.meta.note}`);
+        extraNotes.push(`Read from PDF. ${ex.meta.note}`);
         // The page boundaries are the gift of this format. Every other input
         // makes the furniture rules infer where pages begin; a PDF states it.
-        extraNotes.push(`Page boundaries were taken from the file itself `+
-          `(${ex.meta.pdf_pages} pages), so running heads and page numbers are `+
-          `identified from a stated boundary rather than one inferred from the `+
-          `text.`);
+        extraNotes.push(`Page breaks were taken from the file `+
+          `(${ex.meta.pdf_pages} pages), which makes page numbers and running `+
+          `heads easier to find.`);
       } else {
-        extraNotes.push(`Text extracted from ${ex.meta.container}. Formatting, images `+
-          `and footnotes were discarded. Paragraph structure was preserved.`);
+        extraNotes.push(`Text taken from ${ex.meta.container}. Formatting, images `+
+          `and footnotes were left out, and paragraphs were kept.`);
       }
     } else d=decode(buf);
   }catch(err){
@@ -4034,8 +4032,8 @@ async function loadText(name,buf){
   const fu=findFurnitureIn(d.lines,seg.regions,d.pageStarts);
   const ui=findInterfaceIn(d.lines,seg.regions);
   if(ui.lines.size) extraNotes=[...extraNotes,
-    `${ui.lines.size} lines look like interface furniture (the labels an `+
-    `application printed, not text anyone wrote). Detected, not removed: the `+
+    `${ui.lines.size} lines look like app labels (such as Like or Reply) `+
+    `rather than text someone wrote. They are flagged, not removed, and the `+
     `log lists every one.`];
   DOC={name,...d,regions:seg.regions,notes:[...extraNotes,...seg.notes],
        interface:ui.lines,interfaceSeries:ui.series,
@@ -4117,18 +4115,18 @@ function drawSummary(){
 
   $("#summary").innerHTML=`<div class="summary">
     <div class="summary-top">
-      <span class="t">Segmentation summary</span>
+      <span class="t">What We Found</span>
       <span class="s">${DOC.regions.length} sections · ${
-        depth>1?`${depth} levels of nesting`:"no nesting detected"}${
+        depth>1?`${depth} levels deep`:"one level"}${
         unknown?` · ${unknown} unclassified`:""}</span>
     </div>
     <div class="bar-track">${bar}</div>
     <div class="sum-grid">
       ${cell(DOC.stats.tokens,"Words")}
       ${cell(chapters||sections,chapters?"Chapters":"Sections")}
-      ${cell(front,"Front-matter blocks")}
-      ${cell(back,"Back-matter blocks")}
-      ${cell(apparatus,"Apparatus blocks")}
+      ${cell(front,"Front matter")}
+      ${cell(back,"Back matter")}
+      ${cell(apparatus,"Publisher blocks")}
       ${CLEANED?cell(plannedDrops().length,"Removed"):""}
     </div>${furnitureNotice()}${footnoteNotice()}${hyphenNotice()}</div>`;
 }
@@ -4146,24 +4144,24 @@ function hyphenNotice(){
       <span class="t">Words broken across lines</span>
       <span class="s">${CLEANED
         ? `${DOC.breaks.length} found · <b>${DOC.breaks.length-flagged.length}
-           settled from this text itself</b>${
-           left?` · ${left} kept exactly as printed`:""}`
-        : "this text is hard-wrapped"}</span>
+           decided from this text</b>${
+           left?` · ${left} left as printed`:""}`
+        : "this text has fixed line lengths"}</span>
     </div>
-    <p class="furn-lead">The line break is an artefact; the hyphen may be real.
-      Each case is settled from this text's own vocabulary, and anything it
-      cannot settle keeps the hyphen exactly as printed.${
+    <p class="furn-lead">The line break was added by the printer, but the hyphen
+      may be real. Each case is checked against the words used elsewhere in
+      this text, and anything unclear keeps its hyphen.${
       CLEANED&&left?` <b>${left}</b> did. Nothing is required of you.`:""}</p>
     <div class="fn-opts">
       <label class="fn-opt ${on?"on":""}">
         <input type="checkbox" id="dh-on" ${on?"checked":""}>
         <span class="fn-t">Rejoin broken words</span>
-        <span class="fn-d">The hyphen is decided separately.</span></label>
+        <span class="fn-d">Hyphens are checked one by one.</span></label>
       <label class="fn-opt ${CFG.reflow?"on":""}">
         <input type="checkbox" id="rf-on" ${CFG.reflow?"checked":""}>
         <span class="fn-t">Rejoin paragraphs</span>
-        <span class="fn-d">Undoes fixed-width wrapping. Verse and drama are
-          left alone.</span></label>
+        <span class="fn-d">Joins short lines back into paragraphs. Verse and
+          drama are left alone.</span></label>
     </div>
     ${CLEANED&&left?`<div class="rv-bar">
       <button class="btn-sm ghost" id="rv-start">Look at the ${left} kept
@@ -4269,17 +4267,16 @@ function footnoteNotice(){
       <span class="t">Footnotes</span>
       <span class="s">${CLEANED
         ? `${paired.length} note${paired.length===1?"":"s"} matched to a marker${
-          loose?` · ${loose} bracketed label${loose===1?"":"s"} could not be
-          matched`:""}`
-        : "this text carries footnotes"}</span>
+          loose?` · ${loose} label${loose===1?"":"s"} with no matching note`:""}`
+        : "this text has footnotes"}</span>
     </div>
-    <p class="furn-lead">A marker counts only when a note elsewhere carries the
-      same label, so stage directions are left alone. Anything unmatched is
-      never removed.${CLEANED&&loose?` ${loose} here.`:""}</p>
+    <p class="furn-lead">A marker only counts when a matching note exists, so
+      stage directions are safe. Anything without a match is never removed.${
+      CLEANED&&loose?` There ${loose===1?"is":"are"} ${loose} here.`:""}</p>
     <div class="fn-opts">
-      ${opt("retain","Keep","Study the edition.")}
-      ${opt("remove","Remove","Study the work.")}
-      ${opt("extract","Extract to a second file","Study both.")}
+      ${opt("retain","Keep","For studying the edition.")}
+      ${opt("remove","Remove","For studying the work itself.")}
+      ${opt("extract","Save to a separate file","For studying both.")}
     </div>
   </div>`;
 }
@@ -4299,30 +4296,30 @@ function furnitureNotice(){
     +(DOC.catchwords.size?`<tr>
         <td class="mono">(catchwords)</td>
         <td class="num">${DOC.catchwords.size}</td>
-        <td class="why">each repeats the first word of the following page, on
+        <td class="why">repeats the first word of the next page, on
           ${DOC.catchwords.size} of ${DOC.catchwordMatches.length} pages</td></tr>`:"");
   const on=!!CFG.dropFurniture;
   return `<div class="furn-notice ${on?"on":""}">
     <div class="furn-head">
       <span class="t">Possible page furniture</span>
       <span class="s">${CLEANED
-        ? `${DOC.furniture.size} lines · estimated page length
+        ? `${DOC.furniture.size} lines · pages of about
            ${Math.round(DOC.pageLength)} lines`
-        : "this text appears to come from printed pages"}</span>
+        : "this text seems to come from printed pages"}</span>
     </div>
-    <p class="furn-lead">Running heads and page numbers recur at the page
-      interval; a refrain recurs irregularly and is left alone.${
-      DOC.catchwords.size?" This text also uses catchwords.":""}${
-      !CLEANED?" Every line proposed for removal is listed with its grounds"
-      +" once cleaning has run.":""}</p>
+    <p class="furn-lead">Page numbers and running heads repeat at a steady
+      interval, page after page. A refrain repeats unevenly, so it is left
+      alone.${DOC.catchwords.size?" This text also has catchwords.":""}${
+      !CLEANED?" After cleaning, each flagged line is listed here with the"
+      +" reason.":""}</p>
     ${CLEANED?`<table class="furn-table">
-      <thead><tr><th>Recurring line</th><th>Times</th><th>Grounds</th></tr></thead>
+      <thead><tr><th>Repeated line</th><th>Times</th><th>Reason</th></tr></thead>
       <tbody>${rows}</tbody></table>`:""}
     <p class="furn-foot">${on
-      ? "These lines will be removed when you clean. Every one is listed in the log."
-      : "Nothing is removed unless you tick <b>Drop page furniture</b> in the section list."}
-      This rule has so far been tested against constructed examples rather than
-      real scans, so please check the list above before relying on it.</p>
+      ? "These lines will be removed when you clean, and each one goes in the log."
+      : "To remove them, tick <b>Drop page furniture</b> under What to Keep."}
+      This check has only been tried on test examples so far, not real scans,
+      so please look over the list first.</p>
   </div>`;
 }
 
@@ -4387,9 +4384,9 @@ function handleFile(f){
   const mb=f.size/1048576;
   loading(`Reading ${f.name} (${mb<0.1?"<0.1":mb.toFixed(1)} MB)\u2026`);
   if(/\.pdf$/i.test(f.name))
-    loading(`Reading ${f.name} (${mb.toFixed(1)} MB). A PDF is parsed page by `+
-            `page, so a long one takes a moment. The first PDF of a session `+
-            `also fetches pdf.js.`);
+    loading(`Reading ${f.name} (${mb.toFixed(1)} MB). A PDF is read page by `+
+            `page, so a long one takes a moment. The first PDF also fetches `+
+            `the PDF reader (pdf.js).`);
   f.arrayBuffer()
     .then(b=>loadText(f.name,b))
     .finally(()=>loading(null));
@@ -4407,10 +4404,10 @@ function drawMeta(){
      <dt>Encoding</dt><dd>${esc(d.enc)}${d.hadBom?" · BOM":""}</dd>
    </dl>`;
   const w=[];
-  if(d.conf<.6) w.push(`Encoding identified with low confidence (${d.enc}). Inspect the output for character corruption.`);
-  if(d.repl)    w.push(`${d.repl} undecodable byte(s) replaced. The source file may be damaged.`);
+  if(d.conf<.6) w.push(`The encoding is uncertain (${d.enc}). Check the result for garbled characters.`);
+  if(d.repl)    w.push(`${d.repl} unreadable character(s) were replaced. The file may be damaged.`);
   d.notes.forEach(n=>w.push(n));
-  if(d.gaps.length) w.push(`${d.gaps.length} uncovered content range(s). This indicates a fault in segmentation.`);
+  if(d.gaps.length) w.push(`${d.gaps.length} stretch(es) of text were not given a section. That is a bug in CorpusPrep, so please report it.`);
   $("#meta").innerHTML=h+w.map(x=>`<div class="warn">${esc(x)}</div>`).join("");
 }
 
@@ -4478,7 +4475,7 @@ function plannedDrops(){
 function refreshPreview(){
   if(CLEANED){ CLEANED=false; RESULT=null; }
   $("#preset-desc").textContent=PRESETS[CFG.name]?PRESETS[CFG.name].desc
-    :"A custom selection of sections.";
+    :"Your own choice of sections.";
   drawSummary(); drawStats(); drawRegions(); drawRunState(); drawGates();
 }
 
@@ -4497,8 +4494,8 @@ async function runClean(){
   b.classList.add("busy");
   b.disabled=true;
   $("#run-label").textContent="Cleaning…";
-  $("#run-note").textContent="Working through the text. Nothing has been "
-    +"written yet.";
+  $("#run-note").textContent="Working through the text. This can take a "
+    +"few seconds for a long book.";
 
   // Yield twice so the browser paints the working state before the main
   // thread is occupied. One yield is not always enough: the style change and
@@ -4524,8 +4521,8 @@ async function runClean(){
   }catch(e){
     b.classList.remove("busy"); b.disabled=false;
     $("#run-label").textContent="Clean text";
-    $("#run-note").textContent="Cleaning failed: "+e.message
-      +". The source text is untouched.";
+    $("#run-note").textContent="Cleaning stopped with an error ("+e.message
+      +"). Your original text is unchanged.";
     throw e;
   }
 
@@ -4546,19 +4543,19 @@ function drawRunState(){
   if(CLEANED){
     label.textContent="Cleaned";
     b.className="btn-run done";
-    n.textContent="The cleaned text and its log are ready. Adjust the selection "
-      +"above to clean again.";
+    n.textContent="Done. See Before and After, or download from the Log tab. "
+      +"Change anything above to clean again.";
   } else if(RESULT===null&&b.dataset.ran==="1"){
     label.textContent="Apply changes";
     b.className="btn-run stale";
-    n.textContent="The selection has changed since the last run.";
+    n.textContent="You changed the selection. Clean again to update the result.";
   } else {
     label.textContent="Clean text";
     b.className="btn-run";
     n.textContent=drops
-      ? `${drops} of ${DOC.regions.length} sections will be removed. Nothing is `
-        +`produced until you run this.`
-      : "No sections are currently marked for removal.";
+      ? `${drops} of ${DOC.regions.length} sections will be removed when you `
+        +`press Clean text.`
+      : "Every section is currently kept.";
   }
 }
 
@@ -4575,8 +4572,8 @@ function drawGates(){
 function drawStats(){
   if(!CLEANED){
     $("#stats").innerHTML=`<div class="fig" style="grid-column:1/-1">
-      <div class="v zero">Not yet cleaned</div>
-      <div class="k">Run cleaning to see the result</div></div>`;
+      <div class="v zero">Not cleaned yet</div>
+      <div class="k">The numbers appear after cleaning</div></div>`;
     return;
   }
   const s=RESULT.stats,b=RESULT.base;
@@ -4596,12 +4593,11 @@ function drawRegions(){
   const counts={};
   for(const r of DOC.regions) counts[r.label]=(counts[r.label]||0)+1;
   const drops=plannedDrops().length;
-  const cover=DOC.gaps.length?"warning: uncovered lines present"
-                             :"every line accounted for";
+  const cover=DOC.gaps.length?"some lines have no section"
+                             :"every line has a section";
   $("#seg-sub").textContent=CLEANED
-    ? `${DOC.regions.length} sections identified · ${drops} removed by the `
-      +`current selection · ${cover}`
-    : `${DOC.regions.length} sections identified · ${cover}`;
+    ? `${DOC.regions.length} sections · ${drops} removed · ${cover}`
+    : `${DOC.regions.length} sections · ${cover} · click any section to see its text`;
 
   $("#legend").innerHTML=LABELS.filter(l=>counts[l.id]).map(l=>
     `<span><span class="swatch" style="background:${l.fg}"></span>${l.name}</span>`).join("");
@@ -4737,22 +4733,22 @@ function drawCite(){
   if(!el) return;
   const v=typeof CORPUSPREP_VERSION!=="undefined"?CORPUSPREP_VERSION:"unknown";
   el.innerHTML=`
-    <h4>Citing this run</h4>
-    <p class="why">You ran <b>version ${esc(v)}</b>. Record it: the tool's
-      behaviour changes between releases, and an analysis run against one
-      version is not reproducible against another.</p>
+    <h4>Citing This Run</h4>
+    <p class="why">You used <b>version ${esc(v)}</b>. Please note it down, since
+      behaviour changes between releases and results from one version are not
+      reproducible with another.</p>
     <div class="row"><b>Reference</b>
       <button class="linkish" data-copy="apa">Copy</button></div>
     <pre id="cite-apa">${esc(citationText())}</pre>
     <div class="row"><b>BibTeX</b>
       <button class="linkish" data-copy="bib">Copy</button></div>
     <pre id="cite-bib">${esc(citationBibtex())}</pre>
-    <p class="note">The DOI above is the <b>concept DOI</b>, which always
-      resolves to the newest release. For a methods section, prefer the
-      <b>version DOI</b> of the release matching ${esc(v)}. That one resolves to
-      a frozen copy of the code that produced your results and cannot move. It is
-      shown on that release's page in the archive. See
-      <code>docs/CITING.md</code>.</p>`;
+    <p class="note">The DOI above is the <b>concept DOI</b> and always points
+      to the newest release. In a methods section, cite the <b>version DOI</b>
+      for ${esc(v)} instead. It points to the exact code you used, and you will
+      find it on that release's page in the archive. The
+      <a href="https://corpusprep.org/CITING.html" target="_blank"
+      rel="noopener">citing guide</a> explains more.</p>`;
   $$("#cite [data-copy]").forEach(b=>b.onclick=async()=>{
     const text=b.dataset.copy==="apa"?citationText():citationBibtex();
     try{
@@ -4890,16 +4886,14 @@ function drawLog(){
   drawCite();
   const dt=b.tokens?100*(s.tokens-b.tokens)/b.tokens:0;
   const dc=b.chars?100*(s.chars-b.chars)/b.chars:0;
-  let h=`<div class="canvas-head"><h3>Preprocessing log</h3>
-    <p>A record of every decision taken, suitable for citation in a methods section.</p></div>`
-    +(quietNotes.length?`<div class="warn"><strong>Nothing was removed, and here
-      is what was looked for.</strong> Every rule examined the text and
-      declined.<ul>${quietNotes.map(n=>`<li>${esc(n.replace(/\*\*/g,"").replace(/[`*]/g,""))}</li>`).join("")}</ul>
-      The rules here are built for printed books turned into text. Text that was
-      born digital carries none of that apparatus, and your file is already as
-      clean as this tool can make it. If it carries a different kind, such as
-      interface labels, timestamps, usernames or boilerplate that repeats, that is worth
-      reporting.</div>`:"")
+  let h=`<div class="canvas-head"><h3>Log</h3>
+    <p>Everything that was changed, and why. You can cite it in a methods section.</p></div>`
+    +(quietNotes.length?`<div class="warn"><strong>Nothing was removed.</strong>
+      Here is what CorpusPrep checked for.<ul>${quietNotes.map(n=>`<li>${esc(n.replace(/\*\*/g,"").replace(/[`*]/g,""))}</li>`).join("")}</ul>
+      CorpusPrep is built for printed books turned into text. A file that began
+      life on screen usually has none of that clutter, so yours is likely already
+      clean. If it has a different kind, such as app labels, timestamps,
+      usernames or repeated boilerplate, please let us know.</div>`:"")
     +`
 
    <h4>Provenance</h4><table>
@@ -4909,7 +4903,7 @@ function drawLog(){
    <tr><td class="lbl">Encoding</td><td>${esc(d.enc)}${d.hadBom?" · BOM removed":""} · confidence ${d.conf.toFixed(1)}</td></tr>
    <tr><td class="lbl">Line endings</td><td class="mono">${d.newline} → \\n</td></tr>
    <tr><td class="lbl">Preset</td><td>${esc(CFG.name||"custom")}</td></tr>
-   <tr><td class="lbl">Coverage</td><td>${d.gaps.length?"⚠ "+d.gaps.length+" uncovered range(s)":"Every line accounted for"}</td></tr>
+   <tr><td class="lbl">Coverage</td><td>${d.gaps.length?"⚠ "+d.gaps.length+" stretch(es) with no section":"Every line has a section"}</td></tr>
    </table>
 
    <h4>Result</h4>
@@ -4919,16 +4913,16 @@ function drawLog(){
    <tr><td class="lbl">Word types</td><td>${b.types.toLocaleString()}</td><td>${s.types.toLocaleString()}</td><td>n/a</td></tr></table>
 
    <div class="note">${Math.abs(dc)>1&&Math.abs(dt)<3
-     ? "A substantial reduction in characters accompanied by negligible token loss indicates that <b>apparatus was removed rather than prose</b>. This is the expected signature of a sound run."
+     ? "Many characters went but very few words did, so <b>the clutter was removed and the prose was kept</b>. This is what a good run looks like."
      : Math.abs(dt)>=8
-     ? "<b>Token loss is high.</b> Examine the sections listed below before this corpus is used."
-     : "Both character and token counts have changed little. Little was removed."}</div>
+     ? "<b>A lot of words were removed.</b> Check the sections listed below before you use this corpus."
+     : "Very little changed, so very little was removed."}</div>
 
-   <h4>Sections removed</h4>
+   <h4>Sections Removed</h4>
    <p class="sub">${RESULT.dropped.length} of ${DOC.regions.length} sections</p>`;
   if(!RESULT.dropped.length) h+=`<p style="color:var(--muted);font-size:13.5px">None.</p>`;
   else{
-    h+=`<table><tr><th>Section</th><th>Lines</th><th>Words</th><th>Basis for identification</th></tr>`;
+    h+=`<table><tr><th>Section</th><th>Lines</th><th>Words</th><th>How it was identified</th></tr>`;
     RESULT.dropped.forEach(r=>{
       const w=countTT(DOC.lines.slice(r.start,r.end).join("\n")).tokens;
       h+=`<tr><td>${esc(r.title||r.kind)}</td><td>${r.start+1}–${r.end}</td>
@@ -4938,8 +4932,8 @@ function drawLog(){
   }
   h+=`<div class="dl">
     <button class="btn sm" onclick="dl('txt')">Download cleaned text</button>
-    <button class="btn sm ghost" onclick="dl('md')">Log (Markdown)</button>
-    <button class="btn sm ghost" onclick="dl('json')">Log (JSON)</button></div>`;
+    <button class="btn sm ghost" onclick="dl('md')">Download log (Markdown)</button>
+    <button class="btn sm ghost" onclick="dl('json')">Download log (JSON)</button></div>`;
   $("#logview").innerHTML=h;
 }
 
